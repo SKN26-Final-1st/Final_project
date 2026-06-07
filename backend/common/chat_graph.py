@@ -46,18 +46,24 @@ def fall_case_node(state: GraphState) -> GraphState:
     return rstate
 
 
-def context_extractor_node(state: GraphState) -> GraphState:
-    """
-    이전 대화에서 필요한 수치/맥락 데이터를 추출하는 노드
-    """
+def context_extractor_node(state):
     llm_result = agents.invoke_context_extractor_agent(state["chats"])
 
+    chats_text = " ".join(state["chats"])
+
+    memories = []
+
+    for memory in llm_result.memories:
+
+        # 실제 대화에 숫자가 존재할 때만 채택
+        if str(memory.value) in chats_text:
+            memories.append({
+                "context": memory.context,
+                "value": memory.value
+            })
+
     rstate = deepcopy(state)
-    
-    rstate["memories"] = [
-        {"context": memory.context, "value": memory.value}
-        for memory in llm_result.memories
-    ]
+    rstate["memories"] = memories
 
     return rstate
 
@@ -150,7 +156,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------
     print("--- [시나리오 1] 상담 범위 초과 질문 ---")
     mock_state_weather = {
-        "chats": ["청소기 어떤게 좋은지 추천해줘"],
+        "chats": ["오늘 날씨가 어때?"],
         "is_fall_case": None,
         "memories": [],
         "response": ""
@@ -167,9 +173,11 @@ if __name__ == "__main__":
     print("--- [시나리오 2] 정상적인 HR 데이터 분석 및 통계 질문 ---")
     mock_state_analysis = {
         "chats": [
-            "백엔드 개발자 채용 공고 혹시 올라온 거 있어?", 
-            "네, 현재 2건 등록되어 있습니다", 
-            "우리 회사 공고 중에 채용중인 jd는 총 몇개야?" 
+            "현재 지원자 수는 몇 명이야?",
+            "현재 지원자 수는 총 15명입니다.",
+            "그 중에서 몇 명이 서류 통과했어?",
+            "8명이 서류 통과했습니다.",
+            "현재 지원자 수가 몇 명이라고?"
         ],
         "is_fall_case": None,
         "memories": [],
