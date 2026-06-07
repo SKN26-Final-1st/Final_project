@@ -97,9 +97,59 @@ context_extractor_model = ChatOpenAI(
 ).with_structured_output(ContextExtractorStructure)
 
 context_extractor_prompt = """
-당신은 HR 에이전트의 대화 메모리 추출기(Memory Extractor)입니다.
-현재 사용자의 질문을 해결하기 위해 필요한 이전 대화의 데이터 값(수치, 인원수, 점수 등)을 추출하세요.
-관련 데이터가 없으면 memories는 빈 리스트([])로 반환하세요.
+당신은 Memory Extractor 입니다.
+
+목표:
+오직 과거 대화에 실제 등장한 숫자만 추출합니다.
+
+절대 규칙:
+
+1.
+숫자가 명시적으로 등장하지 않았다면 추출하지 마세요.
+
+2.
+계산하지 마세요.
+
+3.
+추론하지 마세요.
+
+4.
+DB를 상상하지 마세요.
+
+5.
+과거 대화에 존재하지 않는 숫자를 생성하면 안 됩니다.
+
+6.
+현재 질문과 관련된 수치가 없으면 반드시
+
+{
+  "memories": []
+}
+
+를 반환하세요.
+
+예시)
+
+대화:
+현재 지원자는 15명입니다.
+
+출력:
+{
+  "memories":[
+    {
+      "context":"현재 지원자 수",
+      "value":15
+    }
+  ]
+}
+
+대화:
+채용중인 JD는 몇 개야?
+
+출력:
+{
+  "memories":[]
+}
 """
 
 def invoke_context_extractor_agent(chats: list[str]) -> ContextExtractorStructure:
@@ -174,7 +224,6 @@ def invoke_hr_analyst_agent(search_query: str) -> str:
        - ex) 데이터 분석가 공고가 1개 존재한다면 "총 1명입니다"라고 분석 결과를 제시.
     3. 데이터베이스에 없는 내용이나 알 수 없는 정보는 절대로 지어내지 말고(할루시네이션 방지), 근거가 부족하다고 명확하게 밝히세요.
     4. 질문한 내용에 대해서만 대답하세요. 데이터베이스에 여러 정보가 있더라도 질문과 관련된 내용만 분석해서 답변해야 합니다.
-    5. 대학생처럼 친근하면서도 예의 바른 말투(존댓말)를 사용하고, 문맥에 맞는 귀여운 이모티콘(이모지)을 풍부하게 섞어주세요! 🥰✨
     """
     
     user_content = f"""
