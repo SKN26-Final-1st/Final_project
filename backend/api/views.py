@@ -1,5 +1,18 @@
 from django.http import JsonResponse
 
+from .models import Block
+
+
+def dbcheck(request):
+    if request.method != "GET":
+        return JsonResponse({"error": True, "message": "GET request required."}, status=405)
+
+    try:
+        blocks = list(Block.objects.values("id", "name", "cnt").order_by("id"))
+        return JsonResponse({"error": False, "data": blocks})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)}, status=500)
+
 
 def accounts_define(request):
     if request.method != "POST":
