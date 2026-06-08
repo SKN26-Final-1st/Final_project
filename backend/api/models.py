@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 # Create your models here.
@@ -15,11 +17,9 @@ class Block(models.Model):
         return self.name
 
 
-class Account(models.Model):
-    id = models.BigAutoField(primary_key=True)
+class Account(AbstractUser):
+    # id, username, password는 AbstractUser 컬럼 사용
 
-    email = models.EmailField(max_length=255, unique=True)
-    password_hash = models.CharField(max_length=255)
     name = models.CharField(max_length=100)
 
     verification_question = models.CharField(max_length=255, null=True, blank=True)
@@ -38,11 +38,11 @@ class Account(models.Model):
 class CompanyInfo(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    user = models.ForeignKey(
-        Account,
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         db_column="user_id",
-        related_name="company_infos",
+        related_name="company_info",
     )
 
     company_name = models.CharField(max_length=100, null=True, blank=True)
@@ -64,7 +64,7 @@ class JobPost(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     user = models.ForeignKey(
-        Account,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         db_column="user_id",
         related_name="job_posts",

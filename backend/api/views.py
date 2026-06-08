@@ -1,4 +1,8 @@
+import json
+
+from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from .models import Block
 
@@ -14,7 +18,48 @@ def dbcheck(request):
         return JsonResponse({"error": True, "message": str(error)}, status=500)
 
 
-def accounts_define(request):
+@ensure_csrf_cookie
+def csrf_token(request):
+    return JsonResponse({"error": False, "message": "CSRF cookie set"})
+
+
+def account_login(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            return JsonResponse({"error": True, "message": "Username and password are required."}, status=400)
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return JsonResponse({"error": False, "login": True})
+        else:
+            return JsonResponse({"error": True, "message": "Invalid credentials"})
+        
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+def account_logout(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    try:
+        if request.user.is_authenticated:
+            logout(request)
+            return JsonResponse({"error": False, "logout": True})
+        else:
+            return JsonResponse({"error": True, "message": "User is not authenticated."}, status=401)
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+def account_define(request):
     if request.method != "POST":
         return JsonResponse({"error": True, "message": "POST request required."}, status=405)
 
@@ -24,7 +69,7 @@ def accounts_define(request):
         return JsonResponse({"error": True, "message": str(error)})
 
 
-def accounts_modify(request):
+def account_modify(request):
     if request.method != "POST":
         return JsonResponse({"error": True, "message": "POST request required."}, status=405)
 
@@ -34,7 +79,7 @@ def accounts_modify(request):
         return JsonResponse({"error": True, "message": str(error)})
 
 
-def accounts_search(request):
+def account_search(request):
     if request.method != "POST":
         return JsonResponse({"error": True, "message": "POST request required."}, status=405)
 

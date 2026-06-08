@@ -5,9 +5,12 @@ from . import views
 
 urlpatterns = [
     path("dbcheck/", views.dbcheck),
-    path("accounts/define/", views.accounts_define),
-    path("accounts/modify/", views.accounts_modify),
-    path("accounts/search/", views.accounts_search),
+    path("csrf/", views.csrf_token),
+    path("login/", views.account_login),
+    path("logout/", views.account_logout),
+    path("accounts/define/", views.account_define),
+    path("accounts/modify/", views.account_modify),
+    path("accounts/search/", views.account_search),
     path("compinfo/define/", views.compinfo_define),
     path("compinfo/modify/", views.compinfo_modify),
     path("compinfo/search/", views.compinfo_search),
