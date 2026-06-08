@@ -1,26 +1,60 @@
 import { useState } from "react"
-import { getPing } from "./api"
+import { login, logout } from "./api"
+import "./App.css"
 
 function App() {
-  const [data, setData] = useState<any>(null)
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [data, setData] = useState<unknown>(null)
 
-  const handleClick = async () => {
-    const result = await getPing()
+  const handleLogin = async () => {
+    const result = await login(username, password)
+    setData(result)
+  }
+
+  const handleLogout = async () => {
+    const result = await logout()
     setData(result)
   }
 
   return (
-    <div>
-      <h1>React + Django 테스트</h1>
+    <main className="login-page">
+      <h1>Login</h1>
 
-      <button onClick={handleClick}>
-        API 호출
-      </button>
+      <div className="login-form">
+        <label>
+          Username
+          <input
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+        </label>
 
-      <pre>
-        {JSON.stringify(data, null, 2)}
-      </pre>
-    </div>
+        <label>
+          Password
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+
+        <div className="button-row">
+          <button type="button" onClick={handleLogin}>
+            Login
+          </button>
+          <button type="button" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <section className="response-panel">
+        <h2>Response</h2>
+        <pre>{data === null ? "No response yet." : JSON.stringify(data, null, 2)}</pre>
+      </section>
+    </main>
   )
 }
 
