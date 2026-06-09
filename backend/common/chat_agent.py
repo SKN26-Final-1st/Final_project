@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from typing import Literal, Union, Optional
+from typing import Union
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -33,7 +33,7 @@ def invoke_llm(llm, prompt: str, chats: list[str]):
     return llm.invoke(buff)
 
 ############################################################
-# 1. Fall Case Agent (상담 범위 거절 비서)
+# 1. Fall Case Agent
 ############################################################
 
 class FallCaseStructure(BaseModel):
@@ -78,7 +78,7 @@ def invoke_fall_case_agent(chats: list[str]) -> FallCaseStructure:
 
 
 ############################################################
-# 2. Memory Extractor Agent (맥락 수치 추출 비서)
+# 2. Memory Extractor Agent
 ############################################################
 
 class MemoryItem(BaseModel):
@@ -103,7 +103,6 @@ context_extractor_prompt = """
 오직 과거 대화에 실제 등장한 숫자만 추출합니다.
 
 절대 규칙:
-
 1.
 숫자가 명시적으로 등장하지 않았다면 추출하지 마세요.
 
@@ -131,14 +130,14 @@ DB를 상상하지 마세요.
 예시)
 
 대화:
-현재 지원자는 15명입니다.
+현재 지원자는 23명입니다.
 
 출력:
 {
   "memories":[
     {
       "context":"현재 지원자 수",
-      "value":15
+      "value":23
     }
   ]
 }
@@ -162,7 +161,7 @@ def invoke_context_extractor_agent(chats: list[str]) -> ContextExtractorStructur
 
 
 ############################################################
-# 3. HR Data Analyst Agent (DB 직접 분석 및 답변 비서)
+# 3. HR Data Analyst Agent
 ############################################################
 
 # ERD 구조를 반영한 내부 가상 데이터베이스
@@ -243,7 +242,7 @@ def invoke_hr_analyst_agent(search_query: str) -> str:
 
 
 ############################################################
-# 외부 연동 테스트 실행부 (State 딕셔너리 없이 다이렉트 호출! 🧪)
+# 외부 연동 테스트 실행부
 ############################################################
 
 if __name__ == "__main__":
@@ -260,12 +259,11 @@ if __name__ == "__main__":
     print("--- [테스트 2] 대화 기록 속 수치 기억 맥락 추출 검증 ---")
     memory_result = invoke_context_extractor_agent([
         "우리 회사 백엔드 개발자 지원자가 몇 명이야?", 
-        "현재 10명입니다.", 
-        "그 지원자 숫자의 5배를 곱하면 얼마야?"
+        "현재 10명입니다."
     ])
     print(f"추출 완료된 메모리 목록: {memory_result.memories}\n")
 
-    # 3. HR Analyst 인보크 테스트 (유저님이 원하셨던 조건 분석형 답변 테스트)
+    # 3. HR Analyst 인보크 테스트
     print("--- [테스트 3] HR Analyst DB 통계 직접 분석 검증 ---")
     test_query = "학사이상을 요구하는 jd는 총 몇개야?"
     print(f"사용자 질문: '{test_query}'")

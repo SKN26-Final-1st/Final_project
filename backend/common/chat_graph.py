@@ -3,9 +3,9 @@ from typing_extensions import TypedDict
 from typing import Literal
 from copy import deepcopy
 from langgraph.graph import StateGraph, START, END
-
 # 앞서 작성해둔 인보크 함수 모듈을 통째로 불러옵니다.
 import chat_agent as agents
+
 
 ############################################################
 # 1. State Definition (상태 정의)
@@ -15,13 +15,11 @@ class GraphState(TypedDict, total=False):
     # 채팅 기록 MessageList
     chats: list[str]
 
-    # Fall Case 판단 여부
     is_fall_case: bool
 
     # Context Extractor 결과 (메모리)
     memories: list[dict]
 
-    # 최종 답변
     response: str
 
 
@@ -79,7 +77,6 @@ def hr_analyst_node(state: GraphState) -> GraphState:
     
     if extracted_memories:
         memory_str = json.dumps(extracted_memories, ensure_ascii=False)
-        # LLM이 메모리 수치와 기존 '이모지 금지 규칙'을 확실히 인지하도록 쿼리를 보강합니다.
         search_query = f"""[참고할 대화 메모리 데이터]: {memory_str}
 [사용자 질문]: {search_query}
 
