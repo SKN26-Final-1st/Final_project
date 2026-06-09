@@ -5,6 +5,10 @@ from django.db import models
 # Create your models here.
 
 
+def _datetime_to_iso(value):
+    return value.isoformat() if value else None
+
+
 class Block(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
@@ -16,6 +20,13 @@ class Block(models.Model):
     def __str__(self):
         return self.name
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "cnt": self.cnt,
+        }
+
 
 class Account(AbstractUser):
     # id, username, password는 AbstractUser 컬럼 사용
@@ -23,35 +34,42 @@ class Account(AbstractUser):
     name = models.CharField(max_length=100)
 
     verification_question = models.CharField(max_length=255, null=True, blank=True)
-    verification_answer_hash = models.CharField(max_length=255, null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    verification_answer = models.CharField(max_length=255, null=True, blank=True)
+    credit = models.IntegerField(default=150)
 
     class Meta:
         db_table = "users"
 
     def __str__(self):
-        return self.email
+        return self.username
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "password": self.password,
+            "name": self.name,
+            "verification_question": self.verification_question,
+            "verification_answer": self.verification_answer,
+            "credit": self.credit,
+        }
 
 
 class CompanyInfo(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    user = models.OneToOneField(
+    account = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        db_column="user_id",
+        db_column="account_id",
         related_name="company_info",
     )
 
     company_name = models.CharField(max_length=100, null=True, blank=True)
     employee_count = models.IntegerField(null=True, blank=True)
-    team_composition = models.TextField(null=True, blank=True)
+    team_composition = models.JSONField(null=True, blank=True)
     company_description = models.TextField(null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    employ_style = models.JSONField(null=True, blank=True)
 
     class Meta:
         db_table = "company_info"
@@ -59,97 +77,152 @@ class CompanyInfo(models.Model):
     def __str__(self):
         return self.company_name or f"CompanyInfo {self.id}"
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "account_id": self.account_id,
+            "company_name": self.company_name,
+            "employee_count": self.employee_count,
+            "team_composition": self.team_composition,
+            "company_description": self.company_description,
+            "employ_style": self.employ_style,
+        }
 
-class JobPost(models.Model):
+
+class AuthKey(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    user = models.ForeignKey(
+    account = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        db_column="user_id",
-        related_name="job_posts",
+        db_column="account_id",
+        related_name="auth_keys",
     )
 
-    company_info = models.ForeignKey(
-        CompanyInfo,
-        on_delete=models.SET_NULL,
-        db_column="company_info_id",
-        related_name="job_posts",
-        null=True,
-        blank=True,
+    description = models.CharField(max_length=255, null=True, blank=True)
+    value = models.TextField()
+    authorized_resume = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = "auth_keys"
+
+    def __str__(self):
+        return self.description or f"AuthKey {self.id}"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "account_id": self.account_id,
+            "description": self.description,
+            "value": self.value,
+            "authorized_resume": self.authorized_resume,
+        }
+
+
+class JobDescription(models.Model):
+    STATUS_PREPARE = "prepare"
+    STATUS_ON_GOING = "on_going"
+    STATUS_CLOSED = "closed"
+    STATUS_CHOICES = [
+        (STATUS_PREPARE, "Prepare"),
+        (STATUS_ON_GOING, "On going"),
+        (STATUS_CLOSED, "Closed"),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+
+    account = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        db_column="account_id",
+        related_name="job_descriptions",
     )
 
-    job_title = models.CharField(max_length=100)
+    job_name = models.CharField(max_length=100)
     education_level = models.CharField(max_length=30, null=True, blank=True)
     major = models.CharField(max_length=30, null=True, blank=True)
     career_level = models.CharField(max_length=50)
 
-    required_skills = models.JSONField()
-    preferred_skills = models.JSONField(null=True, blank=True)
+    required_skill = models.JSONField()
+    preferred_skill = models.JSONField(null=True, blank=True)
 
-    main_tasks = models.TextField(null=True, blank=True)
+    main_task = models.TextField(null=True, blank=True)
     hiring_reason = models.TextField(null=True, blank=True)
 
     work_type = models.CharField(max_length=50, null=True, blank=True)
-    status = models.CharField(max_length=30, default="open")
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "job_posts"
-
-    def __str__(self):
-        return self.job_title
-
-
-class Applicant(models.Model):
-    id = models.BigAutoField(primary_key=True)
-
-    job_post = models.ForeignKey(
-        JobPost,
-        on_delete=models.CASCADE,
-        db_column="job_post_id",
-        related_name="applicants",
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default=STATUS_PREPARE,
     )
 
-    candidate_name = models.CharField(max_length=100, null=True, blank=True)
-    email = models.EmailField(max_length=255, null=True, blank=True)
-
-    portfolio_url = models.URLField(max_length=500, null=True, blank=True)
-    github_url = models.URLField(max_length=500, null=True, blank=True)
-
-    memo = models.TextField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "applicants"
+        db_table = "job_descriptions"
 
     def __str__(self):
-        return self.candidate_name or f"Applicant {self.id}"
+        return self.job_name
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "account_id": self.account_id,
+            "job_name": self.job_name,
+            "education_level": self.education_level,
+            "major": self.major,
+            "career_level": self.career_level,
+            "required_skill": self.required_skill,
+            "preferred_skill": self.preferred_skill,
+            "main_task": self.main_task,
+            "hiring_reason": self.hiring_reason,
+            "work_type": self.work_type,
+            "status": self.status,
+            "created_at": _datetime_to_iso(self.created_at),
+            "updated_at": _datetime_to_iso(self.updated_at),
+        }
 
 
 class Resume(models.Model):
+    STATUS_ONQUEUE = "onqueue"
+    STATUS_PROCESSING = "processing"
+    STATUS_DONE = "done"
+    STATUS_CHOICES = [
+        (STATUS_ONQUEUE, "On queue"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_DONE, "Done"),
+    ]
+
     id = models.BigAutoField(primary_key=True)
 
-    applicant = models.ForeignKey(
-        Applicant,
+    job_description = models.ForeignKey(
+        JobDescription,
         on_delete=models.CASCADE,
-        db_column="applicant_id",
+        db_column="job_description_id",
         related_name="resumes",
+        null=True,
+        blank=True,
     )
 
-    file_name = models.CharField(max_length=255)
-    file_path = models.CharField(max_length=500, null=True, blank=True)
-    file_type = models.CharField(max_length=50)
+    name = models.CharField(max_length=100, null=True, blank=True)
+    skill = models.JSONField(null=True, blank=True)
+    education_level = models.JSONField(null=True, blank=True)
+    experience = models.JSONField(null=True, blank=True)
+    self_intoduction = models.JSONField(null=True, blank=True)
+    certification = models.JSONField(null=True, blank=True)
+    language = models.JSONField(null=True, blank=True)
+    award = models.JSONField(null=True, blank=True)
+    training = models.JSONField(null=True, blank=True)
+    other_activity = models.JSONField(null=True, blank=True)
 
-    raw_text = models.TextField(null=True, blank=True)
-    masked_text = models.TextField(null=True, blank=True)
-
-    parse_status = models.CharField(max_length=30, default="pending")
-    error_message = models.TextField(null=True, blank=True)
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default=STATUS_ONQUEUE,
+    )
+    reviewed = models.BooleanField(default=False)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -158,49 +231,52 @@ class Resume(models.Model):
         db_table = "resumes"
 
     def __str__(self):
-        return self.file_name
+        return self.name or f"Resume {self.id}"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "job_description_id": self.job_description_id,
+            "name": self.name,
+            "skill": self.skill,
+            "education_level": self.education_level,
+            "experience": self.experience,
+            "self_intoduction": self.self_intoduction,
+            "certification": self.certification,
+            "language": self.language,
+            "award": self.award,
+            "training": self.training,
+            "other_activity": self.other_activity,
+            "status": self.status,
+            "reviewed": self.reviewed,
+            "reviewed_at": _datetime_to_iso(self.reviewed_at),
+            "created_at": _datetime_to_iso(self.created_at),
+            "updated_at": _datetime_to_iso(self.updated_at),
+        }
 
 
 class AnalysisReport(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    resume = models.ForeignKey(
+    resume = models.OneToOneField(
         Resume,
         on_delete=models.CASCADE,
         db_column="resume_id",
-        related_name="analysis_reports",
-    )
-
-    job_post = models.ForeignKey(
-        JobPost,
-        on_delete=models.CASCADE,
-        db_column="job_post_id",
-        related_name="analysis_reports",
+        related_name="analysis_report",
     )
 
     overall_grade = models.CharField(max_length=10)
     overall_summary = models.TextField(null=True, blank=True)
     candidate_summary = models.TextField(null=True, blank=True)
 
+    checklist = models.JSONField(null=True, blank=True)
     competency_analysis = models.JSONField(null=True, blank=True)
     fit_analysis = models.JSONField(null=True, blank=True)
-    strengths = models.JSONField(null=True, blank=True)
-    concerns = models.JSONField(null=True, blank=True)
-    check_points = models.JSONField(null=True, blank=True)
+    strength = models.JSONField(null=True, blank=True)
+    concern = models.JSONField(null=True, blank=True)
+    check_point = models.JSONField(null=True, blank=True)
 
     final_comment = models.TextField(null=True, blank=True)
-
-    judge_status = models.CharField(
-        max_length=30,
-        null=True,
-        blank=True,
-        default="not_checked",
-    )
-
-    status = models.CharField(max_length=30, default="draft")
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "analysis_reports"
@@ -208,36 +284,48 @@ class AnalysisReport(models.Model):
     def __str__(self):
         return f"AnalysisReport {self.id} - {self.overall_grade}"
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "resume_id": self.resume_id,
+            "overall_grade": self.overall_grade,
+            "overall_summary": self.overall_summary,
+            "candidate_summary": self.candidate_summary,
+            "checklist": self.checklist,
+            "competency_analysis": self.competency_analysis,
+            "fit_analysis": self.fit_analysis,
+            "strength": self.strength,
+            "concern": self.concern,
+            "check_point": self.check_point,
+            "final_comment": self.final_comment,
+        }
+
 
 class InterviewQuestion(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    analysis_report = models.ForeignKey(
-        AnalysisReport,
+    resume = models.ForeignKey(
+        Resume,
         on_delete=models.CASCADE,
-        db_column="analysis_report_id",
+        db_column="resume_id",
         related_name="interview_questions",
     )
 
-    category = models.CharField(max_length=50)
     question = models.TextField()
-
+    answer = models.TextField(null=True, blank=True)
     purpose = models.TextField(null=True, blank=True)
-    evaluation_point = models.TextField(null=True, blank=True)
-    related_evidence = models.TextField(null=True, blank=True)
-
-    difficulty = models.CharField(max_length=30, null=True, blank=True)
-    priority = models.CharField(max_length=30, null=True, blank=True)
-    sort_order = models.IntegerField(null=True, blank=True)
-
-    interviewer_memo = models.TextField(null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "interview_questions"
-        ordering = ["sort_order", "id"]
 
     def __str__(self):
         return self.question[:50]
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "resume_id": self.resume_id,
+            "question": self.question,
+            "answer": self.answer,
+            "purpose": self.purpose,
+        }
