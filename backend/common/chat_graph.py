@@ -1,189 +1,227 @@
+import argparse
 import json
-from typing_extensions import TypedDict
+from pathlib import Path
 from typing import Literal
-from copy import deepcopy
-from langgraph.graph import StateGraph, START, END
-# 앞서 작성해둔 인보크 함수 모듈을 통째로 불러옵니다.
-import chat_agent as agents
 
+from dotenv import load_dotenv
+from langgraph.graph import END, START, StateGraph
+from typing_extensions import TypedDict
 
-############################################################
-# 1. State Definition (상태 정의)
-############################################################
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+try:
+    from . import chat_agent as agents
+except ImportError:
+    import chat_agent as agents
+
 
 class GraphState(TypedDict, total=False):
-    # 채팅 기록 MessageList
+    """LangGraph 노드들이 주고받는 대화 상태와 중간 결과 필드를 정의합니다."""
+
     chats: list[str]
-
-    is_fall_case: bool
-
-    # Context Extractor 결과 (메모리)
+    state: str
+    is_fall_case: int
+    fall_case_type: int
+    rag_search_query: str
     memories: list[dict]
-
+    retrieved_manual_docs: list[str]
     response: str
 
 
-############################################################
-# 2. Node Definition (노드 정의)
-############################################################
+def route_from_fall_case(
+    state: GraphState,
+) -> Literal["fall_case_end", "hr_agent", "app_manual_rag"]:
+    """질문 분류 결과에 따라 그래프를 종료하거나 HR 분석/RAG 사용법 경로로 분기합니다."""
 
-def fall_case_node(state: GraphState) -> GraphState:
-    """
-    챗봇의 역량 밖의 질문(Fall Case)인지 판단하는 노드
-    """
-    llm_result = agents.invoke_fall_case_agent(state["chats"])
+    fall_case_type = state.get("fall_case_type", state.get("is_fall_case", 0))
 
-    rstate = deepcopy(state)
-    rstate["is_fall_case"] = llm_result.is_fall_case
-
-    if llm_result.is_fall_case:
-        rstate["response"] = llm_result.response
-    else:
-        rstate["response"] = ""
-
-    return rstate
+    if fall_case_type == 0:
+        return "fall_case_end"
+    if fall_case_type == 2:
+        return "app_manual_rag"
+    return "hr_agent"
 
 
-def context_extractor_node(state):
-    llm_result = agents.invoke_context_extractor_agent(state["chats"])
+def build_graph():
+    """분류, 메모리 추출, HR 분석, 앱 사용법 RAG 노드를 연결해 실행 가능한 그래프를 만듭니다."""
 
-    chats_text = " ".join(state["chats"])
+    builder = StateGraph(GraphState)
 
-    memories = []
+    builder.add_node("fall_case", agents.fall_case_node)
+    builder.add_node("context_extractor", agents.context_extractor_node)
+    builder.add_node("hr_analyst", agents.hr_analyst_node)
+    builder.add_node("app_manual_rag", agents.app_manual_rag_node)
 
-    for memory in llm_result.memories:
+    builder.add_edge(START, "fall_case")
+    builder.add_conditional_edges(
+        "fall_case",
+        route_from_fall_case,
+        {
+            "fall_case_end": END,
+            "hr_agent": "context_extractor",
+            "app_manual_rag": "app_manual_rag",
+        },
+    )
+    builder.add_edge("context_extractor", "hr_analyst")
+    builder.add_edge("hr_analyst", END)
+    builder.add_edge("app_manual_rag", END)
 
-        # 실제 대화에 숫자가 존재할 때만 채택
-        if str(memory.value) in chats_text:
-            memories.append({
-                "context": memory.context,
-                "value": memory.value
-            })
-
-    rstate = deepcopy(state)
-    rstate["memories"] = memories
-
-    return rstate
-
-
-def hr_analyst_node(state: GraphState) -> GraphState:
-    """
-    가상 DB와 추출된 메모리를 함께 분석하여 최종 답변을 생성하는 노드
-    """
-    search_query = state["chats"][-1]
-    
-
-    extracted_memories = state.get("memories", [])
-    
-    if extracted_memories:
-        memory_str = json.dumps(extracted_memories, ensure_ascii=False)
-        search_query = f"""[참고할 대화 메모리 데이터]: {memory_str}
-[사용자 질문]: {search_query}
-
-※ 주의: 답변 작성 시 'chat_agent.py'의 시스템 프롬프트에 명시된 '이모티콘/이모지 절대 사용 금지' 규칙을 반드시 엄격하게 준수하세요."""
-
-    # 보강된 쿼리로 HR 분석 에이전트 호출
-    final_answer = agents.invoke_hr_analyst_agent(search_query)
-
-    rstate = deepcopy(state)
-    rstate["response"] = final_answer
-
-    return rstate
+    return builder.compile()
 
 
-############################################################
-# 3. Edge Function (라우팅 함수)
-############################################################
-
-def route_from_fall_case(state: GraphState) -> Literal["end", "context_extractor_node"]:
-    """
-    Fall Case 여부에 따라 다음 엣지(경로)를 결정합니다.
-    - True -> END (바로 종료)
-    - False -> context_extractor_node (다음 분석 진행)
-    """
-    if state.get("is_fall_case", False):
-        return "end"
-    
-    return "context_extractor_node"
+graph_instance = build_graph()
 
 
-############################################################
-# 4. Graph Builder (그래프 조립 및 컴파일)
-############################################################
+def invoke_chat_graph(chats: list[str] | str) -> GraphState:
+    """문자열 또는 대화 히스토리를 초기 상태로 감싸 LangGraph 전체 파이프라인을 실행합니다."""
 
-builder = StateGraph(GraphState)
+    if isinstance(chats, str):
+        chats = [chats]
 
-# Node 등록
-builder.add_node("fall_case_node", fall_case_node)
-builder.add_node("context_extractor_node", context_extractor_node)
-builder.add_node("hr_analyst_node", hr_analyst_node)
-
-# START ➡️ fall_case_node
-builder.add_edge(START, "fall_case_node")
-
-# fall_case_node ➡️ 조건부 분기 (Conditional Edge)
-builder.add_conditional_edges(
-    "fall_case_node",
-    route_from_fall_case,
-    {
-        "end": END,
-        "context_extractor_node": "context_extractor_node"
+    initial_state: GraphState = {
+        "chats": chats,
+        "state": "FALL_CASE",
+        "is_fall_case": -1,
+        "fall_case_type": -1,
+        "rag_search_query": "",
+        "memories": [],
+        "response": "",
     }
-)
 
-# context_extractor_node ➡️ hr_analyst_node
-builder.add_edge("context_extractor_node", "hr_analyst_node")
-
-# hr_analyst_node ➡️ END
-builder.add_edge("hr_analyst_node", END)
-
-# 최종 그래프 컴파일
-graph_instance = builder.compile()
+    return graph_instance.invoke(initial_state)
 
 
-############################################################
-# 두 파일 연동 및 전체 파이프라인 엔드투엔드(E2E) 통합 테스트
-############################################################
+def print_graph_result(result: GraphState):
+    """그래프 실행 결과에서 분기 정보, 검색어, 메모리, 최종 응답을 콘솔에 보기 좋게 출력합니다."""
+
+    print("\n====== LangGraph 실행 결과 ======")
+    print(f"fall_case_type: {result.get('fall_case_type')}")
+    print(f"rag_search_query: {result.get('rag_search_query', '')}")
+    print(f"memories: {json.dumps(result.get('memories', []), ensure_ascii=False)}")
+    print("\n====== 최종 응답 ======")
+    print(result.get("response", ""))
+    print()
+
+
+def print_history(chats: list[str]):
+    """멀티턴 테스트 중 누적된 USER/AI 대화 히스토리를 순서대로 출력합니다."""
+
+    if not chats:
+        print("\n[history] 아직 대화가 없습니다.\n")
+        return
+
+    print("\n====== 현재 대화 히스토리 ======")
+    for index, message in enumerate(chats):
+        role = "USER" if index % 2 == 0 else "AI"
+        print(f"{index + 1}. {role}> {message}")
+    print()
+
+
+def run_turns(user_turns: list[str]):
+    """사용자 발화 목록을 차례대로 실행하며 각 턴의 AI 응답을 히스토리에 누적합니다."""
+
+    chats: list[str] = []
+
+    for turn_index, user_message in enumerate(user_turns, start=1):
+        print(f"\n===== TURN {turn_index} =====")
+        print(f"USER> {user_message}")
+        chats.append(user_message)
+
+        result = invoke_chat_graph(chats)
+        answer = result.get("response", "")
+
+        print("\nAI>")
+        print(answer)
+        print(
+            f"\n[debug] history_messages={len(chats)}, "
+            f"fall_case_type={result.get('fall_case_type')}, "
+            f"rag_search_query={result.get('rag_search_query', '')}, "
+            f"memories={json.dumps(result.get('memories', []), ensure_ascii=False)}"
+        )
+
+        chats.append(answer)
+
+    print_history(chats)
+
+
+def run_interactive_chat():
+    """터미널에서 직접 질문을 입력하며 그래프를 멀티턴으로 테스트하는 대화형 루프입니다."""
+
+    chats: list[str] = []
+    print("====== Test LangGraph 멀티턴 대화형 실행 ======")
+    print("질문을 입력하면 전체 히스토리를 포함해 답변합니다.")
+    print("명령어: /history, /reset, exit, quit, q\n")
+
+    while True:
+        user_message = input("USER> ").strip()
+        lowered_message = user_message.lower()
+
+        if lowered_message in {"exit", "quit", "q"}:
+            print("종료합니다.")
+            break
+        if lowered_message == "/history":
+            print_history(chats)
+            continue
+        if lowered_message == "/reset":
+            chats.clear()
+            print("\n[history] 대화 히스토리를 초기화했습니다.\n")
+            continue
+        if not user_message:
+            continue
+
+        chats.append(user_message)
+
+        try:
+            result = invoke_chat_graph(chats)
+        except Exception as exc:
+            chats.pop()
+            print(f"\nERROR> {exc}\n")
+            continue
+
+        answer = result.get("response", "")
+        print("\nAI>")
+        print(answer)
+        print(
+            f"\n[debug] history_messages={len(chats)}, "
+            f"fall_case_type={result.get('fall_case_type')}, "
+            f"rag_search_query={result.get('rag_search_query', '')}, "
+            f"memories={json.dumps(result.get('memories', []), ensure_ascii=False)}"
+        )
+        print()
+
+        chats.append(answer)
+
+
+def main():
+    """CLI 인자를 해석해 단일 메시지, 전체 히스토리, 멀티턴, 대화형 실행 모드 중 하나를 선택합니다."""
+
+    parser = argparse.ArgumentParser(description="Run chat_agent.py through LangGraph.")
+    parser.add_argument("--message", "-m", help="Single user message to run.")
+    parser.add_argument(
+        "--chats",
+        help='Full conversation history as JSON list, e.g. ["user", "ai", "user"].',
+    )
+    parser.add_argument(
+        "--turns",
+        help='User-only turns as JSON list. The script runs each turn sequentially and keeps AI answers in history.',
+    )
+    args = parser.parse_args()
+
+    if args.turns:
+        user_turns = json.loads(args.turns)
+        if not isinstance(user_turns, list) or not all(isinstance(item, str) for item in user_turns):
+            raise ValueError("--turns must be a JSON list of strings.")
+        run_turns(user_turns)
+    elif args.chats:
+        chats = json.loads(args.chats)
+        if not isinstance(chats, list) or not all(isinstance(item, str) for item in chats):
+            raise ValueError("--chats must be a JSON list of strings.")
+        print_graph_result(invoke_chat_graph(chats))
+    elif args.message:
+        print_graph_result(invoke_chat_graph([args.message]))
+    else:
+        run_interactive_chat()
+
 
 if __name__ == "__main__":
-    print("====== HR 에이전트 시스템 전체 파이프라인 연동 검증 ======\n")
-
-    # --------------------------------------------------------
-    # [시나리오 1] 업무 범위를 완전히 벗어난 질문 테스트 (Fall Case 검증)
-    # --------------------------------------------------------
-    print("--- [시나리오 1] 상담 범위 초과 질문 ---")
-    mock_state_weather = {
-        "chats": ["오늘 날씨가 어때?"],
-        "is_fall_case": None,
-        "memories": [],
-        "response": ""
-    }
-    
-    result_weather = graph_instance.invoke(mock_state_weather)
-    print(f"1단계 Fall Case 판단 결과 : {result_weather['is_fall_case']}")
-    print(f"HR 비서 최종 거절 답변     : {result_weather['response']}\n")
-    
-
-    # --------------------------------------------------------
-    # [시나리오 2] '진짜 데이터 분석 및 통계' 질문 테스트
-    # --------------------------------------------------------
-    print("--- [시나리오 2] 정상적인 HR 데이터 분석 및 통계 질문 ---")
-    mock_state_analysis = {
-        "chats": [
-            "현재 지원자 수는 몇 명이야?",
-            "현재 지원자 수는 총 15명입니다.",
-            "그 중에서 몇 명이 서류 통과했어?",
-            "8명이 서류 통과했습니다.",
-            "현재 지원자 수가 몇 명이라고?"
-        ],
-        "is_fall_case": None,
-        "memories": [],
-        "response": ""
-    }
-    
-    result_analysis = graph_instance.invoke(mock_state_analysis)
-    print(f"1단계 Fall Case 판단 결과 : {result_analysis['is_fall_case']}")
-    print(f"2단계 추출된 대화 메모리  : {result_analysis.get('memories', [])}")
-    print(f"\n====== AI HR 비서의 최종 분석 답변 ======")
-    print(result_analysis["response"])
-    print("============================================")
+    main()
