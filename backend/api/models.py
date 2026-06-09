@@ -36,6 +36,8 @@ class Account(AbstractUser):
     verification_question = models.CharField(max_length=255, null=True, blank=True)
     verification_answer = models.CharField(max_length=255, null=True, blank=True)
     credit = models.IntegerField(default=150)
+    subscribe = models.BooleanField(default=False)
+    subscribe_expiration = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "users"
@@ -52,6 +54,8 @@ class Account(AbstractUser):
             "verification_question": self.verification_question,
             "verification_answer": self.verification_answer,
             "credit": self.credit,
+            "subscribe": self.subscribe,
+            "subscribe_expiration": _datetime_to_iso(self.subscribe_expiration),
         }
 
 
