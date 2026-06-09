@@ -3,3 +3,8 @@ gunicorn
 django-cors-headers
 openai
 mysqlclient
+langchain-core
+langchain-openai
+langgraph
+pydantic
+python-dotenv
