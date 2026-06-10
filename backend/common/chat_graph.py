@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -7,7 +8,13 @@ from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
+
+if DATABASE_HOST:
+    pass
+
+if not DATABASE_HOST:
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 try:
     from . import chat_agent as agents

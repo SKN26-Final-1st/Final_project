@@ -1,4 +1,5 @@
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Literal, Union
@@ -9,7 +10,13 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
+
+if DATABASE_HOST:
+    pass
+
+if not DATABASE_HOST:
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 LLM_MODEL = "gpt-4o-mini"
 TEMPERATURE = 0
