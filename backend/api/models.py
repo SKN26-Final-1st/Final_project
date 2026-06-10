@@ -9,25 +9,6 @@ def _datetime_to_iso(value):
     return value.isoformat() if value else None
 
 
-class Block(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=255)
-    cnt = models.IntegerField()
-
-    class Meta:
-        db_table = "block"
-
-    def __str__(self):
-        return self.name
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "cnt": self.cnt,
-        }
-
-
 class Account(AbstractUser):
     # id, username, password는 AbstractUser 컬럼 사용
 

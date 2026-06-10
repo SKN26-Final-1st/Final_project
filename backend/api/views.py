@@ -4,18 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from .models import Block, CompanyInfo
-
-
-def dbcheck(request):
-    if request.method != "GET":
-        return JsonResponse({"error": True, "message": "GET request required."}, status=405)
-
-    try:
-        blocks = list(Block.objects.values("id", "name", "cnt").order_by("id"))
-        return JsonResponse({"error": False, "data": blocks})
-    except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)}, status=500)
+from .models import CompanyInfo
 
 
 @ensure_csrf_cookie
