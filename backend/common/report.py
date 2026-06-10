@@ -183,19 +183,25 @@ class ReportStructure(BaseModel):
 def _load_backend_env():
     """backend/.env 파일을 읽어 OpenAI API 키 같은 환경 변수를 런타임에 보강합니다."""
 
-    env_path = Path(__file__).resolve().parents[1] / ".env"
-    if not env_path.exists():
+    DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
+
+    if DATABASE_HOST:
         return
 
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
+    if not DATABASE_HOST:
+        env_path = Path(__file__).resolve().parents[1] / ".env"
+        if not env_path.exists():
+            return
 
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        os.environ.setdefault(key, value)
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, value)
 
 
 def _get_openai_client():

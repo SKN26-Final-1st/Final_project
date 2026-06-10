@@ -1,3 +1,5 @@
+import secrets
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -6,26 +8,36 @@ from django.db import models
 
 
 def _datetime_to_iso(value):
-    return value.isoformat() if value else None
+    return value.isoformat() if value else ""
 
 
-class Block(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=255)
-    cnt = models.IntegerField()
+def _value_or_empty_string(value):
+    return value if value is not None else ""
 
-    class Meta:
-        db_table = "block"
 
-    def __str__(self):
-        return self.name
+def _value_or_empty_list(value):
+    return value if value is not None else []
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "cnt": self.cnt,
-        }
+
+def _value_or_empty_dict(value):
+    return value if value is not None else {}
+
+
+def _value_or_zero(value):
+    return value if value is not None else 0
+
+
+def _value_or_false(value):
+    return value if value is not None else False
+
+
+def generate_account_hash():
+    return secrets.token_urlsafe(16)[:16]
+
+
+def generate_auth_key_value(account_hash):
+    prefix = f"sk_live_{account_hash}"
+    return prefix + secrets.token_urlsafe(48)[:48 - len(prefix)]
 
 
 class Account(AbstractUser):
@@ -38,6 +50,7 @@ class Account(AbstractUser):
     credit = models.IntegerField(default=150)
     subscribe = models.BooleanField(default=False)
     subscribe_expiration = models.DateTimeField(null=True, blank=True)
+    account_hash = models.CharField(max_length=16, unique=True, default=generate_account_hash)
 
     class Meta:
         db_table = "users"
@@ -45,16 +58,25 @@ class Account(AbstractUser):
     def __str__(self):
         return self.username
 
+    def save(self, *args, **kwargs):
+        if not self.account_hash:
+            self.account_hash = generate_account_hash()
+
+        while Account.objects.filter(account_hash=self.account_hash).exclude(pk=self.pk).exists():
+            self.account_hash = generate_account_hash()
+
+        super().save(*args, **kwargs)
+
     def to_dict(self):
         return {
             "id": self.id,
             "username": self.username,
-            "password": self.password,
-            "name": self.name,
-            "verification_question": self.verification_question,
-            "verification_answer": self.verification_answer,
-            "credit": self.credit,
-            "subscribe": self.subscribe,
+            "account_hash": _value_or_empty_string(self.account_hash),
+            "name": _value_or_empty_string(self.name),
+            "verification_question": _value_or_empty_string(self.verification_question),
+            "verification_answer": _value_or_empty_string(self.verification_answer),
+            "credit": _value_or_zero(self.credit),
+            "subscribe": _value_or_false(self.subscribe),
             "subscribe_expiration": _datetime_to_iso(self.subscribe_expiration),
         }
 
@@ -69,11 +91,11 @@ class CompanyInfo(models.Model):
         related_name="company_info",
     )
 
-    company_name = models.CharField(max_length=100, null=True, blank=True)
+    company_name = models.CharField(max_length=100, default="", blank=True)
     employee_count = models.IntegerField(null=True, blank=True)
-    team_composition = models.JSONField(null=True, blank=True)
-    company_description = models.TextField(null=True, blank=True)
-    employ_style = models.JSONField(null=True, blank=True)
+    team_composition = models.JSONField(default=list, blank=True)
+    company_description = models.TextField(default="", blank=True)
+    employ_style = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = "company_info"
@@ -84,12 +106,11 @@ class CompanyInfo(models.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "account_id": self.account_id,
-            "company_name": self.company_name,
-            "employee_count": self.employee_count,
-            "team_composition": self.team_composition,
-            "company_description": self.company_description,
-            "employ_style": self.employ_style,
+            "company_name": _value_or_empty_string(self.company_name),
+            "employee_count": _value_or_zero(self.employee_count),
+            "team_composition": _value_or_empty_list(self.team_composition),
+            "company_description": _value_or_empty_string(self.company_description),
+            "employ_style": _value_or_empty_list(self.employ_style),
         }
 
 
@@ -103,23 +124,35 @@ class AuthKey(models.Model):
         related_name="auth_keys",
     )
 
+    name = models.CharField(max_length=100, default="", blank=True)
     description = models.CharField(max_length=255, null=True, blank=True)
-    value = models.TextField()
+    credit_limit = models.IntegerField(default=0)
+    value = models.CharField(max_length=48, unique=True)
     authorized_resume = models.JSONField(null=True, blank=True)
 
     class Meta:
         db_table = "auth_keys"
 
     def __str__(self):
-        return self.description or f"AuthKey {self.id}"
+        return self.name or self.description or f"AuthKey {self.id}"
+
+    def save(self, *args, **kwargs):
+        if not self.value and self.account_id:
+            self.value = generate_auth_key_value(self.account.account_hash)
+
+        while AuthKey.objects.filter(value=self.value).exclude(pk=self.pk).exists():
+            self.value = generate_auth_key_value(self.account.account_hash)
+
+        super().save(*args, **kwargs)
 
     def to_dict(self):
         return {
             "id": self.id,
-            "account_id": self.account_id,
-            "description": self.description,
-            "value": self.value,
-            "authorized_resume": self.authorized_resume,
+            "name": _value_or_empty_string(self.name),
+            "description": _value_or_empty_string(self.description),
+            "credit_limit": _value_or_zero(self.credit_limit),
+            "value": _value_or_empty_string(self.value),
+            "authorized_resume": _value_or_empty_list(self.authorized_resume),
         }
 
 
@@ -172,17 +205,16 @@ class JobDescription(models.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "account_id": self.account_id,
-            "job_name": self.job_name,
-            "education_level": self.education_level,
-            "major": self.major,
-            "career_level": self.career_level,
-            "required_skill": self.required_skill,
-            "preferred_skill": self.preferred_skill,
-            "main_task": self.main_task,
-            "hiring_reason": self.hiring_reason,
-            "work_type": self.work_type,
-            "status": self.status,
+            "job_name": _value_or_empty_string(self.job_name),
+            "education_level": _value_or_empty_string(self.education_level),
+            "major": _value_or_empty_string(self.major),
+            "career_level": _value_or_empty_string(self.career_level),
+            "required_skill": _value_or_empty_list(self.required_skill),
+            "preferred_skill": _value_or_empty_list(self.preferred_skill),
+            "main_task": _value_or_empty_string(self.main_task),
+            "hiring_reason": _value_or_empty_string(self.hiring_reason),
+            "work_type": _value_or_empty_string(self.work_type),
+            "status": _value_or_empty_string(self.status),
             "created_at": _datetime_to_iso(self.created_at),
             "updated_at": _datetime_to_iso(self.updated_at),
         }
@@ -240,19 +272,19 @@ class Resume(models.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "job_description_id": self.job_description_id,
-            "name": self.name,
-            "skill": self.skill,
-            "education_level": self.education_level,
-            "experience": self.experience,
-            "self_intoduction": self.self_intoduction,
-            "certification": self.certification,
-            "language": self.language,
-            "award": self.award,
-            "training": self.training,
-            "other_activity": self.other_activity,
-            "status": self.status,
-            "reviewed": self.reviewed,
+            "job_description_id": _value_or_zero(self.job_description_id),
+            "name": _value_or_empty_string(self.name),
+            "skill": _value_or_empty_list(self.skill),
+            "education_level": _value_or_empty_dict(self.education_level),
+            "experience": _value_or_empty_list(self.experience),
+            "self_intoduction": _value_or_empty_list(self.self_intoduction),
+            "certification": _value_or_empty_list(self.certification),
+            "language": _value_or_empty_list(self.language),
+            "award": _value_or_empty_list(self.award),
+            "training": _value_or_empty_list(self.training),
+            "other_activity": _value_or_empty_list(self.other_activity),
+            "status": _value_or_empty_string(self.status),
+            "reviewed": _value_or_false(self.reviewed),
             "reviewed_at": _datetime_to_iso(self.reviewed_at),
             "created_at": _datetime_to_iso(self.created_at),
             "updated_at": _datetime_to_iso(self.updated_at),
@@ -292,16 +324,16 @@ class AnalysisReport(models.Model):
         return {
             "id": self.id,
             "resume_id": self.resume_id,
-            "overall_grade": self.overall_grade,
-            "overall_summary": self.overall_summary,
-            "candidate_summary": self.candidate_summary,
-            "checklist": self.checklist,
-            "competency_analysis": self.competency_analysis,
-            "fit_analysis": self.fit_analysis,
-            "strength": self.strength,
-            "concern": self.concern,
-            "check_point": self.check_point,
-            "final_comment": self.final_comment,
+            "overall_grade": _value_or_empty_string(self.overall_grade),
+            "overall_summary": _value_or_empty_string(self.overall_summary),
+            "candidate_summary": _value_or_empty_string(self.candidate_summary),
+            "checklist": _value_or_empty_list(self.checklist),
+            "competency_analysis": _value_or_empty_list(self.competency_analysis),
+            "fit_analysis": _value_or_empty_list(self.fit_analysis),
+            "strength": _value_or_empty_list(self.strength),
+            "concern": _value_or_empty_list(self.concern),
+            "check_point": _value_or_empty_list(self.check_point),
+            "final_comment": _value_or_empty_string(self.final_comment),
         }
 
 
@@ -329,7 +361,7 @@ class InterviewQuestion(models.Model):
         return {
             "id": self.id,
             "resume_id": self.resume_id,
-            "question": self.question,
-            "answer": self.answer,
-            "purpose": self.purpose,
+            "question": _value_or_empty_string(self.question),
+            "answer": _value_or_empty_string(self.answer),
+            "purpose": _value_or_empty_string(self.purpose),
         }
