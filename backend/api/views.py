@@ -1,8 +1,12 @@
 import json
 
 from django.contrib.auth import authenticate, login, logout
+from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
+from asgiref.sync import sync_to_async
+
+from common import report as report_service
 
 from .models import (
     Account,
@@ -42,6 +46,116 @@ RESUME_ADD_ALLOWED_FIELDS = {
 RESUME_MODIFY_BLOCKED_FIELDS = RESUME_BLOCKED_FIELDS | {"job_description", "job_description_id"}
 REPORT_BLOCKED_FIELDS = {"id", "resume", "resume_id"}
 QUESTION_BLOCKED_FIELDS = {"id", "resume", "resume_id"}
+
+
+def _get_analysis_inputs(request, resume_id):
+    if request.user.is_authenticated:
+        resumes = Resume.objects.select_related(
+            "job_description",
+            "job_description__account",
+        ).filter(id=resume_id, job_description__account=request.user)
+    else:
+        api_key = request.headers.get("X-API-Key")
+
+        if not api_key:
+            raise PermissionError("User is not authenticated.")
+
+        try:
+            auth_key = AuthKey.objects.select_related("account").get(value=api_key)
+        except AuthKey.DoesNotExist as exc:
+            raise PermissionError("User is not authenticated.") from exc
+
+        resumes = Resume.objects.select_related(
+            "job_description",
+            "job_description__account",
+        ).filter(
+            id=resume_id,
+            id__in=auth_key.authorized_resume or [],
+            job_description__account=auth_key.account,
+        )
+
+    try:
+        resume = resumes.get()
+    except Resume.DoesNotExist:
+        return None
+
+    job_description = resume.job_description
+    company_info, _ = CompanyInfo.objects.get_or_create(account=job_description.account)
+
+    resume.status = Resume.STATUS_PROCESSING
+    resume.save(update_fields=["status", "updated_at"])
+
+    return resume.id, resume.to_dict(), company_info.to_dict(), job_description.to_dict()
+
+
+def _save_analysis_result(resume_id, analysis_result):
+    report_data = analysis_result.get("report") or {}
+    question_items = analysis_result.get("questions") or []
+
+    with transaction.atomic():
+        report, _ = AnalysisReport.objects.update_or_create(
+            resume_id=resume_id,
+            defaults={
+                "overall_grade": report_data.get("overall_grade", ""),
+                "overall_summary": report_data.get("overall_summary", ""),
+                "candidate_summary": report_data.get("candidate_summary", ""),
+                "checklist": report_data.get("checklist", []),
+                "competency_analysis": report_data.get("competency_analysis", []),
+                "fit_analysis": report_data.get("fit_analysis", []),
+                "strength": report_data.get("strength", []),
+                "concern": report_data.get("concern", []),
+                "check_point": report_data.get("check_point", []),
+                "final_comment": report_data.get("final_comment", ""),
+            },
+        )
+
+        InterviewQuestion.objects.filter(resume_id=resume_id).delete()
+        questions = InterviewQuestion.objects.bulk_create([
+            InterviewQuestion(
+                resume_id=resume_id,
+                question=item.get("question", ""),
+                answer=item.get("answer", ""),
+                purpose=item.get("purpose", ""),
+            )
+            for item in question_items
+            if item.get("question")
+        ])
+
+        Resume.objects.filter(id=resume_id).update(status=Resume.STATUS_DONE)
+
+    return {
+        "report": report.to_dict(),
+        "questions": [question.to_dict() for question in questions],
+    }
+
+
+async def _resume_analize_async(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    data = json.loads(request.body or "{}")
+    resume_id = data.get("id")
+
+    if not resume_id:
+        return JsonResponse({"error": True, "message": "Resume id is required."}, status=400)
+
+    try:
+        inputs = await sync_to_async(_get_analysis_inputs)(request, resume_id)
+    except PermissionError as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+    if inputs is None:
+        return JsonResponse({"error": True, "message": "Resume does not exist."}, status=404)
+
+    resume_id, resume_dict, company_dict, jd_dict = inputs
+    analysis_result = await sync_to_async(report_service.invoke, thread_sensitive=False)(
+        resume_dict,
+        company_dict,
+        jd_dict,
+    )
+    saved_result = await sync_to_async(_save_analysis_result)(resume_id, analysis_result)
+
+    return JsonResponse({"error": False, "data": saved_result})
 
 
 def _editable_model_fields(instance, blocked_fields):
@@ -673,155 +787,9 @@ def resume_modify(request):
         return JsonResponse({"error": True, "message": str(error)})
 
 
-def resume_analize(request):
+async def resume_analize(request):
     try:
-        if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
-
-        data = json.loads(request.body or "{}")
-        resume_id = data.get("id")
-
-        if not resume_id:
-            return JsonResponse({"error": True, "message": "Resume id is required."}, status=400)
-
-        if request.user.is_authenticated:
-            resumes = Resume.objects.filter(id=resume_id, job_description__account=request.user)
-        else:
-            api_key = request.headers.get("X-API-Key")
-
-            if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
-
-            try:
-                auth_key = AuthKey.objects.select_related("account").get(value=api_key)
-            except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
-
-            resumes = Resume.objects.filter(
-                id=resume_id,
-                id__in=auth_key.authorized_resume or [],
-                job_description__account=auth_key.account,
-            )
-
-        try:
-            resume = resumes.get()
-        except Resume.DoesNotExist:
-            return JsonResponse({"error": True, "message": "Resume does not exist."}, status=404)
-
-        report, _ = AnalysisReport.objects.update_or_create(
-            resume=resume,
-            defaults={
-                "overall_grade": "B",
-                "overall_summary": (
-                    "이수진 지원자는 뛰어난 학력과 백엔드 개발 업무 경험을 갖추었으며, 문제 해결 능력과 "
-                    "팀워크가 강점입니다. 그러나 프론트엔드 기술 및 경험이 부족하여 해당 직무 요구사항에 "
-                    "다소 미흡한 점이 있습니다."
-                ),
-                "candidate_summary": (
-                    "부산대학교 컴퓨터공학과 학사, KAIST 전산학부 석사 학력을 보유하고 있으며, "
-                    "ABC Tech에서 2년 3개월 동안 백엔드 개발자로 근무했습니다. Java, Spring Boot, "
-                    "MySQL, Docker 등의 기술 스택 활용 능력이 뛰어나고, REST API 설계 및 연동 경험과 "
-                    "협업 능력, 자율적 문제 해결 능력을 겸비하고 있습니다. 정보처리기사, AWS Developer "
-                    "Associate 자격증과 TOEIC 925점, JLPT N2 자격도 보유하고 있습니다."
-                ),
-                "checklist": [
-                    {
-                        "content": "컴퓨터 공학 또는 관련 전공 학사 학위 이상을 보유하고 있는가?",
-                        "result": True,
-                    },
-                    {
-                        "content": "프론트엔드 개발 경력 3년 이상을 보유하고 있는가?",
-                        "result": False,
-                    },
-                    {
-                        "content": "협업과 문제 해결 경험을 구체적으로 제시하고 있는가?",
-                        "result": True,
-                    },
-                ],
-                "competency_analysis": [
-                    "컴퓨터공학 관련 학사 및 석사 학위를 취득하여 전문 지식 기반이 탄탄함",
-                    "Java, Spring Boot, MySQL, Docker 등 다양한 백엔드 기술 스택 활용 가능",
-                    "REST API 설계 및 연동 경험으로 서비스 개발 역량 보유",
-                    "정보처리기사, AWS 자격증 취득으로 전문성 증명",
-                    "프로젝트 일정 문제 발생 시 업무 재분배 및 우선순위 조정으로 문제 해결 능력 입증",
-                ],
-                "fit_analysis": [
-                    "팀 내 원활한 커뮤니케이션과 협업 도구 활용 능력이 뛰어남",
-                    "빠른 문제 해결과 책임감 있는 업무 자세로 조직 적응력 우수",
-                    "프론트엔드 관련 요구사항은 충족하지 못해 직무 적합성에 일부 제한이 존재",
-                ],
-                "strength": [
-                    "우수한 학력과 전문 자격을 통한 뛰어난 기술력",
-                    "백엔드 개발 경험과 문제 해결 능력",
-                    "협업 및 커뮤니케이션 능력이 우수하여 팀워크에 강점",
-                    "글로벌 경험과 다양한 실무 경험으로 폭넓은 시각 보유",
-                ],
-                "concern": [
-                    "프론트엔드 개발 경력 및 기술 보유 부족",
-                    "서버 배포 및 인증/권한 관련 경험 미흡",
-                    "SaaS 기반 업무 자동화 플랫폼 또는 AI 데이터 분석 기능 관련 경험 부재",
-                ],
-                "check_point": [
-                    "프론트엔드 역량 강화 및 교육 추천",
-                    "서버 운영 및 인증/권한 부문 경험 추가 검증 필요",
-                    "향후 프로젝트에서 SaaS 도메인 및 AI 관련 업무 경험 기회 제공 여부 검토",
-                ],
-                "final_comment": (
-                    "이수진 지원자는 백엔드 개발자로서 충분한 기술력과 문제 해결 역량을 갖추고 있으며, "
-                    "협업과 책임감 면에서도 긍정적인 평가를 받습니다. 다만, 이번 포지션에 요구되는 "
-                    "프론트엔드 역량과 일부 서비스 운영 경험에서 부족함이 있어, 해당 부분에 대한 보완 및 "
-                    "추가 검증이 필요합니다. 기술 교육과 경험 확장 지원을 통해 역량을 보완한다면 팀에 "
-                    "긍정적 기여가 가능할 것으로 판단되어 최종 등급은 B로 평가합니다."
-                ),
-            },
-        )
-
-        InterviewQuestion.objects.filter(resume=resume).delete()
-        questions = [
-            InterviewQuestion.objects.create(
-                resume=resume,
-                question="프론트엔드 개발 경력이 3년 이상은 아닌데, 부족한 경험을 어떻게 보완하고 빠르게 적응할 계획인가요?",
-                answer=(
-                    "저는 백엔드 개발자로서 2년 3개월간 Java와 Spring Boot를 활용한 ERP 시스템 API 개발 "
-                    "경험이 있으며, 새로운 기술 학습에 적극적인 태도로 빠르게 습득해 왔습니다. 프론트엔드 "
-                    "분야는 HTML, CSS, JavaScript 기본기를 집중적으로 독학하고 있으며, React와 Vue 등 "
-                    "프레임워크도 단계적으로 학습할 계획입니다. 또한 오픈소스 프로젝트 기여 경험으로 협업과 "
-                    "코드 리뷰를 통해 빠른 적응력을 입증했습니다."
-                ),
-                purpose="지원자의 프론트엔드 경력 부족을 어떻게 극복할지 학습 의지와 적응력 평가.",
-            ),
-            InterviewQuestion.objects.create(
-                resume=resume,
-                question="백엔드 중심의 경험을 프론트엔드 직무나 협업 과정에서 어떻게 활용할 수 있다고 생각하나요?",
-                answer=(
-                    "백엔드 API 구조와 데이터 흐름을 이해하고 있기 때문에 프론트엔드에서 필요한 API 명세와 "
-                    "상태 관리 방식을 더 명확히 설계할 수 있습니다. 또한 서버와 클라이언트 사이의 병목이나 "
-                    "오류 원인을 빠르게 파악해 협업 효율을 높일 수 있다고 생각합니다."
-                ),
-                purpose="지원자의 기존 경험이 지원 직무에 전이될 수 있는지 평가.",
-            ),
-            InterviewQuestion.objects.create(
-                resume=resume,
-                question="프로젝트 일정 문제가 발생했을 때 업무 재분배와 우선순위 조정을 어떻게 진행했나요?",
-                answer=(
-                    "먼저 지연 원인을 기능 단위로 분리하고, 반드시 필요한 핵심 기능과 후순위 기능을 구분했습니다. "
-                    "이후 팀원별 역량과 진행 상황을 기준으로 업무를 재분배했고, 매일 짧은 점검 회의를 통해 "
-                    "위험 요소를 조기에 공유했습니다."
-                ),
-                purpose="문제 해결 방식, 커뮤니케이션 능력, 책임감을 확인.",
-            ),
-        ]
-
-        resume.status = Resume.STATUS_DONE
-        resume.save(update_fields=["status", "updated_at"])
-
-        return JsonResponse({
-            "error": False,
-            "data": {
-                "report": report.to_dict(),
-                "questions": [question.to_dict() for question in questions],
-            },
-        })
+        return await _resume_analize_async(request)
     except Exception as error:
         return JsonResponse({"error": True, "message": str(error)})
 
