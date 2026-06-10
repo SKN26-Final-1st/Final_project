@@ -69,11 +69,11 @@ class CompanyInfo(models.Model):
         related_name="company_info",
     )
 
-    company_name = models.CharField(max_length=100, null=True, blank=True)
+    company_name = models.CharField(max_length=100, default="", blank=True)
     employee_count = models.IntegerField(null=True, blank=True)
-    team_composition = models.JSONField(null=True, blank=True)
-    company_description = models.TextField(null=True, blank=True)
-    employ_style = models.JSONField(null=True, blank=True)
+    team_composition = models.JSONField(default=list, blank=True)
+    company_description = models.TextField(default="", blank=True)
+    employ_style = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = "company_info"
