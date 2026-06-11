@@ -53,10 +53,7 @@ class FallCaseStructure(BaseModel):
     rag_search_query: str
 
 
-fall_case_model = ChatOpenAI(
-    model=LLM_MODEL,
-    temperature=TEMPERATURE,
-).with_structured_output(FallCaseStructure)
+fall_case_model = None
 
 fall_case_prompt = """
 당신은 우리 회사 HR/채용 챗봇의 다중 의도 분류기입니다.
@@ -74,6 +71,14 @@ fall_case_prompt = """
 
 
 async def invoke_fall_case_node(chats: list[dict]) -> FallCaseStructure:
+    global fall_case_model
+
+    if fall_case_model is None:
+        fall_case_model = ChatOpenAI(
+            model=LLM_MODEL,
+            temperature=TEMPERATURE,
+        ).with_structured_output(FallCaseStructure)
+
     return await invoke_llm_async(fall_case_model, fall_case_prompt, chats)
 
 
@@ -89,10 +94,7 @@ class ContextExtractorStructure(BaseModel):
     )
 
 
-context_extractor_model = ChatOpenAI(
-    model=LLM_MODEL,
-    temperature=TEMPERATURE,
-).with_structured_output(ContextExtractorStructure)
+context_extractor_model = None
 
 context_extractor_prompt = """
 당신은 HR 챗봇의 메모리 추출기입니다.
@@ -101,10 +103,27 @@ context_extractor_prompt = """
 
 
 async def invoke_context_extractor_node(chats: list[dict]) -> ContextExtractorStructure:
+    global context_extractor_model
+
+    if context_extractor_model is None:
+        context_extractor_model = ChatOpenAI(
+            model=LLM_MODEL,
+            temperature=TEMPERATURE,
+        ).with_structured_output(ContextExtractorStructure)
+
     return await invoke_llm_async(context_extractor_model, context_extractor_prompt, chats)
 
 
-answer_llm = ChatOpenAI(model=LLM_MODEL, temperature=TEMPERATURE)
+answer_llm = None
+
+
+def get_answer_llm():
+    global answer_llm
+
+    if answer_llm is None:
+        answer_llm = ChatOpenAI(model=LLM_MODEL, temperature=TEMPERATURE)
+
+    return answer_llm
 
 hr_analyst_prompt = """
 당신은 자사 채용 데이터베이스(JD)를 직접 분석하고 통계를 내어 답변하는 HR 분석 챗봇입니다.
@@ -127,7 +146,7 @@ async def invoke_hr_analyst_agent(
 
     user_prompt = f"사용자 질문:\n{search_query}\n\n자사 채용 데이터베이스:\n{json.dumps(job_descriptions, ensure_ascii=False, indent=2)}"
 
-    llm_response = await answer_llm.ainvoke(
+    llm_response = await get_answer_llm().ainvoke(
         [SystemMessage(content=hr_analyst_prompt), HumanMessage(content=user_prompt)]
     )
     return llm_response.content
@@ -135,19 +154,37 @@ async def invoke_hr_analyst_agent(
 
 # ==================== 2단계-C: 앱 가이드 문서 RAG 검색 노드 ====================
 
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-pinecone_index = pc.Index(host=os.getenv("PINECONE_HOST"))
-embedding_client = OpenAI()
+pinecone_client = None
+pinecone_index = None
+embedding_client = None
+
+
+def get_embedding_client():
+    global embedding_client
+
+    if embedding_client is None:
+        embedding_client = OpenAI()
+
+    return embedding_client
+
+
+def get_pinecone_index():
+    global pinecone_client, pinecone_index
+
+    if pinecone_index is None:
+        pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        pinecone_index = pinecone_client.Index(host=os.getenv("PINECONE_HOST"))
+
+    return pinecone_index
+
 
 def search_app_manual(query: str, top_k: int = 2) -> list[str]:
-    global embedding_client, pinecone_index
-
-    response = embedding_client.embeddings.create(
+    response = get_embedding_client().embeddings.create(
         model="text-embedding-3-small",
         input=query
     )
 
-    result = pinecone_index.query(
+    result = get_pinecone_index().query(
         namespace="user_manual",
         vector=response.data[0].embedding,
         top_k=top_k,
@@ -168,7 +205,7 @@ async def invoke_app_manual_rag_agent(query: str, user_question: str) -> tuple[s
 
     user_prompt = f"사용자 질문:\n{user_question}\n\n검색된 사용설명서 문서:\n{json.dumps(retrieved_docs, ensure_ascii=False, indent=2)}"
 
-    llm_response = await answer_llm.ainvoke(
+    llm_response = await get_answer_llm().ainvoke(
         [SystemMessage(content=app_manual_rag_prompt), HumanMessage(content=user_prompt)]
     )
     return llm_response.content, retrieved_docs
@@ -190,7 +227,7 @@ summary_prompt = """
 
 
 async def invoke_summary_agent(merge_input: str) -> str:
-    llm_response = await answer_llm.ainvoke(
+    llm_response = await get_answer_llm().ainvoke(
         [SystemMessage(content=summary_prompt), HumanMessage(content=merge_input)]
     )
     return llm_response.content
