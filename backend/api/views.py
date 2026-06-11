@@ -1,4 +1,6 @@
 import json
+import secrets
+import string
 
 from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
@@ -236,6 +238,111 @@ def account_logout(request):
             return JsonResponse({"error": False, "logout": True})
         else:
             return JsonResponse({"error": True, "message": "User is not authenticated."}, status=401)
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+
+def check_user(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        username = data.get("username")
+
+        if not username:
+            return JsonResponse({"error": True, "message": "Username is required."}, status=400)
+
+        valid = not Account.objects.filter(username=username).exists()
+        return JsonResponse({"error": False, "valid": valid})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+
+def password_question(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        username = data.get("username")
+
+        if not username:
+            return JsonResponse({"error": True, "message": "Username is required."}, status=400)
+
+        try:
+            user = Account.objects.get(username=username)
+        except Account.DoesNotExist:
+            return JsonResponse({"error": True, "message": "User does not exist."}, status=404)
+
+        return JsonResponse({
+            "error": False,
+            "verification_question": user.verification_question or "",
+        })
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+
+def password_reset(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        username = data.get("username")
+        verification_answer = data.get("verification_answer") or data.get("answer")
+
+        if not all([username, verification_answer]):
+            return JsonResponse({"error": True, "message": "Need to fill in required fields."}, status=400)
+
+        try:
+            user = Account.objects.get(username=username)
+        except Account.DoesNotExist:
+            return JsonResponse({"error": True, "message": "User does not exist."}, status=404)
+
+        if user.verification_answer != verification_answer:
+            return JsonResponse({"error": True, "message": "Verification answer is incorrect."}, status=400)
+
+        password = "".join(secrets.choice(string.ascii_lowercase) for _ in range(8))
+        user.set_password(password)
+        user.save(update_fields=["password"])
+
+        return JsonResponse({"error": False, "password": password})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": str(error)})
+
+
+def chat(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        chats = data.get("chat")
+
+        if not isinstance(chats, list):
+            return JsonResponse({"error": True, "message": "Chat must be a list."}, status=400)
+
+        for chat_item in chats:
+            if not isinstance(chat_item, dict):
+                return JsonResponse({"error": True, "message": "Chat items must be objects."}, status=400)
+
+            if chat_item.get("role") not in {"user", "agent"}:
+                return JsonResponse({"error": True, "message": "Chat role must be user or agent."}, status=400)
+
+            if not isinstance(chat_item.get("message"), str):
+                return JsonResponse({"error": True, "message": "Chat message must be a string."}, status=400)
+
+        chats = list(chats)  # 입력 받은 list[dict]
+        response = "테스트용 답변"  # API 호출로 받은 agent 답변
+
+        return JsonResponse({
+            "error": False,
+            "response": {
+                "role": "agent",
+                "message": response,
+            },
+        })
     except Exception as error:
         return JsonResponse({"error": True, "message": str(error)})
 
