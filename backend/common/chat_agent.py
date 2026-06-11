@@ -1,15 +1,14 @@
 import json
-import operator
 import os
-from copy import deepcopy
 from pathlib import Path
-from typing import Annotated, Literal, Union
+from typing import Literal, Union
+from pinecone import Pinecone
+from openai import OpenAI
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict
 
 DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
 
@@ -23,39 +22,24 @@ LLM_MODEL = "gpt-4o-mini"
 TEMPERATURE = 0
 
 
-def reduce_chats(left: list[str], right: list[str]) -> list[str]:
-    """두 리스트를 하나로 합치고 중복된 메시지는 순서를 유지하며 제거합니다."""
-    result = left.copy()
-    for item in right:
-        if item not in result:
-            result.append(item)
-    return result
+def _get_chat_role(chat: dict) -> str:
+    return str(chat.get("role", "")).lower()
 
 
-class GraphState(TypedDict, total=False):
-    """각 노드가 공유하는 대화 상태와 중간 결과 필드를 정의합니다."""
-
-    chats: Annotated[list[str], reduce_chats]
-    state: str
-    is_out_of_bounds: bool
-    is_hr_case: bool
-    is_app_manual: bool
-    rag_search_query: str
-    memories: Annotated[list[dict], operator.add]
-    retrieved_manual_docs: Annotated[list[str], reduce_chats]
-    out_of_bounds_response: str
-    hr_response: str
-    app_manual_response: str
-    response: str
+def _get_chat_message(chat: dict) -> str:
+    return str(chat.get("message", ""))
 
 
-async def invoke_llm_async(llm, prompt: str, chats: list[str]):
+async def invoke_llm_async(llm, prompt: str, chats: list[dict]):
     messages = [SystemMessage(content=prompt)]
-    for index, chat in enumerate(chats):
-        if index % 2 == 0:
-            messages.append(HumanMessage(content=chat))
-        else:
-            messages.append(AIMessage(content=chat))
+    for chat in chats:
+        role = _get_chat_role(chat)
+        message = _get_chat_message(chat)
+
+        if role == "user":
+            messages.append(HumanMessage(content=message))
+        elif role in {"agent", "assistant", "ai"}:
+            messages.append(AIMessage(content=message))
     return await llm.ainvoke(messages)
 
 
@@ -89,18 +73,9 @@ fall_case_prompt = """
 """
 
 
-async def fall_case_node(state: GraphState) -> GraphState:
-    llm_result = await invoke_llm_async(fall_case_model, fall_case_prompt, state["chats"])
-    return {
-        "is_out_of_bounds": llm_result.is_out_of_bounds,
-        "is_hr_case": llm_result.is_hr_case,
-        "is_app_manual": llm_result.is_app_manual,
-        "rag_search_query": llm_result.rag_search_query,
-        "out_of_bounds_response": llm_result.out_of_bounds_response,
-    }
+async def invoke_fall_case_node(chats: list[dict]) -> FallCaseStructure:
+    return await invoke_llm_async(fall_case_model, fall_case_prompt, chats)
 
-
-# ==================== 2단계-A: HR 대화 메모리 추출 노드 ====================
 
 class MemoryItem(BaseModel):
     context: str = Field(description="데이터가 의미하는 맥락")
@@ -125,37 +100,11 @@ context_extractor_prompt = """
 """
 
 
-async def context_extractor_node(state: GraphState) -> GraphState:
-    llm_result = await invoke_llm_async(
-        context_extractor_model, context_extractor_prompt, state["chats"]
-    )
-    return {
-        "memories": [
-            {"context": memory.context, "value": memory.value} for memory in llm_result.memories
-        ]
-    }
+async def invoke_context_extractor_node(chats: list[dict]) -> ContextExtractorStructure:
+    return await invoke_llm_async(context_extractor_model, context_extractor_prompt, chats)
 
-
-# ==================== 2단계-B: HR 데이터 분석 노드 ====================
 
 answer_llm = ChatOpenAI(model=LLM_MODEL, temperature=TEMPERATURE)
-
-JobDescription = {
-    "id": 1,
-    "account_id": 1,
-    "job_name": "잡코리아 2026 프론트엔드 팀 신규 채용",
-    "education_level": "대졸 이상",
-    "major": "컴퓨터 공학과 혹은 그에 준하는 관련 학과",
-    "career_level": "경력 3년 이상",
-    "required_skill": ["html", "CSS", "JS"],
-    "preferred_skill": ["react", "vue", "vite"],
-    "main_task": "프론트엔드 개발",
-    "hiring_reason": "",
-    "work_type": "정규직",
-    "status": "on_going",
-    "created_at": "2026-06-04 12:00:00",
-    "updated_at": "2026-06-04 12:00:00",
-}
 
 hr_analyst_prompt = """
 당신은 자사 채용 데이터베이스(JD)를 직접 분석하고 통계를 내어 답변하는 HR 분석 챗봇입니다.
@@ -164,57 +113,47 @@ hr_analyst_prompt = """
 """
 
 
-async def hr_analyst_node(state: GraphState) -> GraphState:
-    search_query = state["chats"][-1]
-    extracted_memories = state.get("memories", [])
+async def invoke_hr_analyst_agent(
+    search_query: str,
+    job_descriptions: list[dict] | None = None,
+    extracted_memories: list[dict] | None = None,
+) -> str:
+    job_descriptions = job_descriptions or []
+    extracted_memories = extracted_memories or []
 
     if extracted_memories:
         memory_str = json.dumps(extracted_memories, ensure_ascii=False)
         search_query = f"[참고할 이전 메모리 데이터]: {memory_str}\n[사용자 질문]: {search_query}"
 
-    user_prompt = f"사용자 질문:\n{search_query}\n\n자사 채용 데이터베이스:\n{json.dumps(JobDescription, ensure_ascii=False, indent=2)}"
+    user_prompt = f"사용자 질문:\n{search_query}\n\n자사 채용 데이터베이스:\n{json.dumps(job_descriptions, ensure_ascii=False, indent=2)}"
 
     llm_response = await answer_llm.ainvoke(
         [SystemMessage(content=hr_analyst_prompt), HumanMessage(content=user_prompt)]
     )
-    return {"hr_response": llm_response.content}
+    return llm_response.content
 
 
 # ==================== 2단계-C: 앱 가이드 문서 RAG 검색 노드 ====================
 
-APP_MANUAL_DOCS = [
-    "자기소개서 업로드는 마이페이지의 지원서 관리 메뉴에서 파일 업로드 버튼을 눌러 진행할 수 있습니다.",
-    "지원자 분석 리포트는 채용 공고 상세 화면에서 지원자 목록을 선택한 뒤 리포트 생성 버튼을 클릭하면 확인할 수 있습니다.",
-    "채용 공고 등록은 관리자 페이지의 JD 관리 메뉴에서 새 공고 작성 버튼을 눌러 직무명, 필수 역량, 우대 사항을 입력하면 완료됩니다.",
-    "이전 채팅 기록은 챗봇 화면 왼쪽의 대화 목록에서 확인할 수 있으며, 원하는 대화를 선택하면 기존 질문과 답변을 다시 볼 수 있습니다.",
-    "지원자 평가 결과는 지원자 상세 페이지의 평가 탭에서 확인할 수 있고, 점수와 코멘트는 평가 수정 버튼을 통해 변경할 수 있습니다.",
-]
-
-
-def _tokenize_for_mock_search(text: str) -> set[str]:
-    normalized = (
-        text.replace("?", " ")
-        .replace("!", " ")
-        .replace(".", " ")
-        .replace(",", " ")
-        .replace("/", " ")
-    )
-    return {token.strip() for token in normalized.split() if len(token.strip()) >= 2}
-
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+pinecone_index = pc.Index(host=os.getenv("PINECONE_HOST"))
+embedding_client = OpenAI()
 
 def search_app_manual(query: str, top_k: int = 2) -> list[str]:
-    query_tokens = _tokenize_for_mock_search(query)
-    scored_docs = []
-    for doc in APP_MANUAL_DOCS:
-        doc_tokens = _tokenize_for_mock_search(doc)
-        score = len(query_tokens & doc_tokens)
-        for token in query_tokens:
-            if token in doc:
-                score += 1
-        if score > 0:
-            scored_docs.append((score, doc))
-    scored_docs.sort(key=lambda item: item[0], reverse=True)
-    return [doc for _, doc in scored_docs[:top_k]]
+    global embedding_client, pinecone_index
+
+    response = embedding_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=query
+    )
+
+    result = pinecone_index.query(
+        namespace="user_manual",
+        vector=response.data[0].embedding,
+        top_k=top_k,
+        include_metadata=True
+    )
+    return [r["metadata"]["content"] for r in result["matches"]]
 
 
 app_manual_rag_prompt = """
@@ -224,16 +163,15 @@ app_manual_rag_prompt = """
 """
 
 
-async def app_manual_rag_node(state: GraphState) -> GraphState:
-    query = state.get("rag_search_query", "")
+async def invoke_app_manual_rag_agent(query: str, user_question: str) -> tuple[str, list[str]]:
     retrieved_docs = search_app_manual(query)
 
-    user_prompt = f"사용자 질문:\n{state['chats'][-1] if state.get('chats') else query}\n\n검색된 사용설명서 문서:\n{json.dumps(retrieved_docs, ensure_ascii=False, indent=2)}"
+    user_prompt = f"사용자 질문:\n{user_question}\n\n검색된 사용설명서 문서:\n{json.dumps(retrieved_docs, ensure_ascii=False, indent=2)}"
 
     llm_response = await answer_llm.ainvoke(
         [SystemMessage(content=app_manual_rag_prompt), HumanMessage(content=user_prompt)]
     )
-    return {"retrieved_manual_docs": retrieved_docs, "app_manual_response": llm_response.content}
+    return llm_response.content, retrieved_docs
 
 
 # ==================== 3단계: 답변 최종 요약 및 병합 노드 ====================
@@ -251,26 +189,8 @@ summary_prompt = """
 """
 
 
-async def summary_node(state: GraphState) -> GraphState:
-    user_question = state["chats"][-1]
-    responses_to_merge = []
-    
-    if state.get("is_out_of_bounds") and state.get("out_of_bounds_response"):
-        responses_to_merge.append(f"[시스템 1 (범위 밖 질문 안내)]:\n{state['out_of_bounds_response']}")
-    if state.get("is_hr_case") and state.get("hr_response"):
-        responses_to_merge.append(f"[시스템 2 (HR 채용 통계 분석)]:\n{state['hr_response']}")
-    if state.get("is_app_manual") and state.get("app_manual_response"):
-        responses_to_merge.append(f"[시스템 3 (앱 사용법 안내)]:\n{state['app_manual_response']}")
-
-    if not responses_to_merge:
-        return {"response": "질문하신 내용에 대해 안내해 드릴 수 있는 내용을 찾지 못했습니다."}
-
-    merge_input = f"사용자 원본 질문: {user_question}\n\n취합해야 할 개별 답변 목록:\n" + "\n\n".join(
-        responses_to_merge
-    )
-
+async def invoke_summary_agent(merge_input: str) -> str:
     llm_response = await answer_llm.ainvoke(
         [SystemMessage(content=summary_prompt), HumanMessage(content=merge_input)]
     )
-    return {"response": llm_response.content}
-
+    return llm_response.content

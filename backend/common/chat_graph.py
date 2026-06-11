@@ -1,11 +1,14 @@
 import argparse
 import asyncio
 import json
+import operator
 import os
 from pathlib import Path
+from typing import Annotated
 
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
+from typing_extensions import TypedDict
 
 DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
 
@@ -17,10 +20,131 @@ if not DATABASE_HOST:
 
 try:
     from . import chat_agent as agents
-    from .chat_agent import GraphState
 except ImportError:
     import chat_agent as agents
-    from chat_agent import GraphState
+
+def reduce_chats(left: list, right: list) -> list:
+    """두 리스트를 하나로 합치고 중복된 메시지는 순서를 유지하며 제거합니다."""
+    result = left.copy()
+    for item in right:
+        if item not in result:
+            result.append(item)
+    return result
+
+
+def normalize_chats(chats: list[dict] | list[str] | str) -> list[dict]:
+    if isinstance(chats, str):
+        return [{"role": "user", "message": chats}]
+
+    normalized = []
+    for index, chat in enumerate(chats):
+        if isinstance(chat, dict):
+            normalized.append(
+                {
+                    "role": chat.get("role", "user"),
+                    "message": chat.get("message", ""),
+                }
+            )
+        else:
+            normalized.append(
+                {
+                    "role": "user" if index % 2 == 0 else "agent",
+                    "message": str(chat),
+                }
+            )
+    return normalized
+
+
+def get_latest_user_message(chats: list[dict]) -> str:
+    for chat in reversed(chats):
+        if str(chat.get("role", "")).lower() == "user":
+            return str(chat.get("message", ""))
+    return ""
+
+
+class GraphState(TypedDict, total=False):
+    """각 노드가 공유하는 대화 상태와 중간 결과 필드를 정의합니다."""
+
+    chats: Annotated[list[dict], reduce_chats]
+    state: str
+    is_out_of_bounds: bool
+    is_hr_case: bool
+    is_app_manual: bool
+    rag_search_query: str
+    job_descriptions: list[dict]
+    memories: Annotated[list[dict], operator.add]
+    retrieved_manual_docs: Annotated[list[str], reduce_chats]
+    out_of_bounds_response: str
+    hr_response: str
+    app_manual_response: str
+    response: str
+
+
+async def fall_case_node(state: GraphState) -> GraphState:
+    llm_result = await agents.invoke_fall_case_node(state["chats"])
+    return {
+        "is_out_of_bounds": llm_result.is_out_of_bounds,
+        "is_hr_case": llm_result.is_hr_case,
+        "is_app_manual": llm_result.is_app_manual,
+        "rag_search_query": llm_result.rag_search_query,
+        "out_of_bounds_response": llm_result.out_of_bounds_response,
+    }
+
+
+# ==================== 2단계-A: HR 대화 메모리 추출 노드 ====================
+
+async def context_extractor_node(state: GraphState) -> GraphState:
+    llm_result = await agents.invoke_context_extractor_node(state["chats"])
+    return {
+        "memories": [
+            {"context": memory.context, "value": memory.value} for memory in llm_result.memories
+        ]
+    }
+
+
+# ==================== 2단계-B: HR 데이터 분석 노드 ====================
+
+async def hr_analyst_node(state: GraphState) -> GraphState:
+    hr_response = await agents.invoke_hr_analyst_agent(
+        get_latest_user_message(state.get("chats", [])),
+        state.get("job_descriptions", []),
+        state.get("memories", []),
+    )
+    return {"hr_response": hr_response}
+
+
+async def app_manual_rag_node(state: GraphState) -> GraphState:
+    query = state.get("rag_search_query", "")
+    user_question = get_latest_user_message(state.get("chats", [])) or query
+    app_manual_response, retrieved_docs = await agents.invoke_app_manual_rag_agent(
+        query,
+        user_question,
+    )
+    return {"retrieved_manual_docs": retrieved_docs, "app_manual_response": app_manual_response}
+
+
+async def summary_node(state: GraphState) -> GraphState:
+    user_question = get_latest_user_message(state.get("chats", []))
+    responses_to_merge = []
+
+    if state.get("is_out_of_bounds") and state.get("out_of_bounds_response"):
+        responses_to_merge.append(f"[시스템 1 (범위 밖 질문 안내)]:\n{state['out_of_bounds_response']}")
+    if state.get("is_hr_case") and state.get("hr_response"):
+        responses_to_merge.append(f"[시스템 2 (HR 채용 통계 분석)]:\n{state['hr_response']}")
+    if state.get("is_app_manual") and state.get("app_manual_response"):
+        responses_to_merge.append(f"[시스템 3 (앱 사용법 안내)]:\n{state['app_manual_response']}")
+
+    if not responses_to_merge:
+        return {"response": "질문하신 내용에 대해 안내해 드릴 수 있는 내용을 찾지 못했습니다."}
+
+    merge_input = f"사용자 원본 질문: {user_question}\n\n취합해야 할 개별 답변 목록:\n" + "\n\n".join(
+        responses_to_merge
+    )
+
+    response = await agents.invoke_summary_agent(merge_input)
+    return {"response": response}
+
+
 
 def route_from_fall_case(state: GraphState) -> list[str]:
     """활성화된 모든 분류 조건에 맞춰 병렬로 이동할 노드 리스트를 반환합니다. (Fan-out)"""
@@ -45,11 +169,11 @@ def build_graph():
     builder = StateGraph(GraphState)
 
     # 노드 등록
-    builder.add_node("fall_case", agents.fall_case_node)
-    builder.add_node("context_extractor", agents.context_extractor_node)
-    builder.add_node("hr_analyst", agents.hr_analyst_node)
-    builder.add_node("app_manual_rag", agents.app_manual_rag_node)
-    builder.add_node("summary", agents.summary_node)  # 최종 요약 노드
+    builder.add_node("fall_case", fall_case_node)
+    builder.add_node("context_extractor", context_extractor_node)
+    builder.add_node("hr_analyst", hr_analyst_node)
+    builder.add_node("app_manual_rag", app_manual_rag_node)
+    builder.add_node("summary", summary_node)  # 최종 요약 노드
 
     # 그래프 흐름 연결
     builder.add_edge(START, "fall_case")
@@ -81,10 +205,18 @@ def build_graph():
 graph_instance = build_graph()
 
 
-async def invoke_chat_graph_async(chats: list[str] | str) -> GraphState:
+async def invoke_graph(state: dict) -> str:
+    if "chats" in state:
+        state = {**state, "chats": normalize_chats(state["chats"])}
+    if "job_descriptions" not in state:
+        state = {**state, "job_descriptions": []}
+    result = await graph_instance.ainvoke(state)
+    return result.get("response", "")
+
+
+async def invoke_chat_graph_async(chats: list[dict] | list[str] | str) -> GraphState:
     """ainvoke를 사용하여 비동기로 그래프 파이프라인을 실행합니다."""
-    if isinstance(chats, str):
-        chats = [chats]
+    chats = normalize_chats(chats)
 
     initial_state: GraphState = {
         "chats": chats,
@@ -93,6 +225,7 @@ async def invoke_chat_graph_async(chats: list[str] | str) -> GraphState:
         "is_hr_case": False,
         "is_app_manual": False,
         "rag_search_query": "",
+        "job_descriptions": [],
         "memories": [],
         "out_of_bounds_response": "",
         "hr_response": "",
@@ -115,35 +248,36 @@ def print_graph_result(result: GraphState):
     print()
 
 
-def print_history(chats: list[str]):
+def print_history(chats: list[dict]):
     if not chats:
         print("\n[history] 아직 대화가 없습니다.\n")
         return
     print("\n====== 현재 대화 히스토리 ======")
-    for index, message in enumerate(chats):
-        role = "USER" if index % 2 == 0 else "AI"
+    for index, chat in enumerate(chats):
+        role = str(chat.get("role", "")).upper()
+        message = chat.get("message", "")
         print(f"{index + 1}. {role}> {message}")
     print()
 
 
 async def run_turns_async(user_turns: list[str]):
-    chats: list[str] = []
+    chats: list[dict] = []
     for turn_index, user_message in enumerate(user_turns, start=1):
         print(f"\n===== TURN {turn_index} =====")
         print(f"USER> {user_message}")
-        chats.append(user_message)
+        chats.append({"role": "user", "message": user_message})
 
         result = await invoke_chat_graph_async(chats)
         answer = result.get("response", "")
 
         print("\nAI>")
         print(answer)
-        chats.append(answer)
+        chats.append({"role": "agent", "message": answer})
     print_history(chats)
 
 
 async def run_interactive_chat_async():
-    chats: list[str] = []
+    chats: list[dict] = []
     print("====== Test LangGraph 멀티턴 대화형 실행 ======")
     print("복합 질문 처리 가능 예시: '오늘 서울 날씨 어때? 그리고 채팅 기록은 어디서 봐?'")
     print("명령어: /history, /reset, exit, quit, q\n")
@@ -165,7 +299,7 @@ async def run_interactive_chat_async():
         if not user_message:
             continue
 
-        chats.append(user_message)
+        chats.append({"role": "user", "message": user_message})
 
         try:
             result = await invoke_chat_graph_async(chats)
@@ -182,7 +316,7 @@ async def run_interactive_chat_async():
             f"hr={result.get('is_hr_case')}, app_manual={result.get('is_app_manual')}"
         )
         print()
-        chats.append(answer)
+        chats.append({"role": "agent", "message": answer})
 
 
 def main():
@@ -200,7 +334,7 @@ def main():
         res = asyncio.run(invoke_chat_graph_async(chats))
         print_graph_result(res)
     elif args.message:
-        res = asyncio.run(invoke_chat_graph_async([args.message]))
+        res = asyncio.run(invoke_chat_graph_async([{"role": "user", "message": args.message}]))
         print_graph_result(res)
     else:
         asyncio.run(run_interactive_chat_async())

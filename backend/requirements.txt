@@ -2,9 +2,11 @@ Django
 gunicorn
 django-cors-headers
 openai
+pinecone
 mysqlclient
 langchain-core
 langchain-openai
 langgraph
 pydantic
 python-dotenv
+typing-extensions
