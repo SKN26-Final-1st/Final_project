@@ -10,6 +10,23 @@ from asgiref.sync import sync_to_async
 
 from common import report as report_service
 
+from .columns import (
+    ACCOUNT_BLOCKED_FIELDS,
+    AUTH_KEY_BLOCKED_FIELDS,
+    AUTH_KEY_ADD_ALLOWED_FIELDS,
+    AUTH_KEY_ADD_BLOCKED_FIELDS,
+    AUTH_KEY_MODIFY_BLOCKED_FIELDS,
+    AUTH_KEY_MODIFY_CONTROL_FIELDS,
+    COMPANY_INFO_BLOCKED_FIELDS,
+    JOB_DESCRIPTION_ADD_BLOCKED_FIELDS,
+    JOB_DESCRIPTION_BLOCKED_FIELDS,
+    QUESTION_BLOCKED_FIELDS,
+    REPORT_BLOCKED_FIELDS,
+    RESUME_ADD_ALLOWED_FIELDS,
+    RESUME_ADD_BLOCKED_FIELDS,
+    RESUME_MODIFY_BLOCKED_FIELDS,
+)
+from .error_code import error_code
 from .models import (
     Account,
     AnalysisReport,
@@ -19,35 +36,6 @@ from .models import (
     JobDescription,
     Resume,
 )
-
-
-ACCOUNT_BLOCKED_FIELDS = {"id", "username", "account_hash"}
-COMPANY_INFO_BLOCKED_FIELDS = {"id", "account", "account_id"}
-AUTH_KEY_BLOCKED_FIELDS = {"id", "account", "account_id", "value"}
-AUTH_KEY_ADD_BLOCKED_FIELDS = AUTH_KEY_BLOCKED_FIELDS | {"authorized_resume"}
-AUTH_KEY_ADD_ALLOWED_FIELDS = {"name", "description", "credit_limit"}
-AUTH_KEY_MODIFY_CONTROL_FIELDS = {"delete"}
-AUTH_KEY_MODIFY_BLOCKED_FIELDS = AUTH_KEY_BLOCKED_FIELDS - {"id"}
-JOB_DESCRIPTION_BLOCKED_FIELDS = {"id", "account", "account_id", "created_at", "updated_at"}
-JOB_DESCRIPTION_ADD_BLOCKED_FIELDS = JOB_DESCRIPTION_BLOCKED_FIELDS
-RESUME_BLOCKED_FIELDS = {"id", "created_at", "updated_at", "status", "reviewed", "reviewed_at"}
-RESUME_ADD_BLOCKED_FIELDS = RESUME_BLOCKED_FIELDS
-RESUME_ADD_ALLOWED_FIELDS = {
-    "job_description_id",
-    "name",
-    "skill",
-    "education_level",
-    "experience",
-    "self_intoduction",
-    "certification",
-    "language",
-    "award",
-    "training",
-    "other_activity",
-}
-RESUME_MODIFY_BLOCKED_FIELDS = RESUME_BLOCKED_FIELDS | {"job_description", "job_description_id"}
-REPORT_BLOCKED_FIELDS = {"id", "resume", "resume_id"}
-QUESTION_BLOCKED_FIELDS = {"id", "resume", "resume_id"}
 
 
 def _get_analysis_inputs(request, resume_id):
@@ -133,21 +121,21 @@ def _save_analysis_result(resume_id, analysis_result):
 
 async def _resume_analize_async(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     data = json.loads(request.body or "{}")
     resume_id = data.get("id")
 
     if not resume_id:
-        return JsonResponse({"error": True, "message": "Resume id is required."}, status=400)
+        return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
 
     try:
         inputs = await sync_to_async(_get_analysis_inputs)(request, resume_id)
     except PermissionError as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 403)}, status=400)
 
     if inputs is None:
-        return JsonResponse({"error": True, "message": "Resume does not exist."}, status=404)
+        return JsonResponse({"error": True, "message": error_code("Resume does not exist.", 400)}, status=400)
 
     resume_id, resume_dict, company_dict, jd_dict = inputs
     analysis_result = await sync_to_async(report_service.invoke, thread_sensitive=False)(
@@ -175,7 +163,7 @@ def csrf_token(request):
 
 def account_signin(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         data = json.loads(request.body or "{}")
@@ -186,10 +174,10 @@ def account_signin(request):
         verification_answer = data.get("verification_answer")
 
         if not all([username, password, name, verification_question, verification_answer]):
-            return JsonResponse({"error": True, "message": "Need to fill in required fields."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Need to fill in required fields.", 401)}, status=400)
 
         if Account.objects.filter(username=username).exists():
-            return JsonResponse({"error": True, "message": "Username already exists."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Username already exists.", 406)}, status=400)
 
         Account.objects.create_user(
             username=username,
@@ -201,12 +189,12 @@ def account_signin(request):
 
         return JsonResponse({"error": False, "signin": True})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def account_login(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         data = json.loads(request.body or "{}")
@@ -214,7 +202,7 @@ def account_login(request):
         password = data.get("password")
 
         if not username or not password:
-            return JsonResponse({"error": True, "message": "Username and password are required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Username and password are required.", 401)}, status=400)
 
         user = authenticate(request, username=username, password=password)
 
@@ -222,70 +210,70 @@ def account_login(request):
             login(request, user)
             return JsonResponse({"error": False, "login": True})
         else:
-            return JsonResponse({"error": True, "message": "Invalid credentials"})
+            return JsonResponse({"error": True, "message": error_code("Invalid credentials", 403)})
         
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def account_logout(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         if request.user.is_authenticated:
             logout(request)
             return JsonResponse({"error": False, "logout": True})
         else:
-            return JsonResponse({"error": True, "message": "User is not authenticated."}, status=401)
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)}, status=400)
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def check_user(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         data = json.loads(request.body or "{}")
         username = data.get("username")
 
         if not username:
-            return JsonResponse({"error": True, "message": "Username is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Username is required.", 401)}, status=400)
 
         valid = not Account.objects.filter(username=username).exists()
         return JsonResponse({"error": False, "valid": valid})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def password_question(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         data = json.loads(request.body or "{}")
         username = data.get("username")
 
         if not username:
-            return JsonResponse({"error": True, "message": "Username is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Username is required.", 401)}, status=400)
 
         try:
             user = Account.objects.get(username=username)
         except Account.DoesNotExist:
-            return JsonResponse({"error": True, "message": "User does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("User does not exist.", 400)}, status=400)
 
         return JsonResponse({
             "error": False,
             "verification_question": user.verification_question or "",
         })
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def password_reset(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         data = json.loads(request.body or "{}")
@@ -293,15 +281,15 @@ def password_reset(request):
         verification_answer = data.get("verification_answer") or data.get("answer")
 
         if not all([username, verification_answer]):
-            return JsonResponse({"error": True, "message": "Need to fill in required fields."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Need to fill in required fields.", 401)}, status=400)
 
         try:
             user = Account.objects.get(username=username)
         except Account.DoesNotExist:
-            return JsonResponse({"error": True, "message": "User does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("User does not exist.", 400)}, status=400)
 
         if user.verification_answer != verification_answer:
-            return JsonResponse({"error": True, "message": "Verification answer is incorrect."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Verification answer is incorrect.", 402)}, status=400)
 
         password = "".join(secrets.choice(string.ascii_lowercase) for _ in range(8))
         user.set_password(password)
@@ -309,29 +297,29 @@ def password_reset(request):
 
         return JsonResponse({"error": False, "password": password})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def chat(request):
     if request.method != "POST":
-        return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
     try:
         data = json.loads(request.body or "{}")
         chats = data.get("chat")
 
         if not isinstance(chats, list):
-            return JsonResponse({"error": True, "message": "Chat must be a list."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Chat must be a list.", 400)}, status=400)
 
         for chat_item in chats:
             if not isinstance(chat_item, dict):
-                return JsonResponse({"error": True, "message": "Chat items must be objects."}, status=400)
+                return JsonResponse({"error": True, "message": error_code("Chat items must be objects.", 400)}, status=400)
 
             if chat_item.get("role") not in {"user", "agent"}:
-                return JsonResponse({"error": True, "message": "Chat role must be user or agent."}, status=400)
+                return JsonResponse({"error": True, "message": error_code("Chat role must be user or agent.", 400)}, status=400)
 
             if not isinstance(chat_item.get("message"), str):
-                return JsonResponse({"error": True, "message": "Chat message must be a string."}, status=400)
+                return JsonResponse({"error": True, "message": error_code("Chat message must be a string.", 400)}, status=400)
 
         chats = list(chats)  # 입력 받은 list[dict]
         response = "테스트용 답변"  # API 호출로 받은 agent 답변
@@ -344,29 +332,29 @@ def chat(request):
             },
         })
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def account_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         return JsonResponse({"error": False, "data": request.user.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def account_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         data = json.loads(request.body or "{}")
         user = request.user
@@ -378,16 +366,16 @@ def account_modify(request):
 
         for key in ACCOUNT_BLOCKED_FIELDS:
             if key in data:
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
         if "password" in data:
             formal_password = data.get("formal_password")
 
             if not formal_password:
-                return JsonResponse({"error": True, "message": "Formal password is required."}, status=400)
+                return JsonResponse({"error": True, "message": error_code("Formal password is required.", 401)}, status=400)
 
             if not user.check_password(formal_password):
-                return JsonResponse({"error": True, "message": "Formal password is incorrect."}, status=400)
+                return JsonResponse({"error": True, "message": error_code("Formal password is incorrect.", 402)}, status=400)
 
             user.set_password(data["password"])
 
@@ -398,7 +386,7 @@ def account_modify(request):
                 continue
 
             if key not in account_fields:
-                return JsonResponse({"error": True, "message": f"Invalid account field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid account field: {key}", 402)}, status=400)
 
             setattr(user, key, value)
 
@@ -406,31 +394,31 @@ def account_modify(request):
 
         return JsonResponse({"error": False})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def compinfo_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         company_info, _ = CompanyInfo.objects.get_or_create(account=request.user)
 
         return JsonResponse({"error": False, "data": company_info.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def compinfo_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         data = json.loads(request.body or "{}")
         company_info, _ = CompanyInfo.objects.get_or_create(account=request.user)
@@ -439,10 +427,10 @@ def compinfo_modify(request):
 
         for key, value in data.items():
             if key in COMPANY_INFO_BLOCKED_FIELDS:
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
             if key not in company_info_fields:
-                return JsonResponse({"error": True, "message": f"Invalid company info field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid company info field: {key}", 402)}, status=400)
 
             setattr(company_info, key, value)
 
@@ -450,16 +438,16 @@ def compinfo_modify(request):
 
         return JsonResponse({"error": False})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def authkey_add(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         data = json.loads(request.body or "{}")
         description = data.get("description", "")
@@ -468,14 +456,14 @@ def authkey_add(request):
 
         for key in AUTH_KEY_ADD_BLOCKED_FIELDS:
             if key in data:
-                return JsonResponse({"error": True, "message": f"{key} cannot be set."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be set.", 402)}, status=400)
 
         for key in data:
             if key not in AUTH_KEY_ADD_ALLOWED_FIELDS:
-                return JsonResponse({"error": True, "message": f"Invalid auth key field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid auth key field: {key}", 402)}, status=400)
 
         if not name:
-            return JsonResponse({"error": True, "message": "Name is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Name is required.", 401)}, status=400)
 
         auth_key = AuthKey.objects.create(
             account=request.user,
@@ -487,16 +475,16 @@ def authkey_add(request):
 
         return JsonResponse({"error": False, "data": auth_key.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def authkey_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         auth_keys = AuthKey.objects.filter(account=request.user).order_by("id")
         data = []
@@ -513,27 +501,27 @@ def authkey_get(request):
 
         return JsonResponse({"error": False, "data": data})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def authkey_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         data = json.loads(request.body or "{}")
         authkey_id = data.get("id")
 
         if not authkey_id:
-            return JsonResponse({"error": True, "message": "AuthKey id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("AuthKey id is required.", 401)}, status=400)
 
         try:
             auth_key = AuthKey.objects.get(id=authkey_id, account=request.user)
         except AuthKey.DoesNotExist:
-            return JsonResponse({"error": True, "message": "AuthKey does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("AuthKey does not exist.", 400)}, status=400)
 
         if data.get("delete") is True:
             auth_key.delete()
@@ -546,23 +534,17 @@ def authkey_modify(request):
                 continue
 
             if key in AUTH_KEY_MODIFY_BLOCKED_FIELDS:
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
             if key not in auth_key_fields:
-                return JsonResponse({"error": True, "message": f"Invalid auth key field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid auth key field: {key}", 402)}, status=400)
 
             if key == "authorized_resume":
                 if not isinstance(value, list):
-                    return JsonResponse({
-                        "error": True,
-                        "message": "Authorized resume must be a list.",
-                    }, status=400)
+                    return JsonResponse({"error": True, "message": error_code("Authorized resume must be a list.", 400)}, status=400)
 
                 if len(value) != len(set(value)):
-                    return JsonResponse({
-                        "error": True,
-                        "message": "Authorized resume contains duplicated resume id.",
-                    }, status=400)
+                    return JsonResponse({"error": True, "message": error_code("Authorized resume contains duplicated resume id.", 406)}, status=400)
 
                 resume_count = Resume.objects.filter(
                     id__in=value,
@@ -570,10 +552,7 @@ def authkey_modify(request):
                 ).count()
 
                 if resume_count != len(set(value)):
-                    return JsonResponse({
-                        "error": True,
-                        "message": "Authorized resume contains invalid resume id.",
-                    }, status=400)
+                    return JsonResponse({"error": True, "message": error_code("Authorized resume contains invalid resume id.", 402)}, status=400)
 
             setattr(auth_key, key, value)
 
@@ -581,16 +560,16 @@ def authkey_modify(request):
 
         return JsonResponse({"error": False})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def jd_add(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         data = json.loads(request.body or "{}")
         required_fields = {
@@ -599,10 +578,10 @@ def jd_add(request):
 
         for key in JOB_DESCRIPTION_ADD_BLOCKED_FIELDS:
             if key in data:
-                return JsonResponse({"error": True, "message": f"{key} cannot be set."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be set.", 402)}, status=400)
 
         if not all(data.get(field) for field in required_fields):
-            return JsonResponse({"error": True, "message": "Need to fill in required fields."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Need to fill in required fields.", 401)}, status=400)
 
         status = data.get("status", JobDescription.STATUS_PREPARE)
         valid_statuses = {
@@ -612,7 +591,7 @@ def jd_add(request):
         }
 
         if status not in valid_statuses:
-            return JsonResponse({"error": True, "message": "Invalid status."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Invalid status.", 402)}, status=400)
 
         job_description = JobDescription.objects.create(
             account=request.user,
@@ -630,13 +609,13 @@ def jd_add(request):
 
         return JsonResponse({"error": False, "data": job_description.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def jd_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if request.user.is_authenticated:
             job_descriptions = JobDescription.objects.filter(account=request.user).order_by("id")
@@ -648,12 +627,12 @@ def jd_get(request):
         api_key = request.headers.get("X-API-Key")
 
         if not api_key:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         try:
             auth_key = AuthKey.objects.select_related("account").get(value=api_key)
         except AuthKey.DoesNotExist:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         authorized_resume = auth_key.authorized_resume or []
         job_descriptions = JobDescription.objects.filter(
@@ -666,19 +645,19 @@ def jd_get(request):
             "data": [job_description.to_dict() for job_description in job_descriptions],
         })
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def jd_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
         job_description_id = data.get("id")
 
         if not job_description_id:
-            return JsonResponse({"error": True, "message": "JobDescription id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
 
         if request.user.is_authenticated:
             job_description_queryset = JobDescription.objects.filter(account=request.user)
@@ -686,12 +665,12 @@ def jd_modify(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             authorized_resume = auth_key.authorized_resume or []
             job_description_queryset = JobDescription.objects.filter(
@@ -702,7 +681,7 @@ def jd_modify(request):
         try:
             job_description = job_description_queryset.get(id=job_description_id)
         except JobDescription.DoesNotExist:
-            return JsonResponse({"error": True, "message": "JobDescription does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
 
         if data.get("delete") is True:
             job_description_data = job_description.to_dict()
@@ -719,10 +698,10 @@ def jd_modify(request):
                 if key == "id":
                     continue
 
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
             if key not in job_description_fields:
-                return JsonResponse({"error": True, "message": f"Invalid job description field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid job description field: {key}", 402)}, status=400)
 
             if key == "status":
                 valid_statuses = {
@@ -732,7 +711,7 @@ def jd_modify(request):
                 }
 
                 if value not in valid_statuses:
-                    return JsonResponse({"error": True, "message": "Invalid status."}, status=400)
+                    return JsonResponse({"error": True, "message": error_code("Invalid status.", 402)}, status=400)
 
             setattr(job_description, key, value)
 
@@ -740,35 +719,35 @@ def jd_modify(request):
 
         return JsonResponse({"error": False, "data": job_description.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def resume_add(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         if not request.user.is_authenticated:
-            return JsonResponse({"error": True, "message": "User is not authenticated."})
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         data = json.loads(request.body or "{}")
         job_description_id = data.get("job_description_id")
 
         if not job_description_id:
-            return JsonResponse({"error": True, "message": "JobDescription id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
 
         for key in RESUME_ADD_BLOCKED_FIELDS:
             if key in data:
-                return JsonResponse({"error": True, "message": f"{key} cannot be set."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be set.", 402)}, status=400)
 
         for key in data:
             if key not in RESUME_ADD_ALLOWED_FIELDS:
-                return JsonResponse({"error": True, "message": f"Invalid resume field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid resume field: {key}", 402)}, status=400)
 
         try:
             job_description = JobDescription.objects.get(id=job_description_id, account=request.user)
         except JobDescription.DoesNotExist:
-            return JsonResponse({"error": True, "message": "JobDescription does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
 
         resume = Resume.objects.create(
             job_description=job_description,
@@ -786,13 +765,13 @@ def resume_add(request):
 
         return JsonResponse({"error": False, "data": resume.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def resume_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
 
@@ -802,12 +781,12 @@ def resume_get(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             resumes = Resume.objects.filter(
                 id__in=auth_key.authorized_resume or [],
@@ -828,19 +807,19 @@ def resume_get(request):
         resumes = resumes.order_by("id")
         return JsonResponse({"error": False, "data": [resume.to_dict() for resume in resumes]})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def resume_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
         resume_id = data.get("id")
 
         if not resume_id:
-            return JsonResponse({"error": True, "message": "Resume id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
 
         if request.user.is_authenticated:
             resumes = Resume.objects.filter(job_description__account=request.user)
@@ -848,12 +827,12 @@ def resume_modify(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             resumes = Resume.objects.filter(
                 id__in=auth_key.authorized_resume or [],
@@ -863,7 +842,7 @@ def resume_modify(request):
         try:
             resume = resumes.get(id=resume_id)
         except Resume.DoesNotExist:
-            return JsonResponse({"error": True, "message": "Resume does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("Resume does not exist.", 400)}, status=400)
 
         if data.get("delete") is True:
             resume_data = resume.to_dict()
@@ -880,10 +859,10 @@ def resume_modify(request):
                 if key == "id":
                     continue
 
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
             if key not in resume_fields:
-                return JsonResponse({"error": True, "message": f"Invalid resume field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid resume field: {key}", 402)}, status=400)
 
             setattr(resume, key, value)
 
@@ -891,26 +870,26 @@ def resume_modify(request):
 
         return JsonResponse({"error": False, "data": resume.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 async def resume_analize(request):
     try:
         return await _resume_analize_async(request)
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def report_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
         resume_id = data.get("resume_id")
 
         if not resume_id:
-            return JsonResponse({"error": True, "message": "Resume id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
 
         if request.user.is_authenticated:
             resume_filter = Resume.objects.filter(id=resume_id, job_description__account=request.user)
@@ -918,12 +897,12 @@ def report_get(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             resume_filter = Resume.objects.filter(
                 id=resume_id,
@@ -937,22 +916,22 @@ def report_get(request):
         reports = AnalysisReport.objects.filter(resume_id=resume_id).order_by("id")
         return JsonResponse({"error": False, "data": [report.to_dict() for report in reports]})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def report_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
         report_id = data.get("id")
 
         if not report_id:
-            return JsonResponse({"error": True, "message": "Report id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Report id is required.", 401)}, status=400)
 
         if "delete" in data:
-            return JsonResponse({"error": True, "message": "Delete is not allowed."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Delete is not allowed.", 407)}, status=400)
 
         if request.user.is_authenticated:
             reports = AnalysisReport.objects.filter(resume__job_description__account=request.user)
@@ -960,12 +939,12 @@ def report_modify(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             reports = AnalysisReport.objects.filter(
                 resume_id__in=auth_key.authorized_resume or [],
@@ -975,7 +954,7 @@ def report_modify(request):
         try:
             report = reports.get(id=report_id)
         except AnalysisReport.DoesNotExist:
-            return JsonResponse({"error": True, "message": "Report does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
 
         report_fields = _editable_model_fields(report, REPORT_BLOCKED_FIELDS)
 
@@ -984,10 +963,10 @@ def report_modify(request):
                 if key == "id":
                     continue
 
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
             if key not in report_fields:
-                return JsonResponse({"error": True, "message": f"Invalid report field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid report field: {key}", 402)}, status=400)
 
             setattr(report, key, value)
 
@@ -995,19 +974,19 @@ def report_modify(request):
 
         return JsonResponse({"error": False, "data": report.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def question_get(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
         resume_id = data.get("resume_id")
 
         if not resume_id:
-            return JsonResponse({"error": True, "message": "Resume id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
 
         if request.user.is_authenticated:
             resume_filter = Resume.objects.filter(id=resume_id, job_description__account=request.user)
@@ -1015,12 +994,12 @@ def question_get(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             resume_filter = Resume.objects.filter(
                 id=resume_id,
@@ -1034,22 +1013,22 @@ def question_get(request):
         questions = InterviewQuestion.objects.filter(resume_id=resume_id).order_by("id")
         return JsonResponse({"error": False, "data": [question.to_dict() for question in questions]})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def question_modify(request):
     try:
         if request.method != "POST":
-            return JsonResponse({"error": True, "message": "POST request required."}, status=405)
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
         question_id = data.get("id")
 
         if not question_id:
-            return JsonResponse({"error": True, "message": "Question id is required."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Question id is required.", 401)}, status=400)
 
         if "delete" in data:
-            return JsonResponse({"error": True, "message": "Delete is not allowed."}, status=400)
+            return JsonResponse({"error": True, "message": error_code("Delete is not allowed.", 407)}, status=400)
 
         if request.user.is_authenticated:
             questions = InterviewQuestion.objects.filter(resume__job_description__account=request.user)
@@ -1057,12 +1036,12 @@ def question_modify(request):
             api_key = request.headers.get("X-API-Key")
 
             if not api_key:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             try:
                 auth_key = AuthKey.objects.select_related("account").get(value=api_key)
             except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": "User is not authenticated."})
+                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
             questions = InterviewQuestion.objects.filter(
                 resume_id__in=auth_key.authorized_resume or [],
@@ -1072,7 +1051,7 @@ def question_modify(request):
         try:
             question = questions.get(id=question_id)
         except InterviewQuestion.DoesNotExist:
-            return JsonResponse({"error": True, "message": "Question does not exist."}, status=404)
+            return JsonResponse({"error": True, "message": error_code("Question does not exist.", 400)}, status=400)
 
         question_fields = _editable_model_fields(question, QUESTION_BLOCKED_FIELDS)
 
@@ -1081,10 +1060,10 @@ def question_modify(request):
                 if key == "id":
                     continue
 
-                return JsonResponse({"error": True, "message": f"{key} cannot be modified."}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
 
             if key not in question_fields:
-                return JsonResponse({"error": True, "message": f"Invalid question field: {key}"}, status=400)
+                return JsonResponse({"error": True, "message": error_code(f"Invalid question field: {key}", 402)}, status=400)
 
             setattr(question, key, value)
 
@@ -1092,4 +1071,4 @@ def question_modify(request):
 
         return JsonResponse({"error": False, "data": question.to_dict()})
     except Exception as error:
-        return JsonResponse({"error": True, "message": str(error)})
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
