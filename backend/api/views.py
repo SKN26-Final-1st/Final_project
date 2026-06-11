@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from asgiref.sync import sync_to_async
 
+from common.chat_graph import invoke_graph
 from common import report as report_service
 
 from .columns import (
@@ -117,6 +118,29 @@ def _save_analysis_result(resume_id, analysis_result):
         "report": report.to_dict(),
         "questions": [question.to_dict() for question in questions],
     }
+
+
+def _get_job_description_dicts(request):
+    if request.user.is_authenticated:
+        job_descriptions = request.user.job_descriptions.order_by("id")
+    else:
+        api_key = request.headers.get("X-API-Key")
+
+        if not api_key:
+            raise PermissionError("User is not authenticated.")
+
+        try:
+            auth_key = AuthKey.objects.select_related("account").get(value=api_key)
+        except AuthKey.DoesNotExist as exc:
+            raise PermissionError("User is not authenticated.") from exc
+
+        authorized_resume = auth_key.authorized_resume or []
+        job_descriptions = JobDescription.objects.filter(
+            account=auth_key.account,
+            resumes__id__in=authorized_resume,
+        ).distinct().order_by("id")
+
+    return [job_description.to_dict() for job_description in job_descriptions]
 
 
 async def _resume_analize_async(request):
@@ -300,7 +324,7 @@ def password_reset(request):
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
-def chat(request):
+async def chat(request):
     if request.method != "POST":
         return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
@@ -321,8 +345,15 @@ def chat(request):
             if not isinstance(chat_item.get("message"), str):
                 return JsonResponse({"error": True, "message": error_code("Chat message must be a string.", 400)}, status=400)
 
-        chats = list(chats)  # 입력 받은 list[dict]
-        response = "테스트용 답변"  # API 호출로 받은 agent 답변
+        try:
+            job_descriptions = await sync_to_async(_get_job_description_dicts)(request)
+        except PermissionError as error:
+            return JsonResponse({"error": True, "message": error_code(str(error), 403)})
+
+        response = await invoke_graph({
+            "chats": list(chats),
+            "job_descriptions": job_descriptions,
+        })
 
         return JsonResponse({
             "error": False,
@@ -617,32 +648,14 @@ def jd_get(request):
         if request.method != "POST":
             return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
-        if request.user.is_authenticated:
-            job_descriptions = JobDescription.objects.filter(account=request.user).order_by("id")
-            return JsonResponse({
-                "error": False,
-                "data": [job_description.to_dict() for job_description in job_descriptions],
-            })
-
-        api_key = request.headers.get("X-API-Key")
-
-        if not api_key:
-            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
         try:
-            auth_key = AuthKey.objects.select_related("account").get(value=api_key)
-        except AuthKey.DoesNotExist:
+            job_descriptions = _get_job_description_dicts(request)
+        except PermissionError:
             return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-        authorized_resume = auth_key.authorized_resume or []
-        job_descriptions = JobDescription.objects.filter(
-            account=auth_key.account,
-            resumes__id__in=authorized_resume,
-        ).distinct().order_by("id")
 
         return JsonResponse({
             "error": False,
-            "data": [job_description.to_dict() for job_description in job_descriptions],
+            "data": job_descriptions,
         })
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
