@@ -298,6 +298,11 @@ export default function App() {
             company={data.company}
             loadingKey={loadingKey}
             navigate={navigate}
+            onPasswordChanged={() => {
+              setChatMessages([]);
+              setIsAuthenticated(false);
+              navigate('/login');
+            }}
             runApiAction={runApiAction}
             reloadData={reload}
           />
