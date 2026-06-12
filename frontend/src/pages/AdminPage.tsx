@@ -133,96 +133,94 @@ export function AdminPage({
         ))}
       </Row>
 
-      <Row gutter={[24, 24]} className="admin-workspace-grid">
-        <Col xs={24} xl={15}>
-          <SectionCard
-            title="공유 API key"
-            extra={
-              <Tag color="blue" icon={<KeyOutlined />}>
-                {authKeys.length}개
-              </Tag>
-            }
-          >
-            <Form form={form} layout="vertical" onFinish={(values) => void createAuthKey(values)}>
-              <Row gutter={[12, 0]}>
-                <Col xs={24} md={8}>
-                  <Form.Item label="키 이름" name="name" rules={[{ required: true, message: '키 이름을 입력하세요.' }]}>
-                    <Input placeholder="예: 외부 면접관 공유" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={10}>
-                  <Form.Item label="설명" name="description">
-                    <Input placeholder="사용 목적" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={6}>
-                  <Form.Item label="크레딧 한도" name="credit_limit">
-                    <InputNumber min={0} precision={0} className="full-width-control" placeholder="0" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={loadingKey === 'authkey-add'}>
-                API key 발급
-              </Button>
-            </Form>
+      <div className="admin-workspace-grid">
+        <SectionCard
+          title="공유 API key"
+          extra={
+            <Tag color="blue" icon={<KeyOutlined />}>
+              {authKeys.length}개
+            </Tag>
+          }
+        >
+          <Form form={form} layout="vertical" onFinish={(values) => void createAuthKey(values)}>
+            <Row gutter={[12, 0]}>
+              <Col xs={24} md={8}>
+                <Form.Item label="키 이름" name="name" rules={[{ required: true, message: '키 이름을 입력하세요.' }]}>
+                  <Input placeholder="예: 외부 면접관 공유" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={10}>
+                <Form.Item label="설명" name="description">
+                  <Input placeholder="사용 목적" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={6}>
+                <Form.Item label="크레딧 한도" name="credit_limit">
+                  <InputNumber min={0} precision={0} className="full-width-control" placeholder="0" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={loadingKey === 'authkey-add'}>
+              API key 발급
+            </Button>
+          </Form>
 
-            <List
-              className="authkey-list"
-              dataSource={authKeys}
-              locale={{ emptyText: '발급된 API key가 없습니다.' }}
-              renderItem={(authKey) => {
-                const saveKey = `authkey-save-${authKey.id}`;
-                const deleteKey = `authkey-delete-${authKey.id}`;
+          <List
+            className="authkey-list"
+            dataSource={authKeys}
+            locale={{ emptyText: '발급된 API key가 없습니다.' }}
+            renderItem={(authKey) => {
+              const saveKey = `authkey-save-${authKey.id}`;
+              const deleteKey = `authkey-delete-${authKey.id}`;
 
-                return (
-                  <List.Item
-                    actions={[
-                      <Button
-                        key="save"
-                        icon={loadingKey === saveKey ? undefined : <SaveOutlined />}
-                        disabled={loadingKey === saveKey}
-                        onClick={() => saveAuthorizedResumes(authKey)}
-                      >
-                        {loadingKey === saveKey ? <InlineLoading label="저장 중" /> : '저장'}
-                      </Button>,
-                      <Button
-                        danger
-                        key="delete"
-                        icon={<DeleteOutlined />}
-                        disabled={loadingKey === deleteKey}
-                        onClick={() => deleteAuthKey(authKey)}
-                      >
-                        삭제
-                      </Button>,
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={
-                        <Space wrap>
-                          <strong>{authKey.name}</strong>
-                          <Tag>{authKey.value}</Tag>
-                          <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
-                        </Space>
-                      }
-                      description={authKey.description || '설명 없음'}
-                    />
-                    <Select
-                      mode="multiple"
-                      allowClear
-                      className="authkey-resume-select"
-                      placeholder="허용할 지원서 선택"
-                      options={resumeOptions}
-                      value={getAuthorizedResumeIds(authKey)}
-                      onChange={(nextIds) => updateAuthorizedDraft(authKey.id, nextIds)}
-                    />
-                  </List.Item>
-                );
-              }}
-            />
-          </SectionCard>
-        </Col>
+              return (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="save"
+                      icon={loadingKey === saveKey ? undefined : <SaveOutlined />}
+                      disabled={loadingKey === saveKey}
+                      onClick={() => saveAuthorizedResumes(authKey)}
+                    >
+                      {loadingKey === saveKey ? <InlineLoading label="저장 중" /> : '저장'}
+                    </Button>,
+                    <Button
+                      danger
+                      key="delete"
+                      icon={<DeleteOutlined />}
+                      disabled={loadingKey === deleteKey}
+                      onClick={() => deleteAuthKey(authKey)}
+                    >
+                      삭제
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space wrap>
+                        <strong>{authKey.name}</strong>
+                        <Tag>{authKey.value}</Tag>
+                        <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                      </Space>
+                    }
+                    description={authKey.description || '설명 없음'}
+                  />
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    className="authkey-resume-select"
+                    placeholder="허용할 지원서 선택"
+                    options={resumeOptions}
+                    value={getAuthorizedResumeIds(authKey)}
+                    onChange={(nextIds) => updateAuthorizedDraft(authKey.id, nextIds)}
+                  />
+                </List.Item>
+              );
+            }}
+          />
+        </SectionCard>
 
-        <Col xs={24} xl={9}>
+        <div className="admin-workspace-side">
           <SectionCard title="포인트 / 구독">
             <div className="admin-credit-panel">
               <CreditCardOutlined />
@@ -243,8 +241,8 @@ export function AdminPage({
               description="플랜 목록, 결제/구독 변경, 포인트 충전 이력, 일반/기업 고객 구분, 조직 멤버 권한 관리는 현재 backend endpoint가 없어 임의 호출하지 않습니다."
             />
           </SectionCard>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </div>
   );
 }

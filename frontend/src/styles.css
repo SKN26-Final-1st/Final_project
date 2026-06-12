@@ -1898,6 +1898,13 @@ button,
   align-items: start;
 }
 
+.admin-workspace-side {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+  align-content: start;
+}
+
 .admin-main-stack,
 .admin-side-stack,
 .admin-log-list,
@@ -2298,10 +2305,6 @@ button,
   .admin-main-stack,
   .admin-side-stack {
     display: contents;
-  }
-
-  .startup-admin-page .section-card {
-    height: 100%;
   }
 
   .admin-guardrail-card {
@@ -3555,6 +3558,10 @@ button,
 
   .admin-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-workspace-grid {
+    grid-template-columns: 1fr;
   }
 
   .admin-guardrail-layout {
