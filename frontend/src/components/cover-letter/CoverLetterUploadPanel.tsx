@@ -2,8 +2,7 @@ import { Button, Divider, Table, Upload } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { EmptyState } from '../common/PageState';
 import type { CoverLetterDraft, CoverLetterRow } from '../../api/adapters';
-import { apiClient } from '../../api/backendClient';
-import type { Navigate, RunApiAction } from '../../types/app';
+import type { Navigate } from '../../types/app';
 import { statusTag } from '../../utils/statusTag';
 
 const { Dragger } = Upload;
@@ -13,8 +12,7 @@ type CoverLetterUploadPanelProps = {
   coverRows: CoverLetterRow[];
   coverUploaded: boolean;
   analysisDone: boolean;
-  runApiAction: RunApiAction;
-  setCoverUploaded: (value: boolean) => void;
+  onUpload: () => void;
   navigate: Navigate;
 };
 
@@ -23,8 +21,7 @@ export function CoverLetterUploadPanel({
   coverRows,
   coverUploaded,
   analysisDone,
-  runApiAction,
-  setCoverUploaded,
+  onUpload,
   navigate,
 }: CoverLetterUploadPanelProps) {
   const isWarningStatus = (statusCode: CoverLetterRow['statusCode']) =>
@@ -34,7 +31,7 @@ export function CoverLetterUploadPanel({
     <>
       <Dragger
         beforeUpload={() => {
-          void runApiAction('cover-upload', apiClient.uploadCoverLetters, () => setCoverUploaded(true));
+          onUpload();
           return false;
         }}
         showUploadList={false}
