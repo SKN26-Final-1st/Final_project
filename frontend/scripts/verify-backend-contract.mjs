@@ -1,0 +1,264 @@
+import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const repoRoot = join(root, '..');
+
+function read(path) {
+  return readFileSync(join(repoRoot, path), 'utf8');
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+const backendClient = read('frontend/src/api/backendClient.ts');
+const authPages = read('frontend/src/pages/AuthPages.tsx');
+const authScreen = read('frontend/src/components/layout/AuthScreen.tsx');
+const app = read('frontend/src/App.tsx');
+const appDataService = read('frontend/src/api/appDataService.ts');
+const adapters = read('frontend/src/api/adapters.ts');
+const backendTypes = read('frontend/src/data/backendTypes.ts');
+const appConfig = read('frontend/src/data/appConfig.tsx');
+const viteConfig = read('frontend/vite.config.ts');
+
+const requiredBackendCalls = [
+  'csrf',
+  'signin',
+  'login',
+  'logout',
+  'checkuser',
+  'passqestion',
+  'passreset',
+  'account/get',
+  'account/modify',
+  'compinfo/get',
+  'compinfo/modify',
+  'authkey/add',
+  'authkey/get',
+  'authkey/modify',
+  'jd/add',
+  'jd/get',
+  'jd/modify',
+  'resume/add',
+  'resume/get',
+  'resume/modify',
+  'resume/analize',
+  'report/get',
+  'report/modify',
+  'question/get',
+  'question/modify',
+  'chat',
+];
+
+function containsEndpoint(source, endpoint) {
+  return [
+    `'${endpoint}'`,
+    `"${endpoint}"`,
+    `/${endpoint}/`,
+    `\${API_ROOT}/${endpoint}/`,
+  ].some((needle) => source.includes(needle));
+}
+
+function getApiClientMethod(source, method) {
+  const methodStart = source.indexOf(`  ${method}:`);
+  assert(methodStart >= 0, `Missing account API method ${method}`);
+  const methodTail = source.slice(methodStart + 1);
+  const nextMethodMatch = /\n  [A-Za-z]\w+:\s/.exec(methodTail);
+  const methodEnd = nextMethodMatch ? methodStart + 1 + nextMethodMatch.index : source.length;
+  return source.slice(methodStart, methodEnd);
+}
+
+for (const endpoint of requiredBackendCalls) {
+  assert(
+    containsEndpoint(backendClient, endpoint),
+    `Missing frontend backend call for ${endpoint}`,
+  );
+}
+
+assert(
+  /requestBackend<AnalysisReport\[\]>\(['"]report\/get['"]/.test(backendClient),
+  'report/get must treat backend data as AnalysisReport[]',
+);
+
+assert(
+  /requestBackend<\{\s*report:\s*AnalysisReport;\s*questions:\s*InterviewQuestion\[\];\s*\}>\(['"]resume\/analize['"],\s*\{\s*id:\s*resume\.id\s*\}\)/.test(
+    backendClient,
+  ),
+  'resume/analize must send resume.id and consume the returned report/questions payload',
+);
+
+const realApiMethodNames = [
+  'getDashboard',
+  'getCompanyProfile',
+  'getJobDescriptions',
+  'getCoverLetterDraft',
+  'getCoverLetters',
+  'getAnalysisReport',
+  'getRecruitmentPreview',
+  'getCoverLetterTemplate',
+  'saveCompanyProfile',
+  'getAuthKeys',
+  'addAuthKey',
+  'saveAuthKey',
+  'deleteAuthKey',
+  'addJobDescription',
+  'saveJobDescription',
+  'deleteJobDescription',
+  'requestJobAnalysis',
+  'addResume',
+  'saveResume',
+  'deleteResume',
+  'uploadCoverLetters',
+  'requestCoverLetterAnalysis',
+  'sendChatMessage',
+  'saveReport',
+  'saveQuestion',
+];
+
+for (const method of realApiMethodNames) {
+  const methodBody = getApiClientMethod(backendClient, method);
+  assert(!methodBody.includes('USE_MOCK_API'), `${method} must use real backend data instead of USE_MOCK_API`);
+  assert(!/ApiResponse\.data/.test(methodBody), `${method} must not read static mock ApiResponse data`);
+}
+
+assert(!/function getDashboardSource\(\)[\s\S]*USE_MOCK_API/.test(backendClient), 'Dashboard source must not switch to local mock data');
+assert(!/function getResumeSourceForJob[\s\S]*USE_MOCK_API/.test(backendClient), 'Resume source must not switch to local mock data');
+
+assert(
+  /apiKey\?:\s*string/.test(backendClient) && /headers\.set\(['"]X-API-Key['"],\s*apiKey\s*\?\?\s*API_KEY\)/.test(backendClient),
+  'Backend client must support per-request X-API-Key for shared report access',
+);
+
+assert(/getSharedResumeBundle/.test(backendClient), 'Shared resume/report/question bundle API is required');
+assert(/\/shared/.test(appConfig) && /\/shared/.test(app), 'Shared report route must exist');
+
+assert(
+  /type Account = \{[\s\S]*\bid: number;[\s\S]*\busername: string;[\s\S]*\baccount_hash: string;[\s\S]*\}/.test(
+    backendTypes,
+  ),
+  'Account type must match backend to_dict fields, including required id, username, and account_hash',
+);
+
+assert(!/\bpassword\??:/.test(backendTypes.match(/type Account = \{[\s\S]*?\};/)?.[0] ?? ''), 'Account type must not include password');
+
+assert(
+  !/\baccount_id\??:/.test(backendTypes.match(/type AuthKey = \{[\s\S]*?\};/)?.[0] ?? ''),
+  'AuthKey type must not expose account_id',
+);
+
+assert(
+  /type CompanyInfo = \{[\s\S]*\bid: number;[\s\S]*\}/.test(backendTypes) &&
+    !/\baccount_id\??:/.test(backendTypes.match(/type CompanyInfo = \{[\s\S]*?\};/)?.[0] ?? ''),
+  'CompanyInfo type must match backend fields with required id and no account_id',
+);
+
+assert(
+  !/\baccount_id\??:/.test(backendTypes.match(/type JobDescription = \{[\s\S]*?\};/)?.[0] ?? ''),
+  'JobDescription type must not expose account_id',
+);
+
+assert(
+  /reviewed_at:\s*DateTimeString;/.test(backendTypes),
+  'Resume.reviewed_at must be a backend-normalized DateTimeString',
+);
+
+assert(!/reviewed_at:\s*null/.test(backendTypes), 'Resume types must use backend-normalized reviewed_at strings instead of null');
+
+const accountMethodNames = [
+  'getUserProfile',
+  'login',
+  'logout',
+  'saveUserProfile',
+  'checkSignupId',
+  'completeSignup',
+  'getPasswordQuestion',
+  'resetPassword',
+];
+
+for (const method of accountMethodNames) {
+  const methodBody = getApiClientMethod(backendClient, method);
+  assert(!methodBody.includes('USE_MOCK_API'), `${method} must not branch to mock data`);
+  assert(!methodBody.includes('authDefaultsApiResponse'), `${method} must not use mock auth defaults`);
+}
+
+assert(
+  /login:\s*async\s*\(\s*username:\s*string,\s*password:\s*string\s*\)[\s\S]*await loginRequest\(username,\s*password\)[\s\S]*await getAccount\(\)/.test(
+    backendClient,
+  ),
+  'login must call backend login and then reload the real account',
+);
+
+assert(
+  /completeSignup:\s*async\s*\(body:\s*SignupBody\)[\s\S]*await signinRequest\(\{[\s\S]*username:\s*body\.username[\s\S]*password:\s*body\.password[\s\S]*verification_answer:\s*body\.verification_answer/.test(
+    backendClient,
+  ),
+  'completeSignup must send the submitted signup fields directly to signin',
+);
+
+assert(
+  /requestAction\(['"]account\/modify['"],\s*sanitizeAccountModifyBody\(body\)\)/.test(backendClient),
+  'saveUserProfile must sanitize blocked account fields before account/modify',
+);
+
+assert(!authPages.includes('authDefaults'), 'Auth pages must not prefill from mock auth defaults');
+assert(!authPages.includes('verification_answer ??'), 'Password reset must not reuse a mock verification answer');
+assert(!authScreen.includes("nav('/dashboard')"), 'Auth screen logo must not navigate directly to a protected route');
+assert(/className="auth-logo-button"[\s\S]*type="button"|type="button"[\s\S]*className="auth-logo-button"/.test(authScreen), 'Auth logo button must be a non-submit button');
+assert(/isAuthenticated/.test(app), 'App must track authenticated state for protected routes');
+assert(/<RouterNavigate to="\/login" replace/.test(app), 'Protected routes must redirect unauthenticated users to login');
+assert(!appDataService.includes('getAuthDefaults'), 'App data loading must not request mock auth defaults');
+assert(!appDataService.includes('getLocalDashboardData'), 'App data loading must not fall back to local mock dashboard data');
+assert(!adapters.includes('authDefaultsApiResponse'), 'Adapters must not derive AuthDefaults from mock account data');
+
+assert(
+  /server:\s*\{[\s\S]*proxy:\s*\{[\s\S]*\/api/.test(viteConfig),
+  'vite.config.ts must proxy /api to the Django dev server',
+);
+
+assert(
+  /port:\s*5173/.test(viteConfig) && /strictPort:\s*true/.test(viteConfig),
+  'Vite dev server must stay on backend CSRF-trusted port 5173 instead of silently moving to another port',
+);
+
+assert(
+  /async function checkUserRequest\(username: string\)[\s\S]*username\.trim\(\)[\s\S]*requestAction\(['"]checkuser['"],\s*\{\s*username:\s*trimmedUsername\s*\}\)/.test(
+    backendClient,
+  ),
+  'checkuser must trim username and send POST /api/checkuser/ body as { username: trimmedUsername }',
+);
+
+assert(
+  /async function checkUserRequest\(username: string\)[\s\S]*typeof payload\.valid !== ['"]boolean['"]/.test(backendClient),
+  'checkuser must read top-level valid:boolean and reject malformed responses',
+);
+
+assert(
+  /name="username"[\s\S]*whitespace:\s*true/.test(authPages),
+  'Signup username field must block empty or whitespace-only values before calling checkuser',
+);
+
+assert(
+  /catch \(nextError\)[\s\S]*const errorMessage = nextError instanceof Error \? nextError\.message/.test(app),
+  'runApiAction must surface the concrete backend/client error message instead of only a generic API failure',
+);
+
+const mockOnlyMethods = [
+  'generateRecruitmentPost',
+  'downloadRecruitmentPdf',
+  'generateCoverLetterTemplate',
+  'downloadTemplateDocument',
+];
+
+for (const method of mockOnlyMethods) {
+  const methodStart = backendClient.indexOf(`${method}:`);
+  assert(methodStart >= 0, `Missing mock-only method ${method}`);
+  const methodBody = getApiClientMethod(backendClient, method);
+  assert(!methodBody.includes('requestAction('), `${method} should remain mock-only until backend endpoint exists`);
+  assert(methodBody.includes('unsupportedBackendFeature'), `${method} must be marked as backend-unsupported`);
+}
+
+console.log('Backend contract checks passed.');
