@@ -1,56 +1,39 @@
-import { Button, Col, Divider, List, Row, Space, Tag } from 'antd';
+import { Button, Col, Divider, List, Row, Space, Tag, Tooltip } from 'antd';
 import { DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { EmptyState } from '../components/common/PageState';
-import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem, TemplateQuestion } from '../api/adapters';
-import { apiClient } from '../api/backendClient';
-import type { RunApiAction } from '../types/app';
 
 type CoverLetterTemplatePageProps = {
   selectedJd: JdItem | null;
   templateQuestions: TemplateQuestion[];
   templateGenerated: boolean;
-  loadingKey: string | null;
-  setTemplateGenerated: (value: boolean) => void;
-  runApiAction: RunApiAction;
 };
 
 export function CoverLetterTemplatePage({
   selectedJd,
   templateQuestions,
   templateGenerated,
-  loadingKey,
-  setTemplateGenerated,
-  runApiAction,
 }: CoverLetterTemplatePageProps) {
   return (
     <>
       <PageTitle
         eyebrow="Cover Letter Template"
         title="자기소개서 포맷 작성"
-        description="JD 요약을 바탕으로 자기소개서 문항과 작성 가이드 생성 결과를 표시합니다."
+        description="분석 완료 후 backend가 생성한 면접 질문과 가이드를 표시합니다. 별도 문항 생성/문서 다운로드 API는 아직 없습니다."
         actions={
           <Space wrap>
-            <Button
-              type="primary"
-              icon={<FileSearchOutlined />}
-              disabled={!selectedJd || loadingKey === 'template-generate'}
-              onClick={() =>
-                selectedJd &&
-                void runApiAction(
-                  'template-generate',
-                  () => apiClient.generateCoverLetterTemplate(selectedJd.id),
-                  () => setTemplateGenerated(true),
-                )
-              }
-            >
-              {loadingKey === 'template-generate' ? <InlineLoading label="생성 중" /> : '문항 생성'}
-            </Button>
-            <Button icon={<DownloadOutlined />} onClick={() => void runApiAction('template-doc', apiClient.downloadTemplateDocument)}>
-              문서
-            </Button>
+            <Tooltip title="자기소개서 문항 생성 backend API가 아직 없습니다. 분석 완료 후 면접 질문을 표시합니다.">
+              <Button type="primary" icon={<FileSearchOutlined />} disabled>
+                분석 결과 사용
+              </Button>
+            </Tooltip>
+            <Tooltip title="템플릿 문서 다운로드 backend API가 아직 없습니다.">
+              <Button disabled icon={<DownloadOutlined />}>
+                문서
+              </Button>
+            </Tooltip>
           </Space>
         }
       />
