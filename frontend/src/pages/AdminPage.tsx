@@ -1,471 +1,250 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { Button, Progress, Space, Tag } from 'antd';
+import { useMemo, useState } from 'react';
+import { Alert, Button, Col, Form, Input, InputNumber, List, Progress, Row, Select, Space, Statistic, Tag } from 'antd';
 import {
   ApiOutlined,
-  AuditOutlined,
-  CloudSyncOutlined,
-  CopyOutlined,
   CreditCardOutlined,
+  DeleteOutlined,
   KeyOutlined,
   PlusOutlined,
-  SafetyCertificateOutlined,
+  SaveOutlined,
   SettingOutlined,
-  ThunderboltOutlined,
-  UserSwitchOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
+import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { AdminData } from '../api/adapters';
-import type { Navigate, ShowAlert } from '../types/app';
+import { apiClient } from '../api/backendClient';
+import type { AuthKey, Resume } from '../data/backendTypes';
+import type { Navigate, RunApiAction, ShowAlert } from '../types/app';
 
 type AdminPageProps = {
   admin: AdminData;
+  authKeys: AuthKey[];
+  resumes: Resume[];
+  loadingKey: string | null;
   navigate: Navigate;
+  runApiAction: RunApiAction;
   showAlert: ShowAlert;
+  reloadData: () => Promise<void>;
 };
 
-type Tone = 'primary' | 'accent' | 'warning' | 'danger';
-
-type AdminMetric = {
-  label: string;
-  value: string;
-  helper: string;
-  tone: Tone;
-  icon: ReactNode;
+type AuthKeyCreateForm = {
+  name: string;
+  description?: string;
+  credit_limit?: number;
 };
-
-type ProgressStyle = CSSProperties & {
-  '--progress': string;
-};
-
-const CREDIT_POINT_UNIT = 500;
-const TOKEN_PER_POINT = 24.5;
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('ko-KR').format(Math.round(value));
 }
 
-function formatPoints(value: number) {
-  return `${formatNumber(value)}pt`;
+function formatResumeLabel(resume: Resume) {
+  return `${resume.name || '이름 없음'} · #${resume.id}`;
 }
 
-function formatTokens(tokens: number) {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(2)}M`;
-  }
-
-  if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}K`;
-  }
-
-  return formatNumber(tokens);
-}
-
-function getDisplayPoints(admin: AdminData) {
-  return admin.credit.remaining >= 1000 ? admin.credit.remaining : admin.credit.remaining * CREDIT_POINT_UNIT;
-}
-
-function getCompanyInitials(companyName: string) {
-  return companyName.trim().replace(/\s+/g, '').slice(0, 2).toUpperCase();
-}
-
-function progressStyle(percent: number): ProgressStyle {
-  return { '--progress': `${Math.max(0, Math.min(100, percent))}%` };
-}
-
-export function AdminPage({ admin, navigate, showAlert }: AdminPageProps) {
-  const remainingPoints = getDisplayPoints(admin);
-  const monthlyBudget = Math.max(
-    remainingPoints,
-    Math.round((remainingPoints / Math.max(admin.credit.percent, 1)) * 100),
+export function AdminPage({
+  admin,
+  authKeys,
+  resumes,
+  loadingKey,
+  navigate,
+  runApiAction,
+  showAlert,
+  reloadData,
+}: AdminPageProps) {
+  const [form] = Form.useForm<AuthKeyCreateForm>();
+  const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
+  const resumeOptions = useMemo(
+    () => resumes.map((resume) => ({ value: resume.id, label: formatResumeLabel(resume) })),
+    [resumes],
   );
-  const pointPercent = Math.min(100, Math.round((remainingPoints / Math.max(monthlyBudget, 1)) * 100));
-  const tokenUsage = Math.round(remainingPoints * TOKEN_PER_POINT);
-  const activeRooms = Math.max(admin.operatingStatus.activeJobs + admin.members.length + 5, 1);
-  const guardrailAlerts = admin.operatingStatus.pendingReviews > 0 ? 3 : 1;
-  const roomDailyLimit = Math.round(monthlyBudget * 0.1);
-  const generationLimit = Math.round(monthlyBudget * 0.025);
 
-  const metrics: AdminMetric[] = [
-    {
-      label: '남은 포인트',
-      value: formatNumber(remainingPoints),
-      helper: `월 예산 ${formatPoints(monthlyBudget)} 기준`,
-      tone: 'primary',
-      icon: <CreditCardOutlined />,
-    },
-    {
-      label: '이번 달 LLM 토큰',
-      value: formatTokens(tokenUsage),
-      helper: '벤더 사용량 기준 자동 차감',
-      tone: 'accent',
-      icon: <ApiOutlined />,
-    },
-    {
-      label: '활성 면접방',
-      value: String(activeRooms),
-      helper: '비밀번호 만료 예정 2개',
-      tone: 'warning',
-      icon: <AuditOutlined />,
-    },
-    {
-      label: '가드레일 알림',
-      value: String(guardrailAlerts),
-      helper: '상한 초과 접근 차단',
-      tone: 'danger',
-      icon: <WarningOutlined />,
-    },
-  ];
+  const createAuthKey = async (values: AuthKeyCreateForm) => {
+    await runApiAction(
+      'authkey-add',
+      () => apiClient.addAuthKey(values),
+      (response) => {
+        form.resetFields();
+        showAlert({
+          type: 'success',
+          message: '새 API key가 생성되었습니다.',
+          description: `원문 key: ${response.data.value}`,
+        });
+        void reloadData();
+      },
+    );
+  };
 
-  const guardrailLimits = [
-    { label: '프로필 분석', value: formatPoints(Math.round(monthlyBudget * 0.024)), percent: 42 },
-    { label: '질문 생성', value: formatPoints(Math.round(monthlyBudget * 0.088)), percent: 74 },
-    { label: '재생성 제한', value: '방당 5회', percent: 36 },
-  ];
+  const getAuthorizedResumeIds = (authKey: AuthKey) => authorizedDrafts[authKey.id] ?? authKey.authorized_resume;
 
-  const interviewRooms = [
-    {
-      key: 'room-1',
-      room: '방1',
-      role: '백엔드 개발자',
-      purpose: '면접관 전용',
-      password: 'K9p-42Qx',
-      questions: 84,
-      lastGenerated: '최근 12분 전',
-      points: Math.round(remainingPoints * 0.1664),
-      status: '활성',
-      tone: 'accent' as const,
-    },
-    {
-      key: 'room-2',
-      room: '방2',
-      role: '프로덕트 디자이너',
-      purpose: '평가자 공유',
-      password: '만료 임박',
-      questions: 51,
-      lastGenerated: '오늘 10:42',
-      points: Math.round(remainingPoints * 0.1043),
-      status: '갱신',
-      tone: 'warning' as const,
-    },
-    {
-      key: 'room-3',
-      room: '방3',
-      role: '데이터 분석가',
-      purpose: '내부 리뷰',
-      password: '비공개',
-      questions: 33,
-      lastGenerated: '어제 18:20',
-      points: Math.round(remainingPoints * 0.0661),
-      status: '대기',
-      tone: 'primary' as const,
-    },
-  ];
+  const updateAuthorizedDraft = (id: number, nextIds: number[]) => {
+    setAuthorizedDrafts((current) => ({ ...current, [id]: nextIds }));
+  };
 
-  const usageLogs = [
-    {
-      key: 'question',
-      icon: <ThunderboltOutlined />,
-      title: '방1 질문 12개 생성',
-      detail: `gpt-4.1 · ${formatNumber(Math.round(remainingPoints * 0.2456))} tokens`,
-      cost: Math.round(remainingPoints * 0.0168),
-      time: '12분 전',
-    },
-    {
-      key: 'profile',
-      icon: <CloudSyncOutlined />,
-      title: '지원자 프로필 요약',
-      detail: `gpt-4.1-mini · ${formatNumber(Math.round(remainingPoints * 0.1053))} tokens`,
-      cost: Math.round(remainingPoints * 0.0056),
-      time: '46분 전',
-    },
-  ];
+  const saveAuthorizedResumes = (authKey: AuthKey) => {
+    void runApiAction(
+      `authkey-save-${authKey.id}`,
+      () => apiClient.saveAuthKey({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey) }),
+      () => {
+        setAuthorizedDrafts((current) => {
+          const next = { ...current };
+          delete next[authKey.id];
+          return next;
+        });
+        void reloadData();
+      },
+    );
+  };
+
+  const deleteAuthKey = (authKey: AuthKey) => {
+    void runApiAction(
+      `authkey-delete-${authKey.id}`,
+      () => apiClient.deleteAuthKey(authKey.id),
+      () => void reloadData(),
+    );
+  };
 
   return (
     <div className="admin-page startup-admin-page">
       <PageTitle
         eyebrow="Company Admin"
-        title="개별 스타트업 관리자"
-        description={`${admin.companyName} HR 담당자의 면접방, 비밀번호, LLM 질문 생성량과 포인트 차감 한도를 관리합니다.`}
+        title="관리자"
+        description={`${admin.companyName}의 포인트, 구독 상태, 공유 API key 접근 범위를 관리합니다.`}
         actions={
           <Space wrap>
-            <Button
-              icon={<SettingOutlined />}
-              onClick={() => showAlert({ type: 'info', message: 'LLM 사용 한도 조정 패널을 표시했습니다.' })}
-            >
-              한도 조정
+            <Button icon={<SettingOutlined />} onClick={() => navigate('/company')}>
+              회사 정보
             </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => showAlert({ type: 'info', message: '면접방 생성 목업을 표시했습니다.' })}
-            >
-              면접방 생성
+            <Button icon={<ApiOutlined />} onClick={() => showAlert({ type: 'info', message: '플랜/결제 API는 아직 backend에 없습니다.' })}>
+              플랜 상태 보기
             </Button>
           </Space>
         }
       />
 
-      <section className="admin-metric-grid" aria-label="스타트업 관리자 요약">
-        {metrics.map((metric) => (
-          <article className={`admin-metric-card ${metric.tone}`} key={metric.label}>
-            <span className="admin-metric-icon" aria-hidden="true">
-              {metric.icon}
-            </span>
-            <div>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-              <small>{metric.helper}</small>
-            </div>
-          </article>
+      <Row gutter={[16, 16]}>
+        {admin.summary.map((item) => (
+          <Col xs={24} sm={12} xl={6} key={item.label}>
+            <SectionCard title={item.label}>
+              <Statistic value={item.value} suffix={item.suffix} />
+              <p className="muted">{item.helper}</p>
+            </SectionCard>
+          </Col>
         ))}
-      </section>
+      </Row>
 
-      <section className="admin-workspace-grid">
-        <div className="admin-main-stack">
+      <Row gutter={[24, 24]} className="admin-workspace-grid">
+        <Col xs={24} xl={15}>
           <SectionCard
-            title="LLM 질문 생성 가드레일"
-            className="admin-guardrail-card"
+            title="공유 API key"
             extra={
-              <Button
-                type="link"
-                onClick={() => showAlert({ type: 'info', message: '정책 변경 내역을 불러왔습니다.' })}
-              >
-                정책 변경 내역
-              </Button>
+              <Tag color="blue" icon={<KeyOutlined />}>
+                {authKeys.length}개
+              </Tag>
             }
           >
-            <div className="admin-guardrail-layout">
-              <div className="admin-budget-panel">
-                <div className="admin-budget-head">
-                  <div>
-                    <span className="admin-muted-label">회사 월 포인트 예산</span>
-                    <strong>{formatPoints(monthlyBudget)}</strong>
-                  </div>
-                  <Tag color="green" className="admin-large-tag">
-                    정상 운영
-                  </Tag>
-                </div>
-                <Progress className="admin-budget-progress" percent={pointPercent} showInfo={false} />
-                <div className="admin-policy-grid">
-                  <div>
-                    <span>질문 생성 1회</span>
-                    <strong>{formatPoints(generationLimit)}</strong>
-                  </div>
-                  <div>
-                    <span>방별 일일 한도</span>
-                    <strong>{formatPoints(roomDailyLimit)}</strong>
-                  </div>
-                  <div>
-                    <span>포인트 환산</span>
-                    <strong>토큰 기반</strong>
-                  </div>
-                </div>
-              </div>
-
-              <aside className="admin-guardrail-side" aria-label="가드레일 세부 제한">
-                <div className="admin-token-callout">
-                  <strong>토큰 기반 차감</strong>
-                  <p>LLM 벤더 사용 토큰을 수집하고 회사 포인트에서 자동 차감합니다.</p>
-                </div>
-                <div className="admin-limit-list">
-                  {guardrailLimits.map((limit) => (
-                    <div className="admin-limit-row" key={limit.label}>
-                      <div>
-                        <strong>{limit.label}</strong>
-                        <small>{limit.value}</small>
-                      </div>
-                      <span className="admin-mini-progress" style={progressStyle(limit.percent)} aria-hidden="true">
-                        <span />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </aside>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="면접방 / 비밀번호 관리"
-            className="admin-room-card"
-            extra={
-              <Button
-                type="link"
-                onClick={() => showAlert({ type: 'info', message: '전체 면접방 목록을 표시했습니다.' })}
-              >
-                전체 방 보기
+            <Form form={form} layout="vertical" onFinish={(values) => void createAuthKey(values)}>
+              <Row gutter={[12, 0]}>
+                <Col xs={24} md={8}>
+                  <Form.Item label="키 이름" name="name" rules={[{ required: true, message: '키 이름을 입력하세요.' }]}>
+                    <Input placeholder="예: 외부 면접관 공유" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={10}>
+                  <Form.Item label="설명" name="description">
+                    <Input placeholder="사용 목적" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={6}>
+                  <Form.Item label="크레딧 한도" name="credit_limit">
+                    <InputNumber min={0} precision={0} className="full-width-control" placeholder="0" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={loadingKey === 'authkey-add'}>
+                API key 발급
               </Button>
-            }
-          >
-            <div className="admin-room-table-wrap">
-              <table className="admin-room-table">
-                <thead>
-                  <tr>
-                    <th>면접방</th>
-                    <th>용도</th>
-                    <th>비밀번호</th>
-                    <th>질문 생성</th>
-                    <th>포인트</th>
-                    <th>상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {interviewRooms.map((room) => (
-                    <tr key={room.key}>
-                      <td>
-                        <strong>{room.room}</strong>
-                        <small>{room.role}</small>
-                      </td>
-                      <td>{room.purpose}</td>
-                      <td>
-                        <button
-                          className={`admin-password-pill ${room.tone}`}
-                          type="button"
-                          onClick={() => showAlert({ type: 'success', message: `${room.room} 비밀번호를 복사했습니다.` })}
-                        >
-                          <KeyOutlined />
-                          <span>{room.password}</span>
-                        </button>
-                      </td>
-                      <td>
-                        <strong>{room.questions}개</strong>
-                        <small>{room.lastGenerated}</small>
-                      </td>
-                      <td>{formatPoints(room.points)}</td>
-                      <td>
-                        <Tag color={room.tone === 'accent' ? 'green' : room.tone === 'warning' ? 'gold' : 'blue'}>
-                          {room.status}
-                        </Tag>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
-        </div>
+            </Form>
 
-        <aside className="admin-side-stack">
-          <SectionCard
-            title="스타트업 프로필"
-            className="admin-profile-card"
-            extra={<Button type="link" onClick={() => navigate('/company')}>수정</Button>}
-          >
-            <div className="admin-company-profile">
-              <div className="admin-company-head">
-                <span className="admin-company-logo" aria-hidden="true">
-                  {getCompanyInitials(admin.companyName)}
-                </span>
-                <div>
-                  <strong>{admin.companyName}</strong>
-                  <p>채용 운영 워크스페이스 · 진행 중 JD {admin.operatingStatus.activeJobs}건</p>
-                </div>
+            <List
+              className="authkey-list"
+              dataSource={authKeys}
+              locale={{ emptyText: '발급된 API key가 없습니다.' }}
+              renderItem={(authKey) => {
+                const saveKey = `authkey-save-${authKey.id}`;
+                const deleteKey = `authkey-delete-${authKey.id}`;
+
+                return (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="save"
+                        icon={loadingKey === saveKey ? undefined : <SaveOutlined />}
+                        disabled={loadingKey === saveKey}
+                        onClick={() => saveAuthorizedResumes(authKey)}
+                      >
+                        {loadingKey === saveKey ? <InlineLoading label="저장 중" /> : '저장'}
+                      </Button>,
+                      <Button
+                        danger
+                        key="delete"
+                        icon={<DeleteOutlined />}
+                        disabled={loadingKey === deleteKey}
+                        onClick={() => deleteAuthKey(authKey)}
+                      >
+                        삭제
+                      </Button>,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={
+                        <Space wrap>
+                          <strong>{authKey.name}</strong>
+                          <Tag>{authKey.value}</Tag>
+                          <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                        </Space>
+                      }
+                      description={authKey.description || '설명 없음'}
+                    />
+                    <Select
+                      mode="multiple"
+                      allowClear
+                      className="authkey-resume-select"
+                      placeholder="허용할 지원서 선택"
+                      options={resumeOptions}
+                      value={getAuthorizedResumeIds(authKey)}
+                      onChange={(nextIds) => updateAuthorizedDraft(authKey.id, nextIds)}
+                    />
+                  </List.Item>
+                );
+              }}
+            />
+          </SectionCard>
+        </Col>
+
+        <Col xs={24} xl={9}>
+          <SectionCard title="포인트 / 구독">
+            <div className="admin-credit-panel">
+              <CreditCardOutlined />
+              <div>
+                <strong>{formatNumber(admin.credit.remaining)}pt</strong>
+                <span>{admin.credit.subscriptionStatus}</span>
               </div>
-              <dl className="admin-profile-list">
-                <div>
-                  <dt>대표 HR</dt>
-                  <dd>{admin.ownerName} / Talent Lead</dd>
-                </div>
-                <div>
-                  <dt>담당자 식별값</dt>
-                  <dd>SKN-123123 / 1</dd>
-                </div>
-                <div>
-                  <dt>질문 생성 권한</dt>
-                  <dd>HR 관리자 {admin.members.length}명</dd>
-                </div>
-              </dl>
             </div>
+            <Progress percent={admin.credit.percent} />
+            <p className="muted">구독 만료일: {admin.credit.expiresAt}</p>
           </SectionCard>
 
-          <SectionCard
-            title="비밀번호 정책"
-            className="admin-password-policy-card"
-            extra={
-              <Button
-                type="link"
-                onClick={() => showAlert({ type: 'info', message: '비밀번호 정책 편집 패널을 표시했습니다.' })}
-              >
-                정책 편집
-              </Button>
-            }
-          >
-            <div className="admin-security-list">
-              <div className="admin-security-row">
-                <span aria-hidden="true">
-                  <CopyOutlined />
-                </span>
-                <div>
-                  <strong>자동 생성 길이</strong>
-                  <small>8~12자, 특수문자 포함</small>
-                </div>
-                <Tag color="green">적용</Tag>
-              </div>
-              <div className="admin-security-row">
-                <span aria-hidden="true">
-                  <UserSwitchOutlined />
-                </span>
-                <div>
-                  <strong>만료 주기</strong>
-                  <small>면접방 생성 후 7일</small>
-                </div>
-                <Tag color="blue">7일</Tag>
-              </div>
-              <div className="admin-security-row">
-                <span aria-hidden="true">
-                  <SafetyCertificateOutlined />
-                </span>
-                <div>
-                  <strong>방별 접근</strong>
-                  <small>면접관 권한 계정만 입장</small>
-                </div>
-                <Tag color="green">보호</Tag>
-              </div>
-            </div>
+          <SectionCard title="backend 미지원 기능">
+            <Alert
+              showIcon
+              type="warning"
+              title="표시 전용"
+              description="플랜 목록, 결제/구독 변경, 포인트 충전 이력, 일반/기업 고객 구분, 조직 멤버 권한 관리는 현재 backend endpoint가 없어 임의 호출하지 않습니다."
+            />
           </SectionCard>
-
-          <SectionCard
-            title="LLM 사용 로그"
-            className="admin-usage-card"
-            extra={
-              <Button
-                type="link"
-                onClick={() => showAlert({ type: 'info', message: 'LLM 사용 로그 다운로드를 준비했습니다.' })}
-              >
-                다운로드
-              </Button>
-            }
-          >
-            <div className="admin-usage-chart" aria-label="최근 7일 LLM 사용량">
-              {[32, 46, 68, 40, 78, 58, 86].map((height, index) => (
-                <span
-                  className={index === 2 || index === 5 ? 'accent' : undefined}
-                  style={progressStyle(height)}
-                  key={`${height}-${index}`}
-                />
-              ))}
-            </div>
-            <div className="admin-log-list">
-              {usageLogs.map((log) => (
-                <div className="admin-log-row" key={log.key}>
-                  <span className="admin-log-icon" aria-hidden="true">
-                    {log.icon}
-                  </span>
-                  <div>
-                    <strong>{log.title}</strong>
-                    <small>{log.detail}</small>
-                  </div>
-                  <div className="admin-log-cost">
-                    <strong>-{formatPoints(log.cost)}</strong>
-                    <small>{log.time}</small>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </aside>
-      </section>
+        </Col>
+      </Row>
     </div>
   );
 }
