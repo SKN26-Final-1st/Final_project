@@ -1,6 +1,7 @@
-import { Button, Col, Row, Space } from 'antd';
-import { DeleteOutlined, FileSearchOutlined } from '@ant-design/icons';
-import { JdEditorPanel } from '../components/jd/JdEditorPanel';
+import { useEffect } from 'react';
+import { Button, Col, Form, Row, Space } from 'antd';
+import { DeleteOutlined, FileSearchOutlined, SaveOutlined } from '@ant-design/icons';
+import { JdEditorPanel, type JdEditorFormValues } from '../components/jd/JdEditorPanel';
 import { JdListPanel } from '../components/jd/JdListPanel';
 import { EmptyState } from '../components/common/PageState';
 import { InlineLoading } from '../components/common/InlineLoading';
@@ -19,7 +20,27 @@ type JdPageProps = {
   runApiAction: RunApiAction;
   navigate: Navigate;
   showAlert: ShowAlert;
+  reloadData: () => Promise<void>;
 };
+
+function toJdEditorValues(selectedJd: JdItem): JdEditorFormValues {
+  const validStatus = ['prepare', 'on_going', 'closed'].includes(selectedJd.statusCode)
+    ? (selectedJd.statusCode as JdEditorFormValues['status'])
+    : 'prepare';
+
+  return {
+    job_name: selectedJd.title,
+    education_level: selectedJd.educationLevel,
+    major: selectedJd.major,
+    career_level: selectedJd.requiredExperience,
+    required_skill: selectedJd.stack,
+    preferred_skill: selectedJd.preferredStack,
+    main_task: selectedJd.summary,
+    hiring_reason: selectedJd.hiringReason,
+    work_type: selectedJd.employmentType,
+    status: validStatus,
+  };
+}
 
 export function JdPage({
   jdList,
@@ -30,7 +51,43 @@ export function JdPage({
   runApiAction,
   navigate,
   showAlert,
+  reloadData,
 }: JdPageProps) {
+  const [form] = Form.useForm<JdEditorFormValues>();
+  const editorInitialValues = selectedJd ? toJdEditorValues(selectedJd) : undefined;
+
+  useEffect(() => {
+    if (selectedJd) {
+      form.setFieldsValue(toJdEditorValues(selectedJd));
+    }
+  }, [form, selectedJd]);
+
+  const saveSelectedJd = async () => {
+    if (!selectedJd) {
+      return;
+    }
+
+    const values = await form.validateFields();
+    await runApiAction(
+      'jd-save',
+      () => apiClient.saveJobDescription({ id: Number(selectedJd.id), ...values }),
+      () => void reloadData(),
+    );
+  };
+
+  const deleteSelectedJd = () => {
+    if (!selectedJd) {
+      showAlert({ type: 'warning', message: '삭제할 JD를 선택하세요.' });
+      return;
+    }
+
+    void runApiAction(
+      'jd-delete',
+      () => apiClient.deleteJobDescription(Number(selectedJd.id)),
+      () => void reloadData(),
+    );
+  };
+
   return (
     <>
       <PageTitle
@@ -39,8 +96,15 @@ export function JdPage({
         description="JD 목록과 작성 폼을 좌우로 배치해 저장, 삭제, 분석 요청 흐름을 확인합니다."
         actions={
           <Space wrap>
-            <Button icon={<DeleteOutlined />} onClick={() => showAlert({ type: 'warning', message: '삭제 확인 목업을 표시했습니다.' })}>
+            <Button icon={<DeleteOutlined />} disabled={!selectedJd || loadingKey === 'jd-delete'} onClick={deleteSelectedJd}>
               삭제
+            </Button>
+            <Button
+              icon={loadingKey === 'jd-save' ? undefined : <SaveOutlined />}
+              disabled={!selectedJd || loadingKey === 'jd-save'}
+              onClick={() => void saveSelectedJd()}
+            >
+              {loadingKey === 'jd-save' ? <InlineLoading label="저장 중" /> : '저장'}
             </Button>
             <Button
               type="primary"
@@ -51,7 +115,9 @@ export function JdPage({
                 void runApiAction(
                   'jd-analysis',
                   () => apiClient.requestJobAnalysis(selectedJd.id),
-                  () => navigate('/cover-letter'),
+                  () => {
+                    void reloadData().finally(() => navigate('/cover-letter'));
+                  },
                 )
               }
             >
@@ -72,8 +138,13 @@ export function JdPage({
         </Col>
         <Col xs={24} xl={16}>
           <SectionCard title="JD 작성/수정">
-            {selectedJd ? (
-              <JdEditorPanel selectedJd={selectedJd} navigate={navigate} showAlert={showAlert} />
+            {selectedJd && editorInitialValues ? (
+              <JdEditorPanel
+                form={form}
+                selectedJd={selectedJd}
+                initialValues={editorInitialValues}
+                navigate={navigate}
+              />
             ) : (
               <EmptyState description="수정할 JD를 선택하세요." />
             )}

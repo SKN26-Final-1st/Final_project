@@ -4223,6 +4223,147 @@ button,
   }
 }
 
+.shared-report-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgb(37 99 235 / 0.10), transparent 34rem),
+    linear-gradient(180deg, rgb(248 250 252), rgb(239 246 255));
+  color: var(--text);
+}
+
+.shared-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px clamp(20px, 5vw, 64px);
+}
+
+.shared-report-main {
+  display: grid;
+  gap: 20px;
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 20px 0 64px;
+}
+
+.shared-report-hero {
+  max-width: 720px;
+}
+
+.shared-report-hero h1 {
+  margin: 8px 0;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.1;
+}
+
+.shared-report-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.shared-report-lookup,
+.shared-report-tabs .ant-card {
+  border-radius: 18px;
+}
+
+.full-width-control {
+  width: 100%;
+}
+
+.shared-inline-alert {
+  padding-block: 6px;
+}
+
+.shared-section-stack,
+.shared-chat-input {
+  width: 100%;
+}
+
+.shared-report-copy p {
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+.shared-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  margin-bottom: 16px;
+  overflow: auto;
+}
+
+.shared-chat-bubble {
+  max-width: min(720px, 88%);
+  padding: 12px 14px;
+  border-radius: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.shared-chat-bubble.assistant {
+  align-self: flex-start;
+  background: rgb(241 245 249);
+}
+
+.shared-chat-bubble.user {
+  align-self: flex-end;
+  background: rgb(37 99 235);
+  color: white;
+}
+
+.authkey-list {
+  margin-top: 20px;
+}
+
+.authkey-list .ant-list-item {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.authkey-resume-select {
+  width: min(360px, 100%);
+}
+
+.admin-credit-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-credit-panel > .anticon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 24px;
+}
+
+.admin-credit-panel strong,
+.admin-credit-panel span {
+  display: block;
+}
+
+.admin-credit-panel strong {
+  font-size: 28px;
+}
+
+.app-root[data-theme="dark"] .shared-report-page {
+  background:
+    radial-gradient(circle at top left, rgb(20 184 166 / 0.14), transparent 34rem),
+    linear-gradient(180deg, rgb(15 23 42), rgb(30 41 59));
+}
+
+.app-root[data-theme="dark"] .shared-chat-bubble.assistant {
+  background: rgb(30 41 59);
+}
+
 @media (max-width: 420px) {
   .app-root {
     --layout-gap: 14px;

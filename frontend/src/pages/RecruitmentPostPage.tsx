@@ -1,25 +1,20 @@
 import type { Key } from 'react';
-import { Button, Col, Row, Space } from 'antd';
+import { Button, Col, Row, Space, Tooltip } from 'antd';
 import { DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { JdSelectionPanel } from '../components/recruitment/JdSelectionPanel';
 import { RecruitmentPreviewPanel } from '../components/recruitment/RecruitmentPreviewPanel';
 import { SelectedJdSummary } from '../components/recruitment/SelectedJdSummary';
-import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem, RecruitmentPreview } from '../api/adapters';
-import { apiClient } from '../api/backendClient';
-import type { KeySetter, RunApiAction } from '../types/app';
+import type { KeySetter } from '../types/app';
 
 type RecruitmentPostPageProps = {
   jdList: JdItem[];
   recruitmentPreview: RecruitmentPreview;
   selectedRows: Key[];
   postGenerated: boolean;
-  loadingKey: string | null;
   setSelectedRows: KeySetter;
-  setPostGenerated: (value: boolean) => void;
-  runApiAction: RunApiAction;
 };
 
 export function RecruitmentPostPage({
@@ -27,36 +22,26 @@ export function RecruitmentPostPage({
   recruitmentPreview,
   selectedRows,
   postGenerated,
-  loadingKey,
   setSelectedRows,
-  setPostGenerated,
-  runApiAction,
 }: RecruitmentPostPageProps) {
   return (
     <div className="recruitment-post-page">
       <PageTitle
         eyebrow="Recruitment Post"
         title="모집 공고 작성"
-        description="복수 JD를 선택하고 생성된 모집 공고 미리보기와 PDF 다운로드 흐름을 확인합니다."
+        description="실제 JD 데이터를 바탕으로 미리보기를 표시합니다. 공고 생성과 PDF 다운로드는 현재 backend API가 없어 비활성화했습니다."
         actions={
           <Space wrap>
-            <Button
-              icon={<FileSearchOutlined />}
-              type="primary"
-              disabled={!selectedRows.length || loadingKey === 'post-generate'}
-              onClick={() =>
-                void runApiAction(
-                  'post-generate',
-                  () => apiClient.generateRecruitmentPost(selectedRows.map(String)),
-                  () => setPostGenerated(true),
-                )
-              }
-            >
-              {loadingKey === 'post-generate' ? <InlineLoading label="생성 중" /> : '공고 생성'}
-            </Button>
-            <Button icon={<DownloadOutlined />} onClick={() => void runApiAction('post-pdf', apiClient.downloadRecruitmentPdf)}>
-              PDF
-            </Button>
+            <Tooltip title="모집 공고 생성 backend API가 아직 없습니다.">
+              <Button icon={<FileSearchOutlined />} type="primary" disabled>
+                공고 생성
+              </Button>
+            </Tooltip>
+            <Tooltip title="모집 공고 PDF 다운로드 backend API가 아직 없습니다.">
+              <Button disabled icon={<DownloadOutlined />}>
+                PDF
+              </Button>
+            </Tooltip>
           </Space>
         }
       />

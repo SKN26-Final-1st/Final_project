@@ -1,20 +1,22 @@
 import type {
-  analysisReportApiResponse,
-  authDefaultsApiResponse,
-  companyApiResponse,
-  coverLetterDraftApiResponse,
-  coverLettersApiResponse,
-  coverLetterTemplateApiResponse,
-  dashboardApiResponse,
-  jobDescriptionsApiResponse,
-  recruitmentPostApiResponse,
+  Account,
+  AnalysisReport,
+  CompanyInfo,
+  JobDescription,
+  InterviewQuestion,
+  Resume,
   StatusCode,
-  userProfileApiResponse,
-} from '../data/apiMockData';
-import type { AnalysisReport, CompanyInfo, JobDescription, InterviewQuestion, Resume } from '../data/apiMockData';
-import type { ChatMessage } from '../data/mockData';
+} from '../data/backendTypes';
+import type { ChatMessage } from '../data/appConfig';
 
-type ApiData<T> = T extends { data: infer Data } ? Data : never;
+export type DashboardSource = {
+  account: Account;
+  company_info: CompanyInfo;
+  job_descriptions: JobDescription[];
+  resumes: Resume[];
+  analysis_reports: AnalysisReport[];
+  interview_questions: InterviewQuestion[];
+};
 
 export type MetricItem = {
   label: string;
@@ -160,7 +162,10 @@ export type AnalysisReportData = {
   chatMessages: ChatMessage[];
 };
 
-export type RecruitmentPreview = ApiData<typeof recruitmentPostApiResponse>;
+export type RecruitmentPreview = {
+  title: string;
+  sections: string[];
+};
 
 export type TemplateQuestion = {
   title: string;
@@ -180,8 +185,6 @@ export type UserProfile = {
   verificationQuestion: string;
 };
 
-export type AuthDefaults = ApiData<typeof authDefaultsApiResponse>;
-
 const JOB_STATUS_LABEL: Record<JobDescription['status'], string> = {
   prepare: '준비 중',
   on_going: '진행 중',
@@ -194,7 +197,7 @@ const RESUME_STATUS_LABEL: Record<Resume['status'], string> = {
   done: '분석 완료',
 };
 
-const GRADE_SCORE: Record<AnalysisReport['overall_grade'], number> = {
+const GRADE_SCORE: Record<string, number> = {
   A: 94,
   B: 82,
   C: 68,
@@ -214,12 +217,44 @@ function creditToPercent(credit: number) {
   return Math.min(100, Math.round((credit / 200) * 100));
 }
 
-function gradeToScore(grade?: AnalysisReport['overall_grade']) {
-  return grade ? GRADE_SCORE[grade] : 0;
+function toDisplayText(value: unknown) {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
 }
 
-function gradeToStatusCode(grade?: AnalysisReport['overall_grade']): StatusCode {
-  return grade ? (`grade_${grade.toLowerCase()}` as StatusCode) : 'normal';
+function toStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map(toDisplayText).filter(Boolean);
+}
+
+function gradeToScore(grade?: string) {
+  return grade ? GRADE_SCORE[grade.toUpperCase()] ?? 0 : 0;
+}
+
+function gradeToStatusCode(grade?: string): StatusCode {
+  const normalized = grade?.toLowerCase();
+
+  return normalized && ['a', 'b', 'c', 'd', 'f'].includes(normalized)
+    ? (`grade_${normalized}` as StatusCode)
+    : 'normal';
 }
 
 function findJob(jobDescriptions: JobDescription[], resume: Resume) {
@@ -235,12 +270,32 @@ function formatList(items: string[]) {
 }
 
 function formatChecklist(report: AnalysisReport) {
-  return report.checklist
-    .map((item) => `${item.result ? '충족' : '미충족'} · ${item.content}`)
-    .join('\n');
+  const rows = Array.isArray(report.checklist) ? report.checklist : [];
+  const lines = rows
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        return '';
+      }
+
+      const checklistItem = item as Partial<{ content: unknown; result: unknown }>;
+      const content = toDisplayText(checklistItem.content);
+
+      if (!content) {
+        return '';
+      }
+
+      return `${checklistItem.result ? '충족' : '미충족'} · ${content}`;
+    })
+    .filter(Boolean);
+
+  return lines.length ? lines.join('\n') : '체크리스트가 없습니다.';
 }
 
 function formatDateTime(isoDate: string) {
+  if (!isoDate) {
+    return '미설정';
+  }
+
   const date = new Date(isoDate);
 
   if (Number.isNaN(date.getTime())) {
@@ -275,7 +330,22 @@ function getJobFit(job: JobDescription, resumes: Resume[], analysisReports: Anal
   return average(relatedScores);
 }
 
-export function mapDashboard(data: ApiData<typeof dashboardApiResponse>): DashboardData {
+function getFirstIntro(resume?: Resume | null) {
+  const [firstIntro] = Array.isArray(resume?.self_intoduction) ? resume.self_intoduction : [];
+
+  if (!firstIntro || typeof firstIntro !== 'object') {
+    return { question: '', answer: '' };
+  }
+
+  const intro = firstIntro as Partial<{ question: unknown; answer: unknown }>;
+
+  return {
+    question: toDisplayText(intro.question),
+    answer: toDisplayText(intro.answer),
+  };
+}
+
+export function mapDashboard(data: DashboardSource): DashboardData {
   const reportsByResume = new Map(data.analysis_reports.map((report) => [report.resume_id, report]));
   const applicantScores = data.resumes.map((resume) => gradeToScore(reportsByResume.get(resume.id)?.overall_grade));
   const averageScore = average(applicantScores);
@@ -283,6 +353,7 @@ export function mapDashboard(data: ApiData<typeof dashboardApiResponse>): Dashbo
   const reviewedCount = data.resumes.filter((resume) => resume.reviewed).length;
   const processingCount = data.resumes.filter((resume) => resume.status === 'processing').length;
   const unreviewedCount = data.resumes.length - reviewedCount;
+  const employStyle = toStringList(data.company_info.employ_style);
 
   return {
     metrics: [
@@ -329,7 +400,9 @@ export function mapDashboard(data: ApiData<typeof dashboardApiResponse>): Dashbo
     insightCards: [
       {
         title: '채용 기준',
-        detail: `${data.company_info.company_name}는 ${data.company_info.employ_style.join(', ')}를 중요하게 봅니다.`,
+        detail: employStyle.length
+          ? `${data.company_info.company_name}는 ${employStyle.join(', ')}를 중요하게 봅니다.`
+          : '회사 정보에 채용 기준을 입력하면 분석 기준으로 함께 활용됩니다.',
         tone: 'primary',
       },
       {
@@ -355,13 +428,13 @@ export function mapDashboard(data: ApiData<typeof dashboardApiResponse>): Dashbo
       unreviewedCount ? `미검토 지원서 ${unreviewedCount}명 확인` : '검토 완료 지원서 상태 재확인',
       `진행 중 JD ${activeJobs}건 상태 점검`,
       `분석 크레딧 ${data.account.credit}pt 잔여`,
-      `인증 키 허용 지원서 ${data.resumes.length}건 기준 확인`,
+      `공유 인증 키에는 필요한 지원서만 허용하세요.`,
     ],
     creditPercent: creditToPercent(data.account.credit),
   };
 }
 
-export function mapAdmin(data: ApiData<typeof dashboardApiResponse>): AdminData {
+export function mapAdmin(data: DashboardSource): AdminData {
   const reportsByResume = new Map(data.analysis_reports.map((report) => [report.resume_id, report]));
   const applicantScores = data.resumes.map((resume) => gradeToScore(reportsByResume.get(resume.id)?.overall_grade));
   const averageScore = average(applicantScores);
@@ -369,20 +442,12 @@ export function mapAdmin(data: ApiData<typeof dashboardApiResponse>): AdminData 
   const pendingReviews = data.resumes.filter((resume) => !resume.reviewed).length;
   const processingResumes = data.resumes.filter((resume) => resume.status === 'processing').length;
   const creditPercent = creditToPercent(data.account.credit);
-  const teams = data.company_info.team_composition.length ? data.company_info.team_composition : ['HR'];
-  const ownerUsername = data.account.username ?? 'account';
+  const teams = toStringList(data.company_info.team_composition);
 
   return {
     companyName: data.company_info.company_name,
     ownerName: data.account.name,
     summary: [
-      {
-        label: 'HR 담당자',
-        value: 4,
-        suffix: '명',
-        helper: '관리자 1명 · 리뷰어 1명 포함',
-        tone: 'primary',
-      },
       {
         label: '진행 중 JD',
         value: activeJobs,
@@ -391,11 +456,18 @@ export function mapAdmin(data: ApiData<typeof dashboardApiResponse>): AdminData 
         tone: 'accent',
       },
       {
-        label: '검토 대기',
-        value: pendingReviews,
+        label: '등록 지원서',
+        value: data.resumes.length,
         suffix: '명',
-        helper: processingResumes ? `분석 중 ${processingResumes}명` : '분석 대기 없음',
-        tone: pendingReviews ? 'warning' : 'accent',
+        helper: `미검토 ${pendingReviews}명`,
+        tone: pendingReviews ? 'warning' : 'primary',
+      },
+      {
+        label: '분석 중',
+        value: processingResumes,
+        suffix: '명',
+        helper: processingResumes ? '분석 완료 후 리포트가 갱신됩니다.' : '처리 중인 지원서가 없습니다.',
+        tone: processingResumes ? 'warning' : 'accent',
       },
       {
         label: '분석 크레딧',
@@ -409,62 +481,20 @@ export function mapAdmin(data: ApiData<typeof dashboardApiResponse>): AdminData 
       {
         key: 'owner',
         name: data.account.name,
-        email: `${ownerUsername}@${data.company_info.company_name.toLowerCase()}.hr`,
-        role: '최고 관리자',
-        scope: '전체 워크스페이스',
-        status: '활성',
-        statusCode: 'subscribe_active',
+        email: data.account.username,
+        role: '계정 소유자',
+        scope: teams[0] ?? '전체 워크스페이스',
+        status: data.account.subscribe ? '구독 활성' : '구독 만료',
+        statusCode: data.account.subscribe ? 'subscribe_active' : 'subscribe_expired',
         lastActive: formatDateTime(data.job_descriptions[0]?.updated_at ?? data.account.subscribe_expiration),
-      },
-      {
-        key: 'lead',
-        name: '정다은',
-        email: 'daeun.jung@humour.ai',
-        role: 'HR 리드',
-        scope: teams[0] ?? 'HR',
-        status: '활성',
-        statusCode: 'normal',
-        lastActive: formatDateTime(data.resumes[0]?.updated_at ?? data.account.subscribe_expiration),
-      },
-      {
-        key: 'recruiter',
-        name: '김민재',
-        email: 'minjae.kim@humour.ai',
-        role: '채용 담당자',
-        scope: teams[1] ?? teams[0] ?? 'HR',
-        status: processingResumes ? '분석 확인 중' : '활성',
-        statusCode: processingResumes ? 'processing' : 'normal',
-        lastActive: formatDateTime(data.resumes[1]?.updated_at ?? data.account.subscribe_expiration),
-      },
-      {
-        key: 'reviewer',
-        name: '박서연',
-        email: 'seoyeon.park@humour.ai',
-        role: '리뷰어',
-        scope: teams[2] ?? teams[0] ?? 'HR',
-        status: '초대 대기',
-        statusCode: 'onqueue',
-        lastActive: '초대 메일 발송 대기',
       },
     ],
     permissions: [
       {
-        key: 'admin',
-        role: '최고 관리자',
-        description: '회사 정보, 결제, 담당자 권한까지 전체 운영 설정을 관리합니다.',
-        permissions: ['회사 설정', '멤버 초대', '권한 변경', '크레딧 관리'],
-      },
-      {
-        key: 'lead',
-        role: 'HR 리드',
-        description: '채용 운영 기준과 JD, 지원자 분석 흐름을 관리합니다.',
-        permissions: ['JD 승인', '지원자 검토', '리포트 공유', '공고 생성'],
-      },
-      {
-        key: 'reviewer',
-        role: '리뷰어',
-        description: '배정된 지원자의 분석 리포트와 면접 질문만 확인합니다.',
-        permissions: ['리포트 열람', '후보 메모', '검토 상태 변경'],
+        key: 'backend-gap',
+        role: '멤버/역할 관리',
+        description: '현재 backend에는 조직 멤버, 역할, 초대, 권한 변경 API가 없습니다.',
+        permissions: ['표시 전용', 'backend 미지원'],
       },
     ],
     operatingStatus: {
@@ -482,27 +512,29 @@ export function mapAdmin(data: ApiData<typeof dashboardApiResponse>): AdminData 
   };
 }
 
-export function mapCompany(data: ApiData<typeof companyApiResponse>): CompanyProfile {
+export function mapCompany(data: CompanyInfo): CompanyProfile {
+  const teamComposition = toStringList(data.team_composition);
+  const employStyle = toStringList(data.employ_style);
   const completedFields = [
     Boolean(data.company_name),
     data.employee_count > 0,
-    data.team_composition.length > 0,
+    teamComposition.length > 0,
     Boolean(data.company_description),
-    data.employ_style.length > 0,
+    employStyle.length > 0,
   ].filter(Boolean).length;
 
   return {
     name: data.company_name,
     employeeCount: data.employee_count,
-    teamComposition: data.team_composition,
+    teamComposition,
     description: data.company_description,
-    employStyle: data.employ_style,
+    employStyle,
     completion: Math.round((completedFields / 5) * 100),
   };
 }
 
 export function mapJdList(
-  data: ApiData<typeof jobDescriptionsApiResponse>,
+  data: JobDescription[],
   resumes: Resume[],
   analysisReports: AnalysisReport[],
 ): JdItem[] {
@@ -513,8 +545,8 @@ export function mapJdList(
     status: JOB_STATUS_LABEL[item.status],
     statusCode: item.status,
     fit: getJobFit(item, resumes, analysisReports),
-    stack: item.required_skill,
-    preferredStack: item.preferred_skill,
+    stack: toStringList(item.required_skill),
+    preferredStack: toStringList(item.preferred_skill),
     summary: item.main_task,
     requiredExperience: item.career_level,
     employmentType: item.work_type,
@@ -524,19 +556,47 @@ export function mapJdList(
   }));
 }
 
-export function mapCoverLetterDraft(data: ApiData<typeof coverLetterDraftApiResponse>): CoverLetterDraft {
-  const firstIntro = data.self_intoduction[0];
+export function mapRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?: JobDescription): RecruitmentPreview {
+  if (!jobDescription) {
+    return {
+      title: '모집 공고 미리보기',
+      sections: [
+        `${companyInfo.company_name || '회사'} 정보를 불러왔습니다.`,
+        '모집 공고 생성/다운로드 backend API는 아직 없어 실제 JD 기반 미리보기만 제공합니다.',
+      ],
+    };
+  }
+
+  const requiredSkills = toStringList(jobDescription.required_skill).join(', ') || '입력 없음';
+  const preferredSkills = toStringList(jobDescription.preferred_skill).join(', ') || '입력 없음';
 
   return {
-    applicantName: data.name,
-    body: firstIntro ? `${firstIntro.question}\n\n${firstIntro.answer}` : '',
+    title: jobDescription.job_name,
+    sections: [
+      `${companyInfo.company_name}는 ${companyInfo.company_description}`,
+      `주요 업무는 ${jobDescription.main_task || '입력되지 않았습니다.'}`,
+      `필수 역량은 ${requiredSkills}이며, 우대 역량은 ${preferredSkills}입니다.`,
+      `근무 형태는 ${jobDescription.work_type || '입력 없음'}, 요구 경력은 ${
+        jobDescription.career_level
+      }입니다.`,
+      '공고 생성/PDF 다운로드는 현재 backend API가 없어 지원하지 않습니다.',
+    ],
+  };
+}
+
+export function mapCoverLetterDraft(data?: Resume | null): CoverLetterDraft {
+  const firstIntro = getFirstIntro(data);
+
+  return {
+    applicantName: data?.name ?? '',
+    body: firstIntro.question || firstIntro.answer ? `${firstIntro.question}\n\n${firstIntro.answer}`.trim() : '',
     sampleFileName: 'resume_schema_sample.json',
-    uploadHint: 'Resume 컬럼 구조 기준의 목업 지원서 데이터가 표시됩니다.',
+    uploadHint: 'Resume 컬럼 구조에 맞춰 지원자 정보와 자기소개 문항을 입력하세요.',
   };
 }
 
 export function mapCoverLetterRows(
-  data: ApiData<typeof coverLettersApiResponse>,
+  data: Resume[],
   jobDescriptions: JobDescription[],
   analysisReports: AnalysisReport[],
 ): CoverLetterRow[] {
@@ -557,11 +617,34 @@ export function mapCoverLetterRows(
 }
 
 export function mapAnalysisReport(
-  data: ApiData<typeof analysisReportApiResponse>,
+  data: AnalysisReport | null | undefined,
   resumes: Resume[],
   jobDescriptions: JobDescription[],
   interviewQuestions: InterviewQuestion[],
 ): AnalysisReportData {
+  if (!data) {
+    return {
+      reportId: '',
+      applicantName: '분석 리포트 없음',
+      jobTitle: '분석 완료 후 표시됩니다.',
+      tabs: [
+        {
+          key: 'empty',
+          label: '대기',
+          title: '분석 결과가 없습니다.',
+          content: '지원서를 저장하고 분석 요청을 완료하면 리포트와 면접 질문이 표시됩니다.',
+        },
+      ],
+      exampleQuestions: [],
+      chatMessages: [
+        {
+          role: 'assistant',
+          text: '아직 분석 리포트가 없습니다. JD와 지원서를 등록한 뒤 분석을 요청하세요.',
+        },
+      ],
+    };
+  }
+
   const resume = resumes.find((item) => item.id === data.resume_id);
   const job = resume ? findJob(jobDescriptions, resume) : undefined;
   const questions = interviewQuestions.filter((question) => question.resume_id === data.resume_id);
@@ -628,17 +711,17 @@ export function mapAnalysisReport(
   };
 }
 
-export function mapTemplateQuestions(data: ApiData<typeof coverLetterTemplateApiResponse>): TemplateQuestion[] {
+export function mapTemplateQuestions(data: InterviewQuestion[]): TemplateQuestion[] {
   return data.map((question) => ({
     title: question.question,
     guide: question.purpose,
   }));
 }
 
-export function mapUserProfile(data: ApiData<typeof userProfileApiResponse>, company?: CompanyInfo): UserProfile {
+export function mapUserProfile(data: Account, company?: CompanyInfo): UserProfile {
   return {
     displayName: data.name,
-    username: data.username ?? 'account',
+    username: data.username,
     roleName: data.subscribe ? '구독 활성' : '구독 만료',
     companyName: company?.company_name ?? '회사 정보 없음',
     credit: data.credit,

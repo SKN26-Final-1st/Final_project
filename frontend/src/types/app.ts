@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { Key } from 'react';
-import type { AppRoute, ChatMessage } from '../data/mockData';
-import type { ApiResponse } from '../data/apiMockData';
+import type { AppRoute, ChatMessage } from '../data/appConfig';
+import type { ApiResponse } from '../data/backendTypes';
 
 export type ThemeMode = 'light' | 'dark';
 

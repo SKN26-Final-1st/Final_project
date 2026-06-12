@@ -1,5 +1,5 @@
 import { Button, Col, Progress, Row, Statistic } from 'antd';
-import { palette } from '../../data/mockData';
+import { palette } from '../../data/appConfig';
 import type { CompanyProfile } from '../../api/adapters';
 import type { Navigate } from '../../types/app';
 

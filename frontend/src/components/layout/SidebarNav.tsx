@@ -10,7 +10,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { UserProfile } from '../../api/adapters';
-import { mainMenu, type AppRoute } from '../../data/mockData';
+import { mainMenu, type AppRoute } from '../../data/appConfig';
 import type { Navigate, ShowAlert, ThemeMode } from '../../types/app';
 
 type NavigationProps = {
@@ -20,6 +20,7 @@ type NavigationProps = {
   profile?: UserProfile;
   themeSwitch: ReactNode;
   navigate: Navigate;
+  onLogout: () => void;
   showAlert: ShowAlert;
 };
 
@@ -38,6 +39,7 @@ function AccountMenu({
   profile,
   themeSwitch,
   navigate,
+  onLogout,
   showAlert,
   onClose,
 }: Omit<NavigationProps, 'route' | 'mode'> & { onClose: () => void }) {
@@ -77,6 +79,7 @@ function AccountMenu({
         </div>
         <Progress percent={creditPercent} showInfo={false} />
         <button
+          type="button"
           className="account-credit-link"
           onClick={() => {
             onClose();
@@ -86,14 +89,21 @@ function AccountMenu({
           충전 문의
         </button>
       </div>
-      <button className="account-menu-item" onClick={() => moveTo('/mypage')}>
+      <button type="button" className="account-menu-item" onClick={() => moveTo('/mypage')}>
         <UserOutlined />
         <span>
           <strong>마이페이지 바로가기</strong>
           <small>프로필과 보안 설정</small>
         </span>
       </button>
-      <button className="account-menu-item danger" onClick={() => moveTo('/login')}>
+      <button
+        type="button"
+        className="account-menu-item danger"
+        onClick={() => {
+          onClose();
+          onLogout();
+        }}
+      >
         <LogoutOutlined />
         <span>
           <strong>로그아웃</strong>
@@ -168,6 +178,7 @@ export function MobileShellHeader(props: NavigationProps) {
               profile={profile}
               themeSwitch={themeSwitch}
               navigate={navigate}
+              onLogout={props.onLogout}
               showAlert={showAlert}
               onClose={() => setAccountOpen(false)}
             />
@@ -195,6 +206,7 @@ export function MobileShellHeader(props: NavigationProps) {
         getContainer={() => (document.querySelector('.app-root') as HTMLElement) ?? document.body}
       >
         <button
+          type="button"
           className="brand-button mobile-drawer-brand"
           onClick={() => {
             setDrawerOpen(false);
@@ -277,6 +289,7 @@ export function SidebarNav(props: NavigationProps) {
                 profile={profile}
                 themeSwitch={themeSwitch}
                 navigate={navigate}
+                onLogout={props.onLogout}
                 showAlert={showAlert}
                 onClose={() => setAccountOpen(false)}
               />

@@ -1,6 +1,6 @@
 import { Bubble, Sender, type BubbleItemType } from '@ant-design/x';
 import { InlineLoading } from '../common/InlineLoading';
-import type { ChatMessage } from '../../data/mockData';
+import type { ChatMessage } from '../../data/appConfig';
 
 type ChatWindowPanelProps = {
   chatMessages: ChatMessage[];

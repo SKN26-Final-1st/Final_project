@@ -90,7 +90,11 @@ export function DocumentSearchContextPanel({ setChatInput }: DocumentSearchConte
       <Row gutter={[12, 12]} className="document-collection-grid">
         {documentCollections.map((item) => (
           <Col xs={24} sm={12} key={item.title}>
-            <button className="document-collection-card" onClick={() => setChatInput(`${item.title}에서 찾아줘`)}>
+            <button
+              type="button"
+              className="document-collection-card"
+              onClick={() => setChatInput(`${item.title}에서 찾아줘`)}
+            >
               <span className="document-collection-icon">{item.icon}</span>
               <strong>{item.title}</strong>
               <small>{item.detail}</small>

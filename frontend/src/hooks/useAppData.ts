@@ -2,10 +2,10 @@ import { useCallback } from 'react';
 import type { AppData } from '../api/appDataService';
 import { useAppDataQuery } from './useAppDataQuery';
 
-export type MockAppData = AppData;
+export type UseAppData = AppData;
 
-export function useMockAppData() {
-  const { data, error: queryError, isFetching, isPending, refetch } = useAppDataQuery();
+export function useAppData(enabled = true) {
+  const { data, error: queryError, isFetching, isPending, refetch } = useAppDataQuery(enabled);
 
   const reload = useCallback(async () => {
     await refetch();
@@ -19,7 +19,7 @@ export function useMockAppData() {
 
   return {
     data: data ?? null,
-    loading: isPending || isFetching,
+    loading: enabled && (isPending || isFetching),
     error,
     reload,
   };

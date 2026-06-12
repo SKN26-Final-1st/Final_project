@@ -1,9 +1,11 @@
-import { Button, Col, Row } from 'antd';
+import { useEffect } from 'react';
+import { Button, Col, Form, Row } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
-import { AccountSettingsForm } from '../components/mypage/AccountSettingsForm';
+import { AccountSettingsForm, type AccountSettingsFormValues } from '../components/mypage/AccountSettingsForm';
 import { CompanySummaryPanel } from '../components/mypage/CompanySummaryPanel';
 import { ProfileSummaryCard } from '../components/mypage/ProfileSummaryCard';
-import { SecuritySettingsForm } from '../components/mypage/SecuritySettingsForm';
+import { SecuritySettingsForm, type SecuritySettingsFormValues } from '../components/mypage/SecuritySettingsForm';
+import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { CompanyProfile, UserProfile } from '../api/adapters';
@@ -13,11 +15,56 @@ import type { Navigate, RunApiAction } from '../types/app';
 type MyPageProps = {
   profile: UserProfile;
   company: CompanyProfile;
+  loadingKey: string | null;
   navigate: Navigate;
   runApiAction: RunApiAction;
+  reloadData: () => Promise<void>;
 };
 
-export function MyPage({ profile, company, navigate, runApiAction }: MyPageProps) {
+function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
+  return {
+    username: profile.username,
+    name: profile.displayName,
+    credit: profile.credit,
+    subscribe: profile.subscribe,
+    verification_question: profile.verificationQuestion,
+  };
+}
+
+export function MyPage({ profile, company, loadingKey, navigate, runApiAction, reloadData }: MyPageProps) {
+  const [accountForm] = Form.useForm<AccountSettingsFormValues>();
+  const [securityForm] = Form.useForm<SecuritySettingsFormValues>();
+  const accountInitialValues = toAccountFormValues(profile);
+
+  useEffect(() => {
+    accountForm.setFieldsValue(toAccountFormValues(profile));
+    securityForm.resetFields();
+  }, [accountForm, profile, securityForm]);
+
+  const saveProfile = () =>
+    runApiAction(
+      'profile-save',
+      async () => {
+        const accountValues = await accountForm.validateFields();
+        const securityValues = await securityForm.validateFields();
+        const body = {
+          name: accountValues.name,
+          verification_question: accountValues.verification_question,
+        };
+
+        if (securityValues.password) {
+          if (!securityValues.formal_password) {
+            throw new Error('새 비밀번호를 저장하려면 현재 비밀번호가 필요합니다.');
+          }
+
+          Object.assign(body, securityValues);
+        }
+
+        return apiClient.saveUserProfile(body);
+      },
+      () => void reloadData(),
+    );
+
   return (
     <>
       <PageTitle
@@ -25,8 +72,13 @@ export function MyPage({ profile, company, navigate, runApiAction }: MyPageProps
         title="마이페이지"
         description="프로필, 계정 수정, 보안 설정과 회사 정보 요약을 한 화면에서 관리합니다."
         actions={
-          <Button type="primary" icon={<SaveOutlined />} onClick={() => void runApiAction('profile-save', apiClient.saveUserProfile)}>
-            저장
+          <Button
+            type="primary"
+            icon={loadingKey === 'profile-save' ? undefined : <SaveOutlined />}
+            disabled={loadingKey === 'profile-save'}
+            onClick={() => void saveProfile()}
+          >
+            {loadingKey === 'profile-save' ? <InlineLoading label="저장 중" /> : '저장'}
           </Button>
         }
       />
@@ -40,12 +92,12 @@ export function MyPage({ profile, company, navigate, runApiAction }: MyPageProps
           <Row gutter={[24, 24]}>
             <Col xs={24} lg={12}>
               <SectionCard title="계정 정보">
-                <AccountSettingsForm profile={profile} />
+                <AccountSettingsForm form={accountForm} initialValues={accountInitialValues} />
               </SectionCard>
             </Col>
             <Col xs={24} lg={12}>
               <SectionCard title="보안 설정">
-                <SecuritySettingsForm />
+                <SecuritySettingsForm form={securityForm} />
               </SectionCard>
             </Col>
             <Col span={24}>

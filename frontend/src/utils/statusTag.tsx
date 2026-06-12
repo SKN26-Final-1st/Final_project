@@ -1,5 +1,5 @@
 import { Tag } from 'antd';
-import type { StatusCode } from '../data/apiMockData';
+import type { StatusCode } from '../data/backendTypes';
 
 const statusColorByCode: Partial<Record<StatusCode, string>> = {
   reviewed: 'green',

@@ -10,7 +10,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
-import type { ChatMessage } from '../../data/mockData';
+import type { ChatMessage } from '../../data/appConfig';
 import type { Navigate } from '../../types/app';
 
 type DocumentChatFabProps = {

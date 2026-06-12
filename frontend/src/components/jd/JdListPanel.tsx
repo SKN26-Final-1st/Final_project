@@ -13,6 +13,7 @@ export function JdListPanel({ jdList, selectedJdId, setSelectedJdId }: JdListPan
     <div className="jd-list">
       {jdList.map((item) => (
         <button
+          type="button"
           className={`jd-card ${selectedJdId === item.id ? 'active' : ''}`}
           key={item.id}
           onClick={() => setSelectedJdId(item.id)}

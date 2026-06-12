@@ -6,7 +6,7 @@ import { DocumentSearchContextPanel } from '../components/chat/DocumentSearchCon
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { AnalysisReportData } from '../api/adapters';
-import type { ChatMessage } from '../data/mockData';
+import type { ChatMessage } from '../data/appConfig';
 
 type ChatPageProps = {
   report: AnalysisReportData;

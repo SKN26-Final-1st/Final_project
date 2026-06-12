@@ -1,6 +1,10 @@
-import { Button, Col, Row } from 'antd';
+import { useEffect } from 'react';
+import { Button, Col, Form, Row } from 'antd';
 import { FileSearchOutlined } from '@ant-design/icons';
-import { CoverLetterInputPanel } from '../components/cover-letter/CoverLetterInputPanel';
+import {
+  CoverLetterInputPanel,
+  type CoverLetterInputFormValues,
+} from '../components/cover-letter/CoverLetterInputPanel';
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
 import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
@@ -22,7 +26,31 @@ type CoverLetterPageProps = {
   setAnalysisDone: (value: boolean) => void;
   runApiAction: RunApiAction;
   navigate: Navigate;
+  reloadData: () => Promise<void>;
 };
+
+function splitDraftBody(body: string) {
+  const [question = '', ...answerParts] = body.split(/\n\s*\n/);
+  return {
+    question: question.trim(),
+    answer: answerParts.join('\n\n').trim(),
+  };
+}
+
+function toCoverLetterInitialValues(
+  selectedJdId: string | null,
+  draft: CoverLetterDraft,
+): CoverLetterInputFormValues {
+  const { question, answer } = splitDraftBody(draft.body);
+
+  return {
+    job_description_id: selectedJdId ? Number(selectedJdId) : undefined,
+    name: draft.applicantName,
+    skill: [],
+    question,
+    answer,
+  };
+}
 
 export function CoverLetterPage({
   jdList,
@@ -37,7 +65,44 @@ export function CoverLetterPage({
   setAnalysisDone,
   runApiAction,
   navigate,
+  reloadData,
 }: CoverLetterPageProps) {
+  const [form] = Form.useForm<CoverLetterInputFormValues>();
+  const initialValues = toCoverLetterInitialValues(selectedJdId, draft);
+
+  useEffect(() => {
+    form.setFieldsValue(toCoverLetterInitialValues(selectedJdId, draft));
+  }, [draft, form, selectedJdId]);
+
+  const uploadCurrentResume = async () => {
+    const values = await form.validateFields();
+    const jobDescriptionId = values.job_description_id;
+
+    if (!jobDescriptionId) {
+      throw new Error('지원서를 저장하려면 JD를 선택해야 합니다.');
+    }
+
+    await runApiAction(
+      'cover-upload',
+      () =>
+        apiClient.addResume({
+          job_description_id: jobDescriptionId,
+          name: values.name,
+          skill: values.skill ?? [],
+          self_intoduction: [
+            {
+              question: values.question,
+              answer: values.answer,
+            },
+          ],
+        }),
+      () => {
+        setCoverUploaded(true);
+        void reloadData();
+      },
+    );
+  };
+
   return (
     <>
       <PageTitle
@@ -54,7 +119,10 @@ export function CoverLetterPage({
               void runApiAction(
                 'cover-analysis',
                 () => apiClient.requestCoverLetterAnalysis(selectedJdId),
-                () => setAnalysisDone(true),
+                () => {
+                  setAnalysisDone(true);
+                  void reloadData();
+                },
               )
             }
           >
@@ -66,9 +134,9 @@ export function CoverLetterPage({
         <Col xs={24} xl={11}>
           <SectionCard title="지원서 입력">
             <CoverLetterInputPanel
-              selectedJdId={selectedJdId}
               jdList={jdList}
-              draft={draft}
+              form={form}
+              initialValues={initialValues}
               setSelectedJdId={setSelectedJdId}
             />
           </SectionCard>
@@ -80,8 +148,7 @@ export function CoverLetterPage({
               coverRows={coverRows}
               coverUploaded={coverUploaded}
               analysisDone={analysisDone}
-              runApiAction={runApiAction}
-              setCoverUploaded={setCoverUploaded}
+              onUpload={() => void uploadCurrentResume()}
               navigate={navigate}
             />
           </SectionCard>

@@ -1,6 +1,5 @@
 export const queryKeys = {
   appData: () => ['app-data'] as const,
-  authDefaults: () => ['auth', 'defaults'] as const,
   company: () => ['company'] as const,
   dashboard: () => ['dashboard'] as const,
   jobDescriptions: () => ['job-descriptions'] as const,
