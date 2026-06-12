@@ -55,4 +55,5 @@
 
 ## 관련 문서
 
+- [디자인 시스템](design-system.md)
 - [실행과 운영](../01-getting-started/run-and-operations.md)
