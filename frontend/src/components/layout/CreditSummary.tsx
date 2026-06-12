@@ -1,5 +1,5 @@
 import { Button, Progress } from 'antd';
-import { palette } from '../../data/mockData';
+import { palette } from '../../data/appConfig';
 import type { ShowAlert } from '../../types/app';
 
 type CreditSummaryProps = {

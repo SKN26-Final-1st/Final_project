@@ -1,6 +1,6 @@
 import { Button, Divider, List, Progress } from 'antd';
 import { CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
-import { palette } from '../../data/mockData';
+import { palette } from '../../data/appConfig';
 import type { CompanyProfile } from '../../api/adapters';
 import type { ShowAlert } from '../../types/app';
 

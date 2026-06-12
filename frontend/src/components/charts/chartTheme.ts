@@ -1,4 +1,4 @@
-import { palette } from '../../data/mockData';
+import { palette } from '../../data/appConfig';
 import type { ThemeMode } from '../../types/app';
 
 export type ChartColorKey = 'primary' | 'accent' | 'track' | 'warning';
