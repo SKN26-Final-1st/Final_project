@@ -21,6 +21,7 @@ export type AppRoute =
   | '/mypage'
   | '/recruitment-post'
   | '/cover-letter-template'
+  | '/shared'
   | '/login'
   | '/signup'
   | '/password-reset';
@@ -101,7 +102,7 @@ export const authMenu: MenuItem[] = [
   {
     route: '/login',
     label: '로그인',
-    description: '목업 인증 화면',
+    description: '세션 기반 인증 화면',
     icon: <IdcardOutlined />,
   },
   {
