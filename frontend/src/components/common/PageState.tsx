@@ -23,7 +23,7 @@ export function PageError({ message, onRetry }: PageErrorProps) {
     <Alert
       showIcon
       type="error"
-      message="목업 API 데이터를 불러오지 못했습니다."
+      title="API 데이터를 불러오지 못했습니다."
       description={message}
       action={
         <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
