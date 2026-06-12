@@ -17,6 +17,8 @@ function assert(condition, message) {
 
 const backendClient = read('frontend/src/api/backendClient.ts');
 const authPages = read('frontend/src/pages/AuthPages.tsx');
+const myPage = read('frontend/src/pages/MyPage.tsx');
+const securitySettingsForm = read('frontend/src/components/mypage/SecuritySettingsForm.tsx');
 const authScreen = read('frontend/src/components/layout/AuthScreen.tsx');
 const app = read('frontend/src/App.tsx');
 const appDataService = read('frontend/src/api/appDataService.ts');
@@ -202,6 +204,27 @@ assert(
 assert(
   /requestAction\(['"]account\/modify['"],\s*sanitizeAccountModifyBody\(body\)\)/.test(backendClient),
   'saveUserProfile must sanitize blocked account fields before account/modify',
+);
+
+assert(
+  /password_confirm\?:\s*string/.test(securitySettingsForm) &&
+    /name="password_confirm"/.test(securitySettingsForm) &&
+    /getFieldValue\(['"]password['"]\)/.test(securitySettingsForm),
+  'Password change form must require confirmation and validate it against the new password',
+);
+
+assert(
+  !myPage.includes('Object.assign(body, securityValues)') &&
+    /body\.formal_password\s*=\s*securityValues\.formal_password/.test(myPage) &&
+    /body\.password\s*=\s*securityValues\.password/.test(myPage) &&
+    !/password_confirm[\s\S]*apiClient\.saveUserProfile/.test(myPage),
+  'MyPage password payload must pick only formal_password and password for account/modify',
+);
+
+assert(
+  /onPasswordChanged/.test(myPage) &&
+    /onPasswordChanged=\{\(\) => \{[\s\S]*setIsAuthenticated\(false\)[\s\S]*navigate\(['"]\/login['"]\)/.test(app),
+  'Password changes must clear frontend auth state and return to login instead of reloading protected data',
 );
 
 assert(!authPages.includes('authDefaults'), 'Auth pages must not prefill from mock auth defaults');

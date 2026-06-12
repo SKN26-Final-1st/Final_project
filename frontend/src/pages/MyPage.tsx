@@ -17,6 +17,7 @@ type MyPageProps = {
   company: CompanyProfile;
   loadingKey: string | null;
   navigate: Navigate;
+  onPasswordChanged: () => void;
   runApiAction: RunApiAction;
   reloadData: () => Promise<void>;
 };
@@ -31,7 +32,15 @@ function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
   };
 }
 
-export function MyPage({ profile, company, loadingKey, navigate, runApiAction, reloadData }: MyPageProps) {
+export function MyPage({
+  profile,
+  company,
+  loadingKey,
+  navigate,
+  onPasswordChanged,
+  runApiAction,
+  reloadData,
+}: MyPageProps) {
   const [accountForm] = Form.useForm<AccountSettingsFormValues>();
   const [securityForm] = Form.useForm<SecuritySettingsFormValues>();
   const accountInitialValues = toAccountFormValues(profile);
@@ -41,13 +50,20 @@ export function MyPage({ profile, company, loadingKey, navigate, runApiAction, r
     securityForm.resetFields();
   }, [accountForm, profile, securityForm]);
 
-  const saveProfile = () =>
-    runApiAction(
+  const saveProfile = () => {
+    let passwordChanged = false;
+
+    return runApiAction(
       'profile-save',
       async () => {
         const accountValues = await accountForm.validateFields();
         const securityValues = await securityForm.validateFields();
-        const body = {
+        const body: {
+          name: string;
+          verification_question: string;
+          formal_password?: string;
+          password?: string;
+        } = {
           name: accountValues.name,
           verification_question: accountValues.verification_question,
         };
@@ -57,13 +73,23 @@ export function MyPage({ profile, company, loadingKey, navigate, runApiAction, r
             throw new Error('새 비밀번호를 저장하려면 현재 비밀번호가 필요합니다.');
           }
 
-          Object.assign(body, securityValues);
+          passwordChanged = true;
+          body.formal_password = securityValues.formal_password;
+          body.password = securityValues.password;
         }
 
         return apiClient.saveUserProfile(body);
       },
-      () => void reloadData(),
+      () => {
+        if (passwordChanged) {
+          onPasswordChanged();
+          return;
+        }
+
+        void reloadData();
+      },
     );
+  };
 
   return (
     <>
