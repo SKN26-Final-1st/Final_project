@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Layout } from 'antd';
 import { MobileShellHeader, SidebarNav } from './SidebarNav';
 import type { UserProfile } from '../../api/adapters';
-import type { AppRoute } from '../../data/mockData';
+import type { AppRoute } from '../../data/appConfig';
 import type { Navigate, ShowAlert, ThemeMode } from '../../types/app';
 
 const { Content } = Layout;
@@ -16,6 +16,7 @@ type AppShellProps = {
   creditPercent: number;
   profile?: UserProfile;
   navigate: Navigate;
+  onLogout: () => void;
   showAlert: ShowAlert;
 };
 
@@ -28,6 +29,7 @@ export function AppShell({
   creditPercent,
   profile,
   navigate,
+  onLogout,
   showAlert,
 }: AppShellProps) {
   return (
@@ -39,6 +41,7 @@ export function AppShell({
         profile={profile}
         themeSwitch={themeSwitch}
         navigate={navigate}
+        onLogout={onLogout}
         showAlert={showAlert}
       />
       <Layout>
@@ -49,6 +52,7 @@ export function AppShell({
           profile={profile}
           themeSwitch={themeSwitch}
           navigate={navigate}
+          onLogout={onLogout}
           showAlert={showAlert}
         />
         <Content className="content">

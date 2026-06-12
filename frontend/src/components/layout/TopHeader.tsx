@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, Input, Layout, Select, Space } from 'antd';
 import { LogoutOutlined, SearchOutlined } from '@ant-design/icons';
-import { mainMenu, type AppRoute } from '../../data/mockData';
+import { mainMenu, type AppRoute } from '../../data/appConfig';
 import type { Navigate } from '../../types/app';
 
 const { Header } = Layout;
@@ -10,9 +10,10 @@ type TopHeaderProps = {
   route: AppRoute;
   themeSwitch: ReactNode;
   navigate: Navigate;
+  onLogout: () => void;
 };
 
-export function TopHeader({ route, themeSwitch, navigate }: TopHeaderProps) {
+export function TopHeader({ route, themeSwitch, navigate, onLogout }: TopHeaderProps) {
   return (
     <Header className="top-header">
       <div className="top-title">
@@ -34,7 +35,7 @@ export function TopHeader({ route, themeSwitch, navigate }: TopHeaderProps) {
       />
       <Space className="top-actions">
         {themeSwitch}
-        <Button className="logout-button" icon={<LogoutOutlined />} onClick={() => navigate('/login')}>
+        <Button className="logout-button" icon={<LogoutOutlined />} onClick={onLogout}>
           <span className="logout-text">로그아웃</span>
         </Button>
       </Space>
