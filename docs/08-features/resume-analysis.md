@@ -1,0 +1,71 @@
+# 지원서 분석
+
+## 지원서 입력 화면
+
+화면: `/cover-letter`
+
+파일:
+
+- `frontend/src/pages/CoverLetterPage.tsx`
+- `frontend/src/components/cover-letter/CoverLetterInputPanel.tsx`
+- `frontend/src/components/cover-letter/CoverLetterUploadPanel.tsx`
+
+역할:
+
+- JD 선택
+- 지원자명과 자기소개 문항/답변 확인
+- 지원서 업로드 mock 흐름
+- 분석 요청
+- 분석 완료 후 `/chat` 이동 버튼 표시
+
+## 분석 요청
+
+프론트:
+
+- `apiClient.requestJobAnalysis(jdId)`
+- `apiClient.requestCoverLetterAnalysis(jdId)`
+
+두 함수 모두 선택 JD에 연결된 첫 번째 resume를 찾아 `/api/resume/analize/`를 호출합니다. 근거: `frontend/src/api/backendClient.ts`
+
+백엔드:
+
+- `resume_analize` in `backend/api/views.py`
+- `_get_analysis_inputs()`
+- `report_service.invoke()`
+- `_save_analysis_result()`
+
+## 분석 결과
+
+저장 모델:
+
+- `AnalysisReport`
+- `InterviewQuestion`
+- `Resume.status = done`
+
+프론트 표시:
+
+- `mapAnalysisReport()`가 리포트 탭을 생성합니다.
+- `mapTemplateQuestions()`가 면접 질문을 문항/가이드로 변환합니다.
+
+근거: `frontend/src/api/adapters.ts`
+
+## 자기소개서 포맷 작성
+
+화면: `/cover-letter-template`
+
+파일:
+
+- `frontend/src/pages/CoverLetterTemplatePage.tsx`
+
+역할:
+
+- 선택된 JD 요약 표시
+- 생성된 면접 질문을 문항과 작성 가이드처럼 표시
+- 문항 생성과 문서 다운로드 버튼 제공
+
+현재 `generateCoverLetterTemplate()`와 `downloadTemplateDocument()`는 실제 문서 파일을 만들지 않고 API 응답 형태의 mock 액션을 반환합니다. 근거: `frontend/src/api/backendClient.ts`
+
+## 관련 문서
+
+- [분석 파이프라인](../04-backend/analysis-pipeline.md)
+- [모델 파이프라인](../07-ai-modeling/model-pipeline.md)
