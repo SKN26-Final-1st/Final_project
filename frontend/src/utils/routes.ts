@@ -1,6 +1,6 @@
-import { authMenu, mainMenu, type AppRoute } from '../data/mockData';
+import { authMenu, mainMenu, type AppRoute } from '../data/appConfig';
 
-const standaloneRoutes: AppRoute[] = ['/chat'];
+const standaloneRoutes: AppRoute[] = ['/chat', '/shared'];
 
 export const appRoutes = [...mainMenu, ...authMenu].map((item) => item.route).concat(standaloneRoutes);
 
