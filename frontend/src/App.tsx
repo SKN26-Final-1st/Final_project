@@ -7,8 +7,8 @@ import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
 import { apiClient } from './api/backendClient';
-import { palette, type AppRoute, type ChatMessage } from './data/mockData';
-import { useMockAppData } from './hooks/useMockAppData';
+import { palette, type AppRoute, type ChatMessage } from './data/appConfig';
+import { useAppData } from './hooks/useAppData';
 import { AdminPage } from './pages/AdminPage';
 import { LoginPage, PasswordResetPage, SignupPage } from './pages/AuthPages';
 import { ChatPage } from './pages/ChatPage';
@@ -19,9 +19,10 @@ import { DashboardPage } from './pages/DashboardPage';
 import { JdPage } from './pages/JdPage';
 import { MyPage } from './pages/MyPage';
 import { RecruitmentPostPage } from './pages/RecruitmentPostPage';
+import { SharedReportPage } from './pages/SharedReportPage';
 import type { AlertState, KeySetter, ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
-import type { ApiResponse } from './data/apiMockData';
+import type { ApiResponse } from './data/backendTypes';
 
 export default function App() {
   const routerNavigate = useNavigate();
@@ -36,14 +37,49 @@ export default function App() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[] | null>(null);
   const [coverUploaded, setCoverUploaded] = useState(false);
   const [analysisDone, setAnalysisDone] = useState(false);
-  const [postGenerated, setPostGenerated] = useState(true);
-  const [templateGenerated, setTemplateGenerated] = useState(true);
+  const postGenerated = true;
+  const templateGenerated = true;
   const [resetStep, setResetStep] = useState(0);
-  const { data, loading, error, reload } = useMockAppData();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuth = authRoutes.includes(route);
+  const isShared = route === '/shared';
+  const shouldLoadAppData = authChecked && isAuthenticated && !isAuth && !isShared;
+  const { data, loading, error, reload } = useAppData(shouldLoadAppData);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (isShared) {
+      return undefined;
+    }
+
+    let active = true;
+
+    void apiClient
+      .getUserProfile()
+      .then(() => {
+        if (active) {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setIsAuthenticated(false);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAuthChecked(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isShared]);
 
   const jdIds = useMemo(() => data?.jdList.map((item) => item.id) ?? [], [data?.jdList]);
   const selectedJdId =
@@ -120,10 +156,11 @@ export default function App() {
       });
       afterComplete?.(response);
     } catch (nextError) {
+      const errorMessage = nextError instanceof Error ? nextError.message : 'API 요청이 실패했습니다.';
+
       showAlert({
         type: 'error',
-        message: 'API 요청이 실패했습니다.',
-        description: nextError instanceof Error ? nextError.message : undefined,
+        message: errorMessage,
       });
     } finally {
       setLoadingKey(null);
@@ -147,6 +184,18 @@ export default function App() {
     void runApiAction('chat', () => apiClient.sendChatMessage(trimmed, nextChatMessages), (response) =>
       setChatMessages((prev) => [...prev, response.data]),
     );
+  };
+
+  const logout = () => {
+    if (loadingKey === 'logout') {
+      return;
+    }
+
+    void runApiAction('logout', () => apiClient.logout(), () => {
+      setChatMessages([]);
+      setIsAuthenticated(false);
+      navigate('/login');
+    });
   };
 
   const themeSwitch = (
@@ -176,7 +225,18 @@ export default function App() {
 
     switch (route) {
       case '/admin':
-        return <AdminPage admin={data.admin} navigate={navigate} showAlert={showAlert} />;
+        return (
+          <AdminPage
+            admin={data.admin}
+            authKeys={data.authKeys}
+            resumes={data.resumes}
+            loadingKey={loadingKey}
+            navigate={navigate}
+            runApiAction={runApiAction}
+            showAlert={showAlert}
+            reloadData={reload}
+          />
+        );
       case '/company':
         return (
           <CompanyPage
@@ -184,6 +244,7 @@ export default function App() {
             loadingKey={loadingKey}
             runApiAction={runApiAction}
             showAlert={showAlert}
+            reloadData={reload}
           />
         );
       case '/jd':
@@ -197,6 +258,7 @@ export default function App() {
             runApiAction={runApiAction}
             navigate={navigate}
             showAlert={showAlert}
+            reloadData={reload}
           />
         );
       case '/cover-letter':
@@ -214,6 +276,7 @@ export default function App() {
             setAnalysisDone={setAnalysisDone}
             runApiAction={runApiAction}
             navigate={navigate}
+            reloadData={reload}
           />
         );
       case '/chat':
@@ -233,8 +296,10 @@ export default function App() {
           <MyPage
             profile={data.userProfile}
             company={data.company}
+            loadingKey={loadingKey}
             navigate={navigate}
             runApiAction={runApiAction}
+            reloadData={reload}
           />
         );
       case '/recruitment-post':
@@ -244,10 +309,7 @@ export default function App() {
             recruitmentPreview={data.recruitmentPreview}
             selectedRows={selectedRows}
             postGenerated={postGenerated}
-            loadingKey={loadingKey}
             setSelectedRows={updateSelectedRows}
-            setPostGenerated={setPostGenerated}
-            runApiAction={runApiAction}
           />
         );
       case '/cover-letter-template':
@@ -256,9 +318,6 @@ export default function App() {
             selectedJd={selectedJd}
             templateQuestions={data.templateQuestions}
             templateGenerated={templateGenerated}
-            loadingKey={loadingKey}
-            setTemplateGenerated={setTemplateGenerated}
-            runApiAction={runApiAction}
           />
         );
       case '/dashboard':
@@ -276,8 +335,6 @@ export default function App() {
   };
 
   const renderAuthPage = () => {
-    const authDefaults = data?.authDefaults;
-
     switch (route) {
       case '/signup':
         return (
@@ -286,7 +343,6 @@ export default function App() {
             navigate={navigate}
             themeSwitch={themeSwitch}
             loadingKey={loadingKey}
-            authDefaults={authDefaults}
             runApiAction={runApiAction}
             showAlert={showAlert}
           />
@@ -298,7 +354,6 @@ export default function App() {
             navigate={navigate}
             themeSwitch={themeSwitch}
             loadingKey={loadingKey}
-            authDefaults={authDefaults}
             runApiAction={runApiAction}
             resetStep={resetStep}
             setResetStep={setResetStep}
@@ -313,15 +368,15 @@ export default function App() {
             navigate={navigate}
             themeSwitch={themeSwitch}
             loadingKey={loadingKey}
-            authDefaults={authDefaults}
             runApiAction={runApiAction}
-            onLoginSuccess={() => void reload().then(() => navigate('/dashboard'))}
+            onLoginSuccess={() => {
+              setIsAuthenticated(true);
+              void reload().then(() => navigate('/dashboard'));
+            }}
           />
         );
     }
   };
-
-  const isAuth = authRoutes.includes(route);
 
   const pageContent = (
     <XProvider theme={themeConfig}>
@@ -333,14 +388,20 @@ export default function App() {
                 showIcon
                 closable
                 type={alert.type}
-                message={alert.message}
+                title={alert.message}
                 description={alert.description}
                 onClose={() => setAlert(null)}
               />
             </div>
           )}
-          {isAuth ? (
+          {isShared ? (
+            <SharedReportPage mode={mode} navigate={navigate} themeSwitch={themeSwitch} />
+          ) : isAuth ? (
             renderAuthPage()
+          ) : !authChecked ? (
+            <PageLoading />
+          ) : !isAuthenticated ? (
+            <RouterNavigate to="/login" replace />
           ) : (
             <AppShell
               route={route}
@@ -361,6 +422,7 @@ export default function App() {
               creditPercent={data?.dashboard.creditPercent ?? 0}
               profile={data?.userProfile}
               navigate={navigate}
+              onLogout={logout}
               showAlert={showAlert}
             >
               {renderProtectedPage()}
