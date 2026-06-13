@@ -6,6 +6,7 @@ from typing import List
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
+# 프롬프트 수정본
 
 MODEL_NAME = "gpt-4o-mini"
 QUESTION_COUNT = 10
@@ -19,7 +20,11 @@ RESUME_SUMMARY_SYSTEM_PROMPT = (
     "지원자의 핵심 역량, 주요 경험, 학력, 기술 스택, 강점을 간결한 한국어 문단으로 요약해. "
     "experience와 self_introduction은 실제 역량을 판단하는 주요 근거로 사용해. "
     "id, applicant_id, file_name, file_path, file_type, parse_status, "
-    "error_message, created_at, updated_at, company_id 같은 관리용 필드는 요약에 직접 언급하지 마."
+    "error_message, created_at, updated_at, company_id 같은 관리용 필드는 요약에 직접 언급하지 마. "
+    "경력 연수 숫자, 최종 학력과 전공, 사용 기술명, 협업·장애 대응·보안 관련 경험, 자격증은 "
+    "체크리스트 판단 근거가 되므로 생략하거나 일반화하지 말고 그대로 보존해."
+    "입력 dictionary에 없는 정보, 수치, 경험, 자격은 절대 추가하거나 추론으로 만들어내지 마. "
+    "요약의 모든 문장은 입력에 명시된 내용에만 근거해야 해."
 )
 RESUME_SUMMARY_USER_PROMPT = "다음 이력서 정보를 요약해줘.\n\n{resume_json}"
 
@@ -28,6 +33,8 @@ COMPANY_SUMMARY_SYSTEM_PROMPT = (
     "입력받은 dictionary를 바탕으로 회사의 규모, 조직/팀 구성, 사업 또는 서비스 설명, "
     "employ_style에 담긴 선호 인재상과 지원자가 알아두면 좋은 특징을 간결한 한국어 문단으로 요약해. "
     "id, user_id, created_at, updated_at 같은 관리용 필드는 요약에 직접 언급하지 마."
+    "입력 dictionary에 없는 정보, 수치, 경험, 자격은 절대 추가하거나 추론으로 만들어내지 마. "
+    "요약의 모든 문장은 입력에 명시된 내용에만 근거해야 해."
 )
 COMPANY_SUMMARY_USER_PROMPT = "다음 회사 정보를 요약해줘.\n\n{company_json}"
 
@@ -38,6 +45,8 @@ JD_SUMMARY_SYSTEM_PROMPT = (
     "포지션명, 학력/전공/경력 조건, 필수 및 우대 기술, 주요 업무, 채용 배경, 근무 형태를 간결한 한국어 문단으로 요약해. "
     "id, user_id, company_info_id, status, created_at, updated_at 같은 관리용 필드는 "
     "요약에 직접 언급하지 마."
+    "입력 dictionary에 없는 정보, 수치, 경험, 자격은 절대 추가하거나 추론으로 만들어내지 마. "
+    "요약의 모든 문장은 입력에 명시된 내용에만 근거해야 해."
 )
 JD_SUMMARY_USER_PROMPT = "다음 채용 공고 정보를 요약해줘.\n\n{jd_json}"
 
@@ -45,10 +54,19 @@ INTERVIEW_QUESTION_SYSTEM_PROMPT = (
     "너는 채용 면접관을 돕는 면접 질문 생성 전문가야. "
     "지원서 요약, 회사 요약, JD 요약, 체크리스트 충족 결과를 종합해서 "
     "실제 면접에서 물어볼 질문과 모범 답안, 질문 의도를 만들어. "
-    "체크리스트에서 true인 항목은 경험을 더 깊게 검증하는 질문으로 만들고, "
-    "false인 항목은 부족한 부분을 확인하거나 보완 가능성을 평가하는 질문으로 만들어. "
-    "질문은 지원자의 경험 검증, JD 적합성, 기술 역량, 협업 방식, 회사/직무 이해도를 "
-    "균형 있게 확인할 수 있어야 해. "
+    "10개 질문은 반드시 아래 영역을 순서대로 하나씩 다뤄: "
+    "1) JD 필수 기술 중 1순위 기술을 활용해 복잡한 문제를 해결한 경험 "
+    "2) 회사의 서비스(서비스명을 질문에 직접 포함)와 본인 경험의 연결점 "
+    "3) 필수 기술 중 자신 없는 영역과 보완 방법 "
+    "4) 협업 과정에서 의견 충돌을 해결한 사례 "
+    "5) 장애나 품질 문제를 발견했을 때의 대응 순서 "
+    "6) 체크리스트에서 false인 우대 기술 또는 부족 역량을 업무에서 따라잡을 방법 "
+    "7) 최근 작성한 코드에서 가장 신경 쓴 설계 결정 "
+    "8) 회사 도메인에서 특히 중요하다고 생각하는 품질 기준 "
+    "9) 비개발 직군과 요구사항을 맞출 때의 소통 방식 "
+    "10) 입사 후 첫 3개월 동안의 기여 계획 "
+    "체크리스트에서 false인 항목이 있으면 3번과 6번 질문에 그 항목의 기술명이나 역량을 구체적으로 반영해. "
+    "기술명, 회사명, 서비스명, 도메인명은 입력에 적힌 표현을 그대로 사용하고 일반론으로 흐르지 마. "
     "answer는 반드시 지원서 요약에 있는 경험과 역량을 근거로 작성한 모범 답안이어야 해. "
     "purpose는 해당 질문으로 무엇을 평가하려는지 한 문장으로 작성해. "
     "반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
@@ -60,11 +78,23 @@ INTERVIEW_QUESTION_USER_PROMPT = (
 
 FIT_CHECKLIST_SYSTEM_PROMPT = (
     "너는 채용 적합도 평가 기준을 만드는 전문가야. "
-    "회사 요약, JD 요약, DB 데이터를 종합해서 지원자가 해당 회사와 포지션에 적합한지 "
-    "판단하기 위한 체크리스트를 만들어. "
-    "회사 요약 또는 JD 요약이 비어 있으면 제공된 나머지 정보와 DB 데이터만 근거로 사용해. "
-    "각 체크리스트는 나중에 지원서 요약과 비교할 수 있도록 관찰 가능하고 판단 가능한 기준이어야 해. "
-    "기술 스택, 직무 경험, 업무 이해도, 협업 방식, 서비스/도메인 적합성, 성장 가능성을 균형 있게 포함해. "
+    "회사 요약과 JD 요약을 근거로 지원자 적합도 판단 체크리스트를 만들어. "
+    "체크리스트는 반드시 아래 10가지 평가 영역을 1번부터 10번까지 순서대로, 영역당 1문항씩 작성해. "
+    "1) JD의 학력 조건 충족 여부 (예: '대졸 이상 조건 또는 이에 준하는 실무 역량을 갖추었는가?') "
+    "2) JD의 경력 조건 충족 여부 (JD에 적힌 경력 연수 표현을 문장에 그대로 포함) "
+    "3) 필수 기술 사용 경험 (JD의 필수 기술 목록을 괄호 안에 그대로 나열. "
+    "예: '필수 기술(React, TypeScript, Next.js) 중 핵심 기술을 실제 프로젝트에서 사용했는가?') "
+    "4) 우대 기술 경험 또는 빠른 학습 근거 (JD의 우대 기술 목록을 괄호 안에 그대로 나열) "
+    "5) 회사 서비스가 속한 도메인 또는 유사 서비스 업무 흐름 이해 "
+    "6) REST API, 데이터 모델링, 배포/운영 등 서비스 개발 전반의 이해 "
+    "7) 장애 대응이나 품질 개선 경험 "
+    "8) 디자이너, PM, 운영 담당자 등 비개발 직군과의 협업 경험 "
+    "9) 보안, 개인정보, 권한 관리 또는 데이터 민감도에 대한 기본 인식 "
+    "10) 지원 동기와 회사 서비스 사이의 연결 명확성 "
+    "각 문항은 '~한가?' 형태의 판단 가능한 의문문으로 작성해. "
+    "기술명, 경력 연수, 도메인명은 일반어로 바꾸지 말고 회사 요약과 JD 요약에 적힌 표현을 그대로 사용해. "
+    "db_data는 회사 요약과 JD 요약이 모두 비어 있을 때만 근거로 사용하고, "
+    "JD 요약이 있으면 db_data의 기술명을 문항에 넣지 마. "
     "반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
 )
 FIT_CHECKLIST_USER_PROMPT = (
@@ -75,7 +105,15 @@ FIT_CHECKLIST_USER_PROMPT = (
 CHECK_RESUME_FIT_SYSTEM_PROMPT = (
     "너는 지원서 요약과 채용 적합도 체크리스트를 비교하는 평가자야. "
     "각 체크리스트 항목을 지원서 요약이 충족하는지 true 또는 false로 판단해. "
-    "지원서 요약에 근거가 명확히 있으면 true, 근거가 없거나 불충분하면 false로 판단해. "
+    "판단 기준: "
+    "- 경력 연수, 학력, 특정 기술명처럼 객관적 조건이 있는 항목은 조건을 엄격히 확인해. "
+    "조건 미달이나 미언급은 false야. "
+    "- 협업, 커뮤니케이션, 책임감, 관심, 성장 의지처럼 태도나 소프트 스킬 항목은 "
+    "관련 경험, 사례, 활동이 한 번이라도 언급되면 true로 판단해. "
+    "'뛰어난', '우수한' 같은 수식어의 정도까지 증명할 필요는 없어. "
+    "- 체크리스트가 'A 또는 B'처럼 복수 조건을 허용하면 하나만 충족해도 true야. "
+    "- 직접 언급이 없어도 명백히 함의되면 true로 판단해. "
+    "예를 들어 특정 프레임워크 프로젝트 경험은 해당 언어 역량의 근거가 돼. "
     "반드시 체크리스트 원문을 content에 그대로 사용하고, result는 boolean만 사용해. "
     "반드시 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
 )
@@ -85,10 +123,15 @@ CHECK_RESUME_FIT_USER_PROMPT = (
 
 REPORT_SYSTEM_PROMPT = (
     "너는 채용 평가 리포트를 작성하는 전문가야. "
-    "지원서 요약과 지원자 적합 체크 결과를 종합해서 최종 평가 리포트를 작성해. "
+    "지원서 요약, 회사 요약, JD 요약, 지원자 적합 체크 결과를 종합해서 최종 평가 리포트를 작성해. "
     "checklist에서 result가 true인 항목은 충족한 기준, false인 항목은 부족하거나 추가 검증이 필요한 기준으로 판단해. "
+    "입력받은 checklist의 result 값을 절대 바꾸거나 본문에서 다르게 서술하지 마. "
+    "overall_grade는 체크리스트 충족 개수 기준으로 판정해: 9개 이상 A, 7~8개 B, 5~6개 C, 4개 이하 D. "
+    "overall_summary는 '체크리스트 N/10개를 충족하여 X 수준으로 평가됩니다.' 문장을 반드시 포함해. "
+    "fit_analysis에는 회사 요약의 인재상, 회사 서비스와 지원자 경험의 연결 지점을 포함해. "
+    "check_point에는 JD의 주요 업무와 필수 기술을 기준으로 면접에서 확인할 항목을 작성해. "
+    "concern은 result가 false인 항목에서만 도출하고, 근거 없는 우려를 추가하지 마. "
     "리포트의 checklist 필드는 입력받은 checklist 배열을 content, result 키 이름 그대로 포함해. "
-    "overall_grade는 A, B, C, D 중 하나로 작성해. "
     "JSON 컬럼에 해당하는 competency_analysis, fit_analysis, strength, concern, check_point는 "
     "각각 문자열 리스트로 작성해. "
     "반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
@@ -456,8 +499,8 @@ def check_resume_fit(resume_summary, checklist):
     return [item.model_dump() for item in parsed.checklist]
 
 
-def make_report(resume_summary, fit_checks):
-    """이력서 요약과 체크리스트 판정 결과를 이용해 최종 평가 리포트를 생성합니다."""
+def make_report(resume_summary, fit_checks, company_summary="", jd_summary=""):
+    """이력서 요약, 회사/JD 요약, 체크리스트 판정 결과를 이용해 최종 평가 리포트를 생성합니다."""
 
     checklist_results = _normalize_fit_checks(fit_checks)
 
@@ -468,6 +511,8 @@ def make_report(resume_summary, fit_checks):
 
     report_context = {
         "resume_summary": resume_summary,
+        "company_summary": company_summary or "",
+        "jd_summary": jd_summary or "",
         "checklist": checklist_results,
     }
     context_json = json.dumps(report_context, ensure_ascii=False, indent=2)
@@ -506,6 +551,8 @@ def invoke(resume_dict, company_dict, jd_dict):
     report = make_report(
         resume_summary=resume_summary,
         fit_checks=fit_checks,
+        company_summary=company_summary,
+        jd_summary=jd_summary,
     )
 
     return {
