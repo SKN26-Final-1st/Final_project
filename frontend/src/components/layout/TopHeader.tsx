@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button, Input, Layout, Select, Space } from 'antd';
 import { LogoutOutlined, SearchOutlined } from '@ant-design/icons';
-import { mainMenu, type AppRoute } from '../../data/appConfig';
+import { activeMainMenu, mainMenu, type AppRoute } from '../../data/appConfig';
 import type { Navigate } from '../../types/app';
 
 const { Header } = Layout;
@@ -14,6 +14,8 @@ type TopHeaderProps = {
 };
 
 export function TopHeader({ route, themeSwitch, navigate, onLogout }: TopHeaderProps) {
+  const activeRoute = activeMainMenu.some((item) => item.route === route) ? route : '/dashboard';
+
   return (
     <Header className="top-header">
       <div className="top-title">
@@ -28,9 +30,9 @@ export function TopHeader({ route, themeSwitch, navigate, onLogout }: TopHeaderP
       />
       <Select
         className="mobile-route-select"
-        value={route}
+        value={activeRoute}
         onChange={(value) => navigate(value)}
-        options={mainMenu.map((item) => ({ value: item.route, label: item.label }))}
+        options={activeMainMenu.map((item) => ({ value: item.route, label: item.label }))}
         aria-label="화면 선택"
       />
       <Space className="top-actions">

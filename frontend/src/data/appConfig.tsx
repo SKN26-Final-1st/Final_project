@@ -31,6 +31,8 @@ export type MenuItem = {
   label: string;
   description: string;
   icon: ReactNode;
+  mvpStatus?: 'active' | 'planned';
+  visibleInNav?: boolean;
 };
 
 export type ChatMessage = {
@@ -86,17 +88,23 @@ export const mainMenu: MenuItem[] = [
   },
   {
     route: '/recruitment-post',
+    mvpStatus: 'planned',
+    visibleInNav: false,
     label: '모집 공고',
     description: '복수 JD 기반 공고 미리보기',
     icon: <FileDoneOutlined />,
   },
   {
     route: '/cover-letter-template',
+    mvpStatus: 'planned',
+    visibleInNav: false,
     label: '자소서 포맷',
     description: 'JD 기반 문항/가이드 생성',
     icon: <FormOutlined />,
   },
 ];
+
+export const activeMainMenu = mainMenu.filter((item) => item.visibleInNav !== false && item.mvpStatus !== 'planned');
 
 export const authMenu: MenuItem[] = [
   {
