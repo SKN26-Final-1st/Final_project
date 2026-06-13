@@ -20,9 +20,9 @@ flowchart LR
 
 - `frontend/src/main.tsx`: React 앱 마운트, Router, Query Provider 연결
 - `frontend/src/App.tsx`: 라우트 분기, 테마, 알림, 로딩 키, 선택 JD, 채팅 상태 관리
-- `frontend/src/api/backendClient.ts`: Django API 또는 mock 데이터 호출
+- `frontend/src/api/backendClient.ts`: Django API 호출(CSRF, credentials, `X-API-Key`)
 - `frontend/src/api/appDataService.ts`: 대시보드 원천 데이터를 각 화면용 모델로 조립
-- `frontend/src/api/adapters.ts`: 백엔드/목 데이터 스키마를 화면 표시 모델로 변환
+- `frontend/src/api/adapters.ts`: 백엔드 응답 스키마를 화면 표시 모델로 변환
 - `frontend/src/pages/`: 화면 단위 구성
 - `frontend/src/components/`: 레이아웃, 차트, 채팅, 도메인 패널
 
