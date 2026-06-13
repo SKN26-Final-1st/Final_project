@@ -22,7 +22,7 @@
 
 `frontend/src/App.tsx`에서 Ant Design token을 설정하고, `styles.css`는 `.app-root[data-theme="dark"]`로 dark mode를 보완합니다.
 
-브랜드 색상은 `frontend/src/data/mockData.tsx`의 `palette`를 사용합니다.
+브랜드 색상은 `frontend/src/data/appConfig.tsx`의 `palette`를 Ant Design token과 함께 사용합니다.
 
 ## 반응형 규칙
 
@@ -32,17 +32,14 @@
 
 ## QA 스크립트
 
-`frontend/scripts/verify-document-chat-widget.mjs`는 문서 검색 위젯 전용 시각/동작 QA입니다.
+`frontend/scripts/`에 검증 스크립트가 있습니다. 상세는 [실행과 운영](../01-getting-started/run-and-operations.md)과 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.
 
-검증 대상:
+주요 스크립트:
 
-- 데스크톱 1440x900
-- 모바일 390x844
-- FAB/위젯 우측 하단 고정
-- 추천 패널 표시
-- 단일 스크롤 모델
-- 가로 오버플로우 없음
-- 스크린샷 저장
+- `verify-backend-contract.mjs` — backend API 계약 정적 검증
+- `verify-live-django-api.mjs` — Django runserver 기반 API 시나리오 검증
+- `verify-document-chat-widget.mjs` — 문서 검색 위젯 시각/동작 QA
+- `verify-auth-flow.mjs`, `verify-admin-layout.mjs`, `verify-shared-route.mjs`
 
 ## 빌드와 lint
 
