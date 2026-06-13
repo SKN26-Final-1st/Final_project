@@ -84,8 +84,10 @@
 
 - 복수 JD 선택
 - 선택 요약 표시
-- 공고 미리보기 표시
-- `apiClient.generateRecruitmentPost()`와 `downloadRecruitmentPdf()`는 현재 응답 래퍼 중심입니다.
+- 공고 미리보기 표시 (`buildRecruitmentPreview()`가 회사/JD 필드로 프론트 조합)
+- `apiClient.generateRecruitmentPost()`와 `downloadRecruitmentPdf()`는 backend API가 없어 `unsupportedBackendFeature()` 오류를 던집니다.
+
+nav에서는 숨겨져 있으며(`visibleInNav: false`), 직접 접근 시 후순위 MVP 안내를 표시합니다. 근거: `frontend/src/data/appConfig.tsx`
 
 ## 관련 문서
 

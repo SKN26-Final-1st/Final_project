@@ -1,6 +1,6 @@
 # 디자인 시스템
 
-이 문서는 현재 웹 UI를 분석해 정리한 HumouR 프론트엔드 디자인 시스템 초안입니다. 실제 스타일 구현은 `frontend/src/styles.css`, Ant Design 테마 연결은 `frontend/src/App.tsx`, 브랜드/차트 팔레트 일부는 `frontend/src/data/mockData.tsx`와 `frontend/src/components/charts/chartTheme.ts`에 있습니다.
+이 문서는 현재 웹 UI를 분석해 정리한 HumouR 프론트엔드 디자인 시스템 초안입니다. 실제 스타일 구현은 `frontend/src/styles.css`, Ant Design 테마 연결은 `frontend/src/App.tsx`, 브랜드/차트 팔레트 일부는 `frontend/src/data/appConfig.tsx`와 `frontend/src/components/charts/chartTheme.ts`에 있습니다.
 
 ## 디자인 방향
 
@@ -38,7 +38,7 @@ CSS 토큰 기준 색상은 `.app-root`에 정의되어 있습니다. 근거: `f
 | `--border` | `rgba(47, 115, 246, 0.14)` | `rgba(255, 255, 255, 0.12)` | 기본 경계선 |
 | `--border-strong` | `rgba(47, 115, 246, 0.28)` | `rgba(110, 163, 255, 0.34)` | hover/focus 경계선 |
 
-주의: `frontend/src/data/mockData.tsx`의 `palette.primary`는 `#2563EB`이고 CSS의 `--primary`는 `#2f73f6`입니다. 차트와 Ant Design token은 `palette`를 함께 참조하므로, 추후 색상 정리 시 단일 소스가 필요합니다.
+주의: `frontend/src/data/appConfig.tsx`의 `palette.primary`는 `#2563EB`이고 CSS의 `--primary`는 `#2f73f6`입니다. 차트와 Ant Design token은 `palette`를 함께 참조하므로, 추후 색상 정리 시 단일 소스가 필요합니다.
 
 ### 그림자, 반경, 간격
 

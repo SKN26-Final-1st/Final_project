@@ -6,6 +6,7 @@
 - [지원서 분석](resume-analysis.md)
 - [문서 검색 채팅](document-chat.md)
 - [관리자와 계정](admin-and-account.md)
+- [공유 리포트](shared-report.md) — `/shared` API 키 기반 조회
 
 관련 문서:
 

@@ -45,8 +45,13 @@ VITE_USE_MOCK_API=true
 VITE_API_KEY=
 ```
 
-- `VITE_USE_MOCK_API=false`로 설정해야 실제 Django API 호출을 사용합니다.
-- `VITE_API_KEY`가 있으면 Axios 요청에 `X-API-Key` 헤더를 붙입니다. 근거: `frontend/src/api/backendClient.ts`
+주의: `VITE_USE_MOCK_API`는 현재 `backendClient.ts`에서 참조하지 않습니다. mock API 모드는 제거되었고, 프론트는 항상 Django API를 호출합니다.
+
+실제로 사용되는 변수:
+
+- `VITE_API_KEY`: 설정 시 Axios 요청에 `X-API-Key` 헤더를 붙입니다. 공유 리포트·비로그인 API 접근 테스트에 사용합니다. 근거: `frontend/src/api/backendClient.ts`
+
+로컬 개발 시 Vite dev server가 `/api`를 `http://127.0.0.1:8000`으로 프록시하므로 별도 API base URL 설정은 필요 없습니다. 근거: `frontend/vite.config.ts`
 
 ### 백엔드
 
@@ -68,3 +73,4 @@ VITE_API_KEY=
 
 - [실행과 운영](run-and-operations.md)
 - [배포와 인프라](../09-deployment/deployment.md)
+- [프론트엔드 API 연동 README](../../frontend/README.md)

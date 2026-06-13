@@ -8,7 +8,8 @@
 
 ```bash
 python -m venv backend/.venv
-source backend/.venv/bin/activate
+# Windows: backend\.venv\Scripts\activate
+# macOS/Linux: source backend/.venv/bin/activate
 pip install -r backend/requirements.txt
 cd backend
 python manage.py migrate
@@ -19,7 +20,7 @@ python manage.py runserver 127.0.0.1:8000
 
 ## 프론트엔드 실행
 
-프론트는 `frontend/package.json` 스크립트를 사용합니다.
+프론트는 `frontend/package.json` 스크립트를 사용합니다. **백엔드가 `127.0.0.1:8000`에서 실행 중이어야** API 호출이 성공합니다.
 
 ```bash
 cd frontend
@@ -27,17 +28,15 @@ npm ci
 npm run dev
 ```
 
-`dev` 스크립트는 `vite --host 127.0.0.1`입니다.
+`dev` 스크립트는 `vite --host 127.0.0.1`이며, 기본 포트는 `5173`입니다. `/api` 요청은 Vite 프록시를 통해 백엔드로 전달됩니다. 근거: `frontend/vite.config.ts`
 
-## 실제 API 연동 모드
-
-프론트는 기본적으로 mock API를 사용합니다. 실제 Django API를 쓰려면 `frontend/.env`에 다음 값을 둡니다.
+선택 환경 변수:
 
 ```env
-VITE_USE_MOCK_API=false
+VITE_API_KEY=your-api-key
 ```
 
-필요하면 외부 API 키 접근 테스트를 위해 `VITE_API_KEY`도 설정합니다. 이 값은 `X-API-Key` 헤더로 전달됩니다. 근거: `frontend/src/api/backendClient.ts`
+`VITE_API_KEY`는 `X-API-Key` 헤더로 전달되어 API 키 기반 접근 테스트에 사용됩니다.
 
 ## 검사 명령
 
@@ -58,6 +57,21 @@ python manage.py test
 ```
 
 GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/workflows/deploy-eb.yml`
+
+## 프론트 검증 스크립트
+
+`frontend/scripts/`에 API 계약과 UI 흐름 검증 스크립트가 있습니다.
+
+| 스크립트 | 역할 |
+| --- | --- |
+| `verify-backend-contract.mjs` | frontend 코드가 backend API 계약(경로, 필드명)을 지키는지 정적 검증 |
+| `verify-live-django-api.mjs` | 임시 SQLite DB와 Django runserver로 실제 API 시나리오 검증 |
+| `verify-auth-flow.mjs` | 로그인/회원가입/비밀번호 재설정 UI 흐름 검증 |
+| `verify-admin-layout.mjs` | 관리자 화면 레이아웃 검증 |
+| `verify-document-chat-widget.mjs` | 문서 검색 FAB/위젯 데스크톱·모바일 검증 |
+| `verify-shared-route.mjs` | `/shared` 공유 리포트 라우트 검증 |
+
+상세 실행 방법은 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.
 
 ## 문서 검색 위젯 QA 스크립트
 
@@ -80,3 +94,4 @@ GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/w
 
 - [프론트엔드 스타일과 QA](../03-frontend/styling-and-qa.md)
 - [배포와 인프라](../09-deployment/deployment.md)
+- [프론트엔드 API 연동 README](../../frontend/README.md)

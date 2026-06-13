@@ -1,6 +1,6 @@
 # 프론트엔드 문서 인덱스
 
-프론트엔드는 React/Vite/TypeScript 기반의 HumouR 운영 UI입니다.
+프론트엔드는 React/Vite/TypeScript 기반의 HumouR 운영 UI입니다. Django API 연동 상세는 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.
 
 - [개요](overview.md)
 - [페이지와 라우트](pages-and-routes.md)
