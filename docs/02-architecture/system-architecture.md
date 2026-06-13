@@ -32,7 +32,8 @@ flowchart LR
 - `backend/config/urls.py`: `/admin/`, `/api/` 루트 연결
 - `backend/api/models.py`: 도메인 모델과 `to_dict()` 직렬화
 - `backend/api/views.py`: POST 기반 API 핸들러
-- `backend/common/report.py`: 지원서 분석 리포트/질문 생성
+- `backend/common/report.py`: 지원서 분석 리포트/질문 생성(운영)
+- `backend/common/report2.py`, `backend/common/report3.py`: 프롬프트 실험 버전(API 미연결)
 - `backend/common/chat_graph.py`: 채팅 그래프 오케스트레이션
 - `backend/common/chat_agent.py`: LLM agent, Pinecone 검색, 프롬프트
 

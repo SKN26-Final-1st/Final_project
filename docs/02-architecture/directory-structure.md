@@ -31,8 +31,15 @@ backend/
 │   ├── chat_agent.py
 │   ├── chat_graph.py
 │   ├── report.py
+│   ├── report2.py
+│   ├── report3.py
 │   ├── utils.py
 │   └── eval/
+│       ├── chat_eval.ipynb
+│       ├── goldset_mock_data_fixed.csv
+│       ├── middle_report_eval.ipynb
+│       ├── middle_report2_eval.ipynb
+│       └── middle_report3_eval.ipynb
 ├── config/
 │   ├── settings.py
 │   ├── urls.py
