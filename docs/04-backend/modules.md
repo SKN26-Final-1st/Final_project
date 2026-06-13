@@ -56,6 +56,19 @@
 - 지원서 적합성 판정
 - 면접 질문 생성
 - 최종 리포트 생성
+- 운영 API(`resume_analize`)가 import하는 유일한 리포트 모듈
+
+`backend/common/report2.py`, `backend/common/report3.py`:
+
+- `report.py`와 같은 public 함수 시그니처(`invoke`, `sum_resume` 등)를 유지한 프롬프트/후처리 실험 버전
+- API view에는 연결되지 않음
+- `report3.py`는 `make_report()`에서 체크리스트 충족 개수로 등급을 코드로 계산한 뒤 LLM 출력과 동기화
+
+`backend/common/eval/`:
+
+- `middle_report_eval.ipynb`, `middle_report2_eval.ipynb`, `middle_report3_eval.ipynb`: 리포트 파이프라인 버전별 평가
+- `chat_eval.ipynb`: 채팅 파이프라인 평가
+- `goldset_mock_data_fixed.csv`: 리포트 평가 골드셋
 
 `backend/common/chat_agent.py`:
 
