@@ -41,6 +41,8 @@
 - `verify-document-chat-widget.mjs` — 문서 검색 위젯 시각/동작 QA
 - `verify-auth-flow.mjs`, `verify-admin-layout.mjs`, `verify-shared-route.mjs`
 
+`package.json`에 npm script는 없으므로 `node scripts/<name>.mjs`로 실행합니다.
+
 ## 빌드와 lint
 
 `frontend/package.json`:

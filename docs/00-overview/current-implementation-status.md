@@ -7,7 +7,8 @@
 - Django 모델과 CRUD성 API: `backend/api/models.py`, `backend/api/views.py`, `backend/api/urls.py`
 - 세션 기반 인증과 일부 API 키 기반 접근: `backend/api/views.py`
 - 지원서 분석 저장 흐름: `_get_analysis_inputs`, `_save_analysis_result`, `resume_analize` in `backend/api/views.py`
-- OpenAI 리포트/면접질문 생성 파이프라인: `backend/common/report.py`
+- OpenAI 리포트/면접질문 생성 파이프라인(운영): `backend/common/report.py` — API는 이 모듈만 사용
+- 리포트 프롬프트 실험·평가: `backend/common/report2.py`, `report3.py`, `backend/common/eval/middle_report*_eval.ipynb`
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
 - React 화면, 라우팅, 전역 알림/로딩/채팅 상태: `frontend/src/App.tsx`
 - 프론트 Django API 클라이언트(CSRF, credentials, `X-API-Key`): `frontend/src/api/backendClient.ts`

@@ -37,8 +37,10 @@
 
 모델명:
 
-- 리포트 파이프라인: `gpt-4.1-mini`
+- 리포트 파이프라인(운영): `gpt-4o-mini` — `backend/common/report.py`
 - 임베딩 노트북: `text-embedding-3-small`
+
+운영 API(`resume_analize`)는 `report.py`만 사용합니다. 프롬프트 수정 실험용 `report2.py`, `report3.py`와 평가 노트북은 API에 연결되지 않습니다. 근거: `backend/api/views.py`, `backend/common/eval/middle_report*_eval.ipynb`
 
 ## 구조화 응답
 
