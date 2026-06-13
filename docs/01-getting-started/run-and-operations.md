@@ -71,7 +71,15 @@ GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/w
 | `verify-document-chat-widget.mjs` | 문서 검색 FAB/위젯 데스크톱·모바일 검증 |
 | `verify-shared-route.mjs` | `/shared` 공유 리포트 라우트 검증 |
 
-상세 실행 방법은 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.
+`package.json`에는 npm script로 등록되어 있지 않으므로, 프론트 루트에서 직접 실행합니다.
+
+```bash
+cd frontend
+node scripts/verify-backend-contract.mjs
+node scripts/verify-live-django-api.mjs
+```
+
+상세 시나리오와 나머지 스크립트 실행 방법은 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.
 
 ## 문서 검색 위젯 QA 스크립트
 
