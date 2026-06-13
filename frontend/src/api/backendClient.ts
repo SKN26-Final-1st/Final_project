@@ -437,8 +437,8 @@ async function getCompanyInfo() {
   return requestBackend<CompanyInfo>('compinfo/get');
 }
 
-async function getJobDescriptions() {
-  return requestBackend<JobDescription[]>('jd/get');
+async function getJobDescriptions(apiKey?: string) {
+  return requestBackend<JobDescription[]>('jd/get', {}, { apiKey });
 }
 
 async function getResumesForJob(jobDescriptionId: number, apiKey?: string) {
@@ -557,13 +557,17 @@ async function getSharedResumeBundle(resumeId: number, apiKey: string) {
     throw new Error('공유 지원서 정보를 찾을 수 없습니다.');
   }
 
-  const [reports, questions] = await Promise.all([
+  const [jobDescriptions, reports, questions] = await Promise.all([
+    getJobDescriptions(apiKey),
     getReportsForResume(resume.id, apiKey),
     getQuestionsForResume(resume.id, apiKey),
   ]);
+  const jobDescription = jobDescriptions.find((item) => item.id === resume.job_description_id) ?? null;
 
   return {
     resume,
+    jobDescription,
+    jobDescriptions,
     reports,
     questions,
   };
