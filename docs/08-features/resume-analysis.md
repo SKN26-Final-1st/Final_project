@@ -14,7 +14,7 @@
 
 - JD 선택
 - 지원자명과 자기소개 문항/답변 확인
-- 지원서 업로드 mock 흐름
+- 지원서 추가·수정·삭제 (`addResume`, `saveResume`, `deleteResume`)
 - 분석 요청
 - 분석 완료 후 `/chat` 이동 버튼 표시
 
@@ -49,9 +49,9 @@
 
 근거: `frontend/src/api/adapters.ts`
 
-## 자기소개서 포맷 작성
+## 자기소개서 포맷 작성 (후순위 MVP)
 
-화면: `/cover-letter-template`
+화면: `/cover-letter-template` (nav 숨김, `mvpStatus: 'planned'`)
 
 파일:
 
@@ -63,7 +63,7 @@
 - 생성된 면접 질문을 문항과 작성 가이드처럼 표시
 - 문항 생성과 문서 다운로드 버튼 제공
 
-현재 `generateCoverLetterTemplate()`와 `downloadTemplateDocument()`는 실제 문서 파일을 만들지 않고 API 응답 형태의 mock 액션을 반환합니다. 근거: `frontend/src/api/backendClient.ts`
+현재 `generateCoverLetterTemplate()`와 `downloadTemplateDocument()`는 backend API가 없어 `unsupportedBackendFeature()` 오류를 던집니다. 근거: `frontend/src/api/backendClient.ts`
 
 ## 관련 문서
 
