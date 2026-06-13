@@ -53,10 +53,6 @@
 - `search_app_manual()`: Pinecone 검색
 - `invoke_summary_agent()`: 답변 병합
 
-## Mock 모드
-
-기본 mock 모드에서는 실제 `/api/chat/`를 호출하지 않고, 질문 문자열을 포함한 정적 안내 응답을 반환합니다. 근거: `frontend/src/api/backendClient.ts`
-
 ## QA
 
 문서 검색 FAB는 `frontend/scripts/verify-document-chat-widget.mjs`로 데스크톱/모바일 위치, 추천 패널, 스크롤 모델, 오버플로우를 검증합니다.
