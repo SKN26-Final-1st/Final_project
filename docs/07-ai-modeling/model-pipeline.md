@@ -6,7 +6,7 @@
 
 모델:
 
-- `MODEL_NAME = "gpt-4.1-mini"`
+- `MODEL_NAME = "gpt-4o-mini"` — `backend/common/report.py`
 
 기본 생성량:
 
@@ -62,6 +62,26 @@ Pydantic 모델:
 - `ReportStructure`
 
 `_create_structured_completion()`은 OpenAI SDK의 parse 지원 여부에 따라 structured parse 또는 JSON object 검증을 사용합니다.
+
+## 실험 버전과 평가
+
+운영 API는 `report.py`만 import합니다. 근거: `backend/api/views.py`
+
+| 모듈 | 용도 | 모델 | 비고 |
+| --- | --- | --- | --- |
+| `report.py` | 운영 파이프라인 | `gpt-4o-mini` | `resume_analize`가 호출 |
+| `report2.py` | 프롬프트 수정 실험 | `gpt-4o-mini` | 환각 방지·면접 질문 구조 등 프롬프트 강화 |
+| `report3.py` | `report2` 후속 실험 | `gpt-4o-mini` | `make_report()`에서 체크리스트 T/F 기반 등급을 코드로 확정하고 LLM 출력과 동기화 |
+
+평가 노트북(`backend/common/eval/`):
+
+- `middle_report_eval.ipynb` — 구버전 `report.py` 대비 Ver1/Ver2 평가
+- `middle_report2_eval.ipynb` — `report2.py` end-to-end 평가
+- `middle_report3_eval.ipynb` — `report3.py` end-to-end 평가
+- `chat_eval.ipynb` — 채팅 파이프라인 평가
+- `goldset_mock_data_fixed.csv` — 리포트 평가용 골드셋
+
+노트북은 로컬 Jupyter에서 OpenAI API 키가 필요합니다. 결과 CSV는 노트북 내부 경로에 저장되며 운영 DB와는 분리됩니다.
 
 ## 채팅 모델
 
