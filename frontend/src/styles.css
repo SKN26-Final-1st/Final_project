@@ -4283,6 +4283,10 @@ button,
   padding-block: 6px;
 }
 
+.planned-mvp-alert {
+  margin-bottom: 24px;
+}
+
 .shared-section-stack,
 .shared-chat-input {
   width: 100%;
@@ -4291,6 +4295,25 @@ button,
 .shared-report-copy p {
   color: var(--muted);
   white-space: pre-line;
+}
+
+.shared-jd-summary {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface));
+}
+
+.shared-jd-summary h4,
+.shared-jd-summary p {
+  margin: 0 !important;
+}
+
+.shared-jd-summary p {
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .shared-chat-log {

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Alert, Button, Card, Col, Form, Input, InputNumber, List, Row, Space, Tabs, Tag, Typography } from 'antd';
 import { KeyOutlined, LoginOutlined, MessageOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/backendClient';
-import type { AnalysisReport, InterviewQuestion, Resume } from '../data/backendTypes';
+import type { AnalysisReport, InterviewQuestion, JobDescription, Resume } from '../data/backendTypes';
 import type { AppRoute, ChatMessage } from '../data/appConfig';
 import type { Navigate, ThemeMode } from '../types/app';
 
@@ -15,6 +15,8 @@ type SharedReportPageProps = {
 
 type SharedBundle = {
   resume: Resume;
+  jobDescription: JobDescription | null;
+  jobDescriptions: JobDescription[];
   reports: AnalysisReport[];
   questions: InterviewQuestion[];
 };
@@ -32,11 +34,25 @@ function getInitialResumeId(search: string) {
   return Number.isFinite(resumeId) && resumeId > 0 ? resumeId : undefined;
 }
 
+function toSharedTextList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => (typeof item === 'string' ? item : item === null || item === undefined ? '' : String(item)))
+    .filter(Boolean);
+}
+
 function formatReportContext(bundle: SharedBundle) {
   const report = bundle.reports[0];
   const questions = bundle.questions.map((item) => item.question).join(' / ');
+  const jobDescription = bundle.jobDescription;
+  const requiredSkills = jobDescription ? toSharedTextList(jobDescription.required_skill).join(', ') : '';
 
   return [
+    jobDescription ? `JD: ${jobDescription.job_name}` : '',
+    requiredSkills ? `JD 필수 역량: ${requiredSkills}` : '',
     `지원자: ${bundle.resume.name}`,
     report ? `리포트 요약: ${report.overall_summary}` : '',
     report ? `확인 포인트: ${report.check_point.join(', ')}` : '',
@@ -186,6 +202,28 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                         </Space>
                         <Typography.Title level={3}>{bundle.resume.name || '이름 없음'}</Typography.Title>
                       </div>
+                      {bundle.jobDescription ? (
+                        <div className="shared-jd-summary">
+                          <Space wrap>
+                            <Tag color="geekblue">JD #{bundle.jobDescription.id}</Tag>
+                            <Tag color={bundle.jobDescription.status === 'closed' ? 'red' : 'cyan'}>
+                              {bundle.jobDescription.status}
+                            </Tag>
+                          </Space>
+                          <Typography.Title level={4}>{bundle.jobDescription.job_name}</Typography.Title>
+                          <p>{bundle.jobDescription.main_task || '주요 업무 정보 없음'}</p>
+                          <Space wrap>
+                            {(toSharedTextList(bundle.jobDescription.required_skill).length
+                              ? toSharedTextList(bundle.jobDescription.required_skill)
+                              : ['필수 역량 없음']
+                            ).map((skill, index) => (
+                              <Tag key={`${skill}-${index}`}>{skill}</Tag>
+                            ))}
+                          </Space>
+                        </div>
+                      ) : (
+                        <Alert showIcon type="warning" title="API key로 접근 가능한 JD를 찾지 못했습니다." />
+                      )}
                       {report ? (
                         <div className="shared-report-copy">
                           <Typography.Title level={4}>{report.overall_grade} 등급</Typography.Title>

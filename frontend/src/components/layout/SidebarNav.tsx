@@ -10,7 +10,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { UserProfile } from '../../api/adapters';
-import { mainMenu, type AppRoute } from '../../data/appConfig';
+import { activeMainMenu, type AppRoute } from '../../data/appConfig';
 import type { Navigate, ShowAlert, ThemeMode } from '../../types/app';
 
 type NavigationProps = {
@@ -24,7 +24,7 @@ type NavigationProps = {
   showAlert: ShowAlert;
 };
 
-const sidebarMenu = mainMenu.filter((item) => item.route !== '/mypage');
+const sidebarMenu = activeMainMenu.filter((item) => item.route !== '/mypage');
 
 function getInitials(name?: string) {
   if (!name) {

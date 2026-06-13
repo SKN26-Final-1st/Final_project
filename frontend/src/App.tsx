@@ -37,8 +37,8 @@ export default function App() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[] | null>(null);
   const [coverUploaded, setCoverUploaded] = useState(false);
   const [analysisDone, setAnalysisDone] = useState(false);
-  const postGenerated = true;
-  const templateGenerated = true;
+  const postGenerated = false;
+  const templateGenerated = false;
   const [resetStep, setResetStep] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
