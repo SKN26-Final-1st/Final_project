@@ -57,14 +57,19 @@
 - [지원서 분석](08-features/resume-analysis.md)
 - [문서 검색 채팅](08-features/document-chat.md)
 - [관리자와 계정](08-features/admin-and-account.md)
+- [공유 리포트](08-features/shared-report.md)
 
 ## 09. 배포
 
 - [배포와 인프라](09-deployment/deployment.md)
 
+## API 연동 상세
+
+프론트엔드 Django API 연동 범위, 검증 스크립트, 후순위 MVP 처리 원칙은 [frontend/README.md](../frontend/README.md)에 별도로 정리되어 있습니다.
+
 ## 문서 유지보수 규칙
 
 - 실제 코드 경로를 근거로 업데이트합니다.
 - 라우트, 엔드포인트, 파일명 오타처럼 코드에 이미 반영된 이름은 문서에서도 실제 이름을 우선합니다.
-- mock 동작과 실제 API 연동 동작을 섞어 쓰지 말고 분리해 기록합니다.
+- 구현 완료, UI 보존·백엔드 미연동, 검증 필요 영역을 분리해 기록합니다.
 - 새 기능이 추가되면 이 허브와 관련 파트 인덱스를 함께 수정합니다.
