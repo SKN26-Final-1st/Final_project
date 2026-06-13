@@ -1,4 +1,4 @@
-import { Button, Col, Divider, List, Row, Space, Tag, Tooltip } from 'antd';
+import { Alert, Button, Col, Divider, List, Row, Space, Tag, Tooltip } from 'antd';
 import { DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
@@ -36,6 +36,13 @@ export function CoverLetterTemplatePage({
             </Tooltip>
           </Space>
         }
+      />
+      <Alert
+        showIcon
+        className="planned-mvp-alert"
+        type="info"
+        message="후순위 MVP"
+        description="자기소개서 템플릿 문서 생성과 다운로드는 현재 backend API가 없어 백엔드 API 연동 예정 상태입니다. 분석 결과 기반 질문 데이터는 보존하지만 문서 생성 동작은 비활성화했습니다."
       />
       <Row gutter={[24, 24]}>
         <Col xs={24} xl={8}>

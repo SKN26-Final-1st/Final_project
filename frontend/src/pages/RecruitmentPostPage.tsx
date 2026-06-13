@@ -1,5 +1,5 @@
 import type { Key } from 'react';
-import { Button, Col, Row, Space, Tooltip } from 'antd';
+import { Alert, Button, Col, Row, Space, Tooltip } from 'antd';
 import { DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { JdSelectionPanel } from '../components/recruitment/JdSelectionPanel';
 import { RecruitmentPreviewPanel } from '../components/recruitment/RecruitmentPreviewPanel';
@@ -44,6 +44,13 @@ export function RecruitmentPostPage({
             </Tooltip>
           </Space>
         }
+      />
+      <Alert
+        showIcon
+        className="planned-mvp-alert"
+        type="info"
+        message="후순위 MVP"
+        description="모집 공고 생성과 PDF 다운로드는 현재 backend API가 없어 백엔드 API 연동 예정 상태입니다. 기존 화면은 보존하되 실제 동작 버튼은 비활성화했습니다."
       />
       <Row gutter={[24, 24]}>
         <Col xs={24} xl={13}>
