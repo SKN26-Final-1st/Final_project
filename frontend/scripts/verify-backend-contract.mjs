@@ -20,7 +20,12 @@ const authPages = read('frontend/src/pages/AuthPages.tsx');
 const myPage = read('frontend/src/pages/MyPage.tsx');
 const securitySettingsForm = read('frontend/src/components/mypage/SecuritySettingsForm.tsx');
 const authScreen = read('frontend/src/components/layout/AuthScreen.tsx');
+const sidebarNav = read('frontend/src/components/layout/SidebarNav.tsx');
+const topHeader = read('frontend/src/components/layout/TopHeader.tsx');
 const app = read('frontend/src/App.tsx');
+const sharedReportPage = read('frontend/src/pages/SharedReportPage.tsx');
+const recruitmentPostPage = read('frontend/src/pages/RecruitmentPostPage.tsx');
+const coverLetterTemplatePage = read('frontend/src/pages/CoverLetterTemplatePage.tsx');
 const appDataService = read('frontend/src/api/appDataService.ts');
 const adapters = read('frontend/src/api/adapters.ts');
 const backendTypes = read('frontend/src/data/backendTypes.ts');
@@ -72,6 +77,15 @@ function getApiClientMethod(source, method) {
   const nextMethodMatch = /\n  [A-Za-z]\w+:\s/.exec(methodTail);
   const methodEnd = nextMethodMatch ? methodStart + 1 + nextMethodMatch.index : source.length;
   return source.slice(methodStart, methodEnd);
+}
+
+function getRouteMenuObject(source, route) {
+  const routeStart = source.indexOf(`route: '${route}'`);
+  assert(routeStart >= 0, `Missing menu route ${route}`);
+  const routeTail = source.slice(routeStart);
+  const endMatch = /\n\s*\},/.exec(routeTail);
+  assert(endMatch, `Could not parse menu route ${route}`);
+  return routeTail.slice(0, endMatch.index);
 }
 
 for (const endpoint of requiredBackendCalls) {
@@ -137,6 +151,62 @@ assert(
 
 assert(/getSharedResumeBundle/.test(backendClient), 'Shared resume/report/question bundle API is required');
 assert(/\/shared/.test(appConfig) && /\/shared/.test(app), 'Shared report route must exist');
+
+const recruitmentPostMenu = getRouteMenuObject(appConfig, '/recruitment-post');
+const coverLetterTemplateMenu = getRouteMenuObject(appConfig, '/cover-letter-template');
+
+assert(
+  /mvpStatus\?:\s*['"]active['"] \| ['"]planned['"]/.test(appConfig) &&
+    /visibleInNav\?:\s*boolean/.test(appConfig),
+  'Menu items must explicitly distinguish active backend-backed pages from planned MVP pages',
+);
+
+for (const [route, menuObject] of [
+  ['/recruitment-post', recruitmentPostMenu],
+  ['/cover-letter-template', coverLetterTemplateMenu],
+]) {
+  assert(/mvpStatus:\s*['"]planned['"]/.test(menuObject), `${route} must be marked as a planned MVP route`);
+  assert(/visibleInNav:\s*false/.test(menuObject), `${route} must be hidden from primary navigation`);
+}
+
+assert(
+  /export const activeMainMenu = mainMenu\.filter/.test(appConfig),
+  'appConfig must expose activeMainMenu for navigation surfaces',
+);
+
+assert(
+  /activeMainMenu/.test(sidebarNav) && /activeMainMenu/.test(topHeader),
+  'Sidebar and mobile route select must use activeMainMenu instead of exposing planned MVP pages',
+);
+
+assert(
+  /const postGenerated = false;/.test(app) && /const templateGenerated = false;/.test(app),
+  'Unsupported recruitment/template generation pages must not start in mock-generated success state',
+);
+
+assert(
+  /planned-mvp-alert/.test(recruitmentPostPage) && /planned-mvp-alert/.test(coverLetterTemplatePage),
+  'Planned MVP pages must show a backend API planned/development notice when accessed directly',
+);
+
+assert(
+  /async function getJobDescriptions\(apiKey\?: string\)[\s\S]*requestBackend<JobDescription\[\]>\(['"]jd\/get['"],\s*\{\},\s*\{\s*apiKey\s*\}\)/.test(
+    backendClient,
+  ),
+  'jd/get must support X-API-Key access for shared and public report flows',
+);
+
+assert(
+  /async function getSharedResumeBundle\(resumeId: number, apiKey: string\)[\s\S]*getJobDescriptions\(apiKey\)/.test(
+    backendClient,
+  ),
+  'Shared API key bundle must fetch accessible JD data through X-API-Key',
+);
+
+assert(
+  /jobDescription:\s*JobDescription \| null/.test(sharedReportPage) && /bundle\.jobDescription/.test(sharedReportPage),
+  'Shared report page must display the JD that is accessible through the API key',
+);
 
 assert(
   /type Account = \{[\s\S]*\bid: number;[\s\S]*\busername: string;[\s\S]*\baccount_hash: string;[\s\S]*\}/.test(
