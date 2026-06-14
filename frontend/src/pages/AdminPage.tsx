@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Col, Form, Input, InputNumber, List, Progress, Row, Select, Space, Statistic, Tag } from 'antd';
+import { Alert, Button, Col, Form, Input, InputNumber, List, Progress, Row, Select, Space, Statistic, Tag, Typography } from 'antd';
 import {
   ApiOutlined,
+  CopyOutlined,
   CreditCardOutlined,
   DeleteOutlined,
   KeyOutlined,
@@ -26,6 +27,8 @@ type AdminPageProps = {
   runApiAction: RunApiAction;
   showAlert: ShowAlert;
   reloadData: () => Promise<void>;
+  createdAuthKey: Pick<AuthKey, 'name' | 'value'> | null;
+  setCreatedAuthKey: (nextAuthKey: Pick<AuthKey, 'name' | 'value'> | null) => void;
 };
 
 type AuthKeyCreateForm = {
@@ -51,6 +54,8 @@ export function AdminPage({
   runApiAction,
   showAlert,
   reloadData,
+  createdAuthKey,
+  setCreatedAuthKey,
 }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateForm>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
@@ -65,14 +70,27 @@ export function AdminPage({
       () => apiClient.addAuthKey(values),
       (response) => {
         form.resetFields();
+        setCreatedAuthKey({ name: response.data.name, value: response.data.value });
         showAlert({
           type: 'success',
           message: '새 API key가 생성되었습니다.',
-          description: `원문 key: ${response.data.value}`,
         });
         void reloadData();
       },
     );
+  };
+
+  const copyCreatedAuthKey = async () => {
+    if (!createdAuthKey) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(createdAuthKey.value);
+      showAlert({ type: 'success', message: 'API key를 복사했습니다.' });
+    } catch {
+      showAlert({ type: 'error', message: '복사에 실패했습니다. API key를 직접 선택해 복사해주세요.' });
+    }
   };
 
   const getAuthorizedResumeIds = (authKey: AuthKey) => authorizedDrafts[authKey.id] ?? authKey.authorized_resume;
@@ -165,6 +183,35 @@ export function AdminPage({
             </Button>
           </Form>
 
+          {createdAuthKey && (
+            <Alert
+              showIcon
+              className="created-authkey-panel"
+              type="success"
+              message="새 API key가 발급되었습니다."
+              description={
+                <div className="created-authkey-content">
+                  <span>
+                    이 키는 지금만 원문으로 복사할 수 있습니다. 페이지를 새로고침하거나 이동하면 다시 표시되지 않습니다.
+                  </span>
+                  <Typography.Text code className="created-authkey-value">
+                    {createdAuthKey.value}
+                  </Typography.Text>
+                </div>
+              }
+              action={
+                <Space wrap>
+                  <Button size="small" icon={<CopyOutlined />} onClick={() => void copyCreatedAuthKey()}>
+                    복사
+                  </Button>
+                  <Button size="small" onClick={() => setCreatedAuthKey(null)}>
+                    확인
+                  </Button>
+                </Space>
+              }
+            />
+          )}
+
           <List
             className="authkey-list"
             dataSource={authKeys}
@@ -197,13 +244,15 @@ export function AdminPage({
                 >
                   <List.Item.Meta
                     title={
-                      <Space wrap>
-                        <strong>{authKey.name}</strong>
-                        <Tag>{authKey.value}</Tag>
-                        <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
-                      </Space>
+                      <div className="authkey-meta">
+                        <strong className="authkey-name">{authKey.name}</strong>
+                        <div className="authkey-tags">
+                          <Tag className="authkey-value-tag">{authKey.value}</Tag>
+                          <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                        </div>
+                      </div>
                     }
-                    description={authKey.description || '설명 없음'}
+                    description={<span className="authkey-description">{authKey.description || '설명 없음'}</span>}
                   />
                   <Select
                     mode="multiple"

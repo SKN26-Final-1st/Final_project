@@ -4348,9 +4348,61 @@ button,
   margin-top: 20px;
 }
 
+.created-authkey-panel {
+  margin-top: 18px;
+}
+
+.created-authkey-content {
+  display: grid;
+  gap: 10px;
+}
+
+.created-authkey-value {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
+}
+
 .authkey-list .ant-list-item {
   align-items: flex-start;
   gap: 16px;
+}
+
+.authkey-list .ant-list-item-meta {
+  min-width: 0;
+}
+
+.authkey-meta {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.authkey-name {
+  display: block;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.authkey-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.authkey-value-tag {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.authkey-description {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
 }
 
 .authkey-resume-select {
