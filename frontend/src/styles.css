@@ -4348,6 +4348,23 @@ button,
   margin-top: 20px;
 }
 
+.created-authkey-panel {
+  margin-top: 18px;
+}
+
+.created-authkey-content {
+  display: grid;
+  gap: 10px;
+}
+
+.created-authkey-value {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
+}
+
 .authkey-list .ant-list-item {
   align-items: flex-start;
   gap: 16px;
