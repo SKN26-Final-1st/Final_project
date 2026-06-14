@@ -3399,6 +3399,51 @@ button,
   width: 100%;
 }
 
+.auth-card .ant-card-head-wrapper {
+  gap: 12px;
+}
+
+.auth-card .ant-card-head-title {
+  min-width: 0;
+}
+
+.auth-card .ant-card-extra {
+  margin-inline-start: auto;
+}
+
+.auth-text-link {
+  appearance: none;
+  display: inline;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--primary);
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.auth-text-link:hover,
+.auth-text-link:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  color: var(--primary-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-card-return-link {
+  font-size: 13px;
+  white-space: normal;
+}
+
 .auth-links {
   margin-top: 12px;
 }
