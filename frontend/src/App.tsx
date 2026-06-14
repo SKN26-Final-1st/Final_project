@@ -22,7 +22,7 @@ import { RecruitmentPostPage } from './pages/RecruitmentPostPage';
 import { SharedReportPage } from './pages/SharedReportPage';
 import type { AlertState, KeySetter, ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
-import type { ApiResponse } from './data/backendTypes';
+import type { ApiResponse, AuthKey } from './data/backendTypes';
 
 export default function App() {
   const routerNavigate = useNavigate();
@@ -37,6 +37,9 @@ export default function App() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[] | null>(null);
   const [coverUploaded, setCoverUploaded] = useState(false);
   const [analysisDone, setAnalysisDone] = useState(false);
+  const [createdAuthKey, setCreatedAuthKey] = useState<(Pick<AuthKey, 'name' | 'value'> & { locationKey: string }) | null>(
+    null,
+  );
   const postGenerated = false;
   const templateGenerated = false;
   const [resetStep, setResetStep] = useState(0);
@@ -132,6 +135,16 @@ export default function App() {
   const navigate = useCallback((nextRoute: AppRoute) => {
     void routerNavigate(nextRoute);
   }, [routerNavigate]);
+
+  const visibleCreatedAuthKey =
+    route === '/admin' && createdAuthKey?.locationKey === location.key ? createdAuthKey : null;
+
+  const updateCreatedAuthKey = useCallback(
+    (nextAuthKey: Pick<AuthKey, 'name' | 'value'> | null) => {
+      setCreatedAuthKey(nextAuthKey ? { ...nextAuthKey, locationKey: location.key } : null);
+    },
+    [location.key, setCreatedAuthKey],
+  );
 
   const showAlert = (nextAlert: AlertState) => {
     setAlert(nextAlert);
@@ -235,6 +248,8 @@ export default function App() {
             runApiAction={runApiAction}
             showAlert={showAlert}
             reloadData={reload}
+            createdAuthKey={visibleCreatedAuthKey}
+            setCreatedAuthKey={updateCreatedAuthKey}
           />
         );
       case '/company':

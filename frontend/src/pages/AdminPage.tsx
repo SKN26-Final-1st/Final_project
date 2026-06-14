@@ -26,6 +26,8 @@ type AdminPageProps = {
   runApiAction: RunApiAction;
   showAlert: ShowAlert;
   reloadData: () => Promise<void>;
+  createdAuthKey: Pick<AuthKey, 'name' | 'value'> | null;
+  setCreatedAuthKey: (nextAuthKey: Pick<AuthKey, 'name' | 'value'> | null) => void;
 };
 
 type AuthKeyCreateForm = {
@@ -51,6 +53,8 @@ export function AdminPage({
   runApiAction,
   showAlert,
   reloadData,
+  createdAuthKey: _createdAuthKey,
+  setCreatedAuthKey: _setCreatedAuthKey,
 }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateForm>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
