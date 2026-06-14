@@ -63,12 +63,12 @@ export function LoginPage({
             {loadingKey === 'login' ? <InlineLoading label="로그인 중" /> : '로그인'}
           </Button>
           <Flex justify="space-between" className="auth-links">
-            <Button type="link" onClick={() => navigate('/signup')}>
+            <button type="button" className="auth-text-link" onClick={() => navigate('/signup')}>
               회원가입
-            </Button>
-            <Button type="link" onClick={() => navigate('/password-reset')}>
+            </button>
+            <button type="button" className="auth-text-link" onClick={() => navigate('/password-reset')}>
               비밀번호 찾기
-            </Button>
+            </button>
           </Flex>
         </Form>
       }
@@ -126,6 +126,11 @@ export function SignupPage({
       mode={mode}
       nav={navigate}
       themeSwitch={themeSwitch}
+      cardExtra={
+        <button type="button" className="auth-text-link auth-card-return-link" onClick={() => navigate('/login')}>
+          돌아가기
+        </button>
+      }
       title="회사와 지원자 데이터를 한곳에서 관리하는 채용 보조 시스템"
       cardTitle="회원가입"
       card={
@@ -259,6 +264,11 @@ export function PasswordResetPage({
       mode={mode}
       nav={navigate}
       themeSwitch={themeSwitch}
+      cardExtra={
+        <button type="button" className="auth-text-link auth-card-return-link" onClick={() => navigate('/login')}>
+          돌아가기
+        </button>
+      }
       title="단계형 재설정 플로우로 인증 화면 상태를 확인합니다."
       cardTitle="비밀번호 찾기"
       card={
