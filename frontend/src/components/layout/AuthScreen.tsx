@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Card, Space } from 'antd';
+import { Card, Space } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import type { AppRoute } from '../../data/appConfig';
 import type { Navigate, ThemeMode } from '../../types/app';
@@ -8,12 +8,13 @@ type AuthScreenProps = {
   mode: ThemeMode;
   nav: Navigate;
   themeSwitch: ReactNode;
+  cardExtra?: ReactNode;
   title: string;
   cardTitle: string;
   card: ReactNode;
 };
 
-export function AuthScreen({ mode, nav, themeSwitch, title, cardTitle, card }: AuthScreenProps) {
+export function AuthScreen({ mode, nav, themeSwitch, cardExtra, title, cardTitle, card }: AuthScreenProps) {
   const goLogin = () => nav('/login' as AppRoute);
 
   return (
@@ -22,10 +23,7 @@ export function AuthScreen({ mode, nav, themeSwitch, title, cardTitle, card }: A
         <button type="button" onClick={goLogin} className="auth-logo-button">
           <img src={mode === 'dark' ? '/assets/humour-logo-dark.png' : '/assets/humour-logo-light.png'} alt="HumouR" />
         </button>
-        <Space>
-          {themeSwitch}
-          <Button onClick={goLogin}>로그인</Button>
-        </Space>
+        <Space>{themeSwitch}</Space>
       </header>
       <main className="auth-main">
         <section className="auth-copy">
@@ -40,7 +38,7 @@ export function AuthScreen({ mode, nav, themeSwitch, title, cardTitle, card }: A
             ))}
           </div>
         </section>
-        <Card className="auth-card" title={cardTitle}>
+        <Card className="auth-card" title={cardTitle} extra={cardExtra}>
           {card}
         </Card>
       </main>

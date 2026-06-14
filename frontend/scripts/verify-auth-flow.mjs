@@ -71,6 +71,19 @@ try {
 
   await page.goto(`${baseUrl}/login`);
   await waitForPath(page, '/login');
+
+  if ((await page.locator('.auth-header .auth-card-return-link').count()) !== 0) {
+    throw new Error('Login page header must not render a duplicated login/return action.');
+  }
+
+  if ((await page.locator('.auth-card .auth-card-return-link').count()) !== 0) {
+    throw new Error('Login card must not render a return link.');
+  }
+
+  if ((await page.locator('.auth-links .ant-btn').count()) !== 0) {
+    throw new Error('Login auxiliary links must render as text links, not Ant Design buttons.');
+  }
+
   await page.locator('.auth-logo-button').click();
   await waitForPath(page, '/login');
 
@@ -83,6 +96,32 @@ try {
       checkUserRequests += 1;
     }
   });
+
+  await page.goto(`${baseUrl}/signup`);
+  await waitForPath(page, '/signup');
+  if ((await page.locator('.auth-header .auth-card-return-link').count()) !== 0) {
+    throw new Error('Signup page must not render return action in the outer header.');
+  }
+  const signupReturnButton = page.locator('.auth-card .auth-card-return-link');
+  await signupReturnButton.waitFor({ timeout: 10000 });
+  if ((await page.locator('.auth-card .auth-card-return-link.ant-btn').count()) !== 0) {
+    throw new Error('Signup return link must render as text, not an Ant Design button.');
+  }
+  await signupReturnButton.click();
+  await waitForPath(page, '/login');
+
+  await page.goto(`${baseUrl}/password-reset`);
+  await waitForPath(page, '/password-reset');
+  if ((await page.locator('.auth-header .auth-card-return-link').count()) !== 0) {
+    throw new Error('Password reset page must not render return action in the outer header.');
+  }
+  const resetReturnButton = page.locator('.auth-card .auth-card-return-link');
+  await resetReturnButton.waitFor({ timeout: 10000 });
+  if ((await page.locator('.auth-card .auth-card-return-link.ant-btn').count()) !== 0) {
+    throw new Error('Password reset return link must render as text, not an Ant Design button.');
+  }
+  await resetReturnButton.click();
+  await waitForPath(page, '/login');
 
   await page.goto(`${baseUrl}/signup`);
   await waitForPath(page, '/signup');

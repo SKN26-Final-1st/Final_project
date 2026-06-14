@@ -292,9 +292,12 @@ assert(
 );
 
 assert(
-  /onPasswordChanged/.test(myPage) &&
-    /onPasswordChanged=\{\(\) => \{[\s\S]*setIsAuthenticated\(false\)[\s\S]*navigate\(['"]\/login['"]\)/.test(app),
-  'Password changes must clear frontend auth state and return to login instead of reloading protected data',
+  /apiClient\.login\(profile\.username,\s*securityValues\.password\)/.test(myPage) &&
+    /securityForm\.resetFields\(\)/.test(myPage) &&
+    /void reloadData\(\)/.test(myPage) &&
+    !/onPasswordChanged/.test(myPage) &&
+    !/onPasswordChanged=/.test(app),
+  'Password changes must refresh the session with the new password, clear password fields, and stay on protected routes',
 );
 
 assert(!authPages.includes('authDefaults'), 'Auth pages must not prefill from mock auth defaults');
