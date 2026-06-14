@@ -197,13 +197,15 @@ export function AdminPage({
                 >
                   <List.Item.Meta
                     title={
-                      <Space wrap>
-                        <strong>{authKey.name}</strong>
-                        <Tag>{authKey.value}</Tag>
-                        <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
-                      </Space>
+                      <div className="authkey-meta">
+                        <strong className="authkey-name">{authKey.name}</strong>
+                        <div className="authkey-tags">
+                          <Tag className="authkey-value-tag">{authKey.value}</Tag>
+                          <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                        </div>
+                      </div>
                     }
-                    description={authKey.description || '설명 없음'}
+                    description={<span className="authkey-description">{authKey.description || '설명 없음'}</span>}
                   />
                   <Select
                     mode="multiple"

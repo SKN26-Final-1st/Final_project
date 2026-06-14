@@ -4353,6 +4353,41 @@ button,
   gap: 16px;
 }
 
+.authkey-list .ant-list-item-meta {
+  min-width: 0;
+}
+
+.authkey-meta {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.authkey-name {
+  display: block;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.authkey-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.authkey-value-tag {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.authkey-description {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
 .authkey-resume-select {
   width: min(360px, 100%);
 }
