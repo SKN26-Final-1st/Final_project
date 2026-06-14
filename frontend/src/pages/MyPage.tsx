@@ -17,7 +17,6 @@ type MyPageProps = {
   company: CompanyProfile;
   loadingKey: string | null;
   navigate: Navigate;
-  onPasswordChanged: () => void;
   runApiAction: RunApiAction;
   reloadData: () => Promise<void>;
 };
@@ -37,7 +36,6 @@ export function MyPage({
   company,
   loadingKey,
   navigate,
-  onPasswordChanged,
   runApiAction,
   reloadData,
 }: MyPageProps) {
@@ -78,11 +76,23 @@ export function MyPage({
           body.password = securityValues.password;
         }
 
-        return apiClient.saveUserProfile(body);
+        const response = await apiClient.saveUserProfile(body);
+
+        if (passwordChanged && securityValues.password) {
+          await apiClient.login(profile.username, securityValues.password);
+
+          return {
+            ...response,
+            message: '비밀번호가 변경되었습니다. 로그인 상태가 유지됩니다.',
+          };
+        }
+
+        return response;
       },
       () => {
         if (passwordChanged) {
-          onPasswordChanged();
+          securityForm.resetFields();
+          void reloadData();
           return;
         }
 
