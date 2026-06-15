@@ -75,7 +75,10 @@ AuthKey API 연동:
 
 파일:
 
-- `frontend/src/pages/AuthPages.tsx`
+- `frontend/src/pages/auth/LoginPage.tsx`
+- `frontend/src/pages/auth/SignupPage.tsx`
+- `frontend/src/pages/auth/PasswordResetPage.tsx`
+- `frontend/src/pages/AuthPages.tsx` (re-export barrel)
 - `frontend/src/components/layout/AuthScreen.tsx`
 
 백엔드 API:
