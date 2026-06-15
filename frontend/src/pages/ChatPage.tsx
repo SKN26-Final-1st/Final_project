@@ -6,7 +6,9 @@ import { DocumentSearchContextPanel } from '../components/chat/DocumentSearchCon
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { AnalysisReportData } from '../api/adapters';
+import type { JdItem } from '../api/adapters';
 import type { ChatMessage } from '../data/appConfig';
+import type { AnalysisReport, InterviewQuestion, Resume } from '../data/backendTypes';
 import { pageSectionGutter } from '../utils/layout';
 
 type ChatPageProps = {
@@ -14,6 +16,10 @@ type ChatPageProps = {
   chatMessages: ChatMessage[];
   chatInput: string;
   loadingKey: string | null;
+  jdList: JdItem[];
+  resumes: Resume[];
+  analysisReports: AnalysisReport[];
+  interviewQuestions: InterviewQuestion[];
   setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setChatInput: (value: string) => void;
   sendChatMessage: () => void;
@@ -24,6 +30,10 @@ export function ChatPage({
   chatMessages,
   chatInput,
   loadingKey,
+  jdList,
+  resumes,
+  analysisReports,
+  interviewQuestions,
   setChatMessages,
   setChatInput,
   sendChatMessage,
@@ -32,22 +42,28 @@ export function ChatPage({
     <>
       <PageTitle
         eyebrow="AI Document Search"
-        title="AI 문서 검색"
-        description="사내 정책, JD, 채용 운영 가이드, 분석 리포트를 출처 기반 답변으로 검색합니다."
+        title="AI 채팅"
+        description="현재 계정의 JD, 분석 리포트, 면접 질문과 사용 가이드를 바탕으로 질문합니다."
         actions={
           <Button icon={<ReloadOutlined />} onClick={() => setChatMessages(report.chatMessages)}>
             대화 초기화
           </Button>
         }
       />
-      <Row className="section-row" gutter={pageSectionGutter}>
+      <Row className="section-row chat-page-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={9}>
-          <SectionCard title="검색 컨텍스트">
-            <DocumentSearchContextPanel setChatInput={setChatInput} />
+          <SectionCard title="참조 데이터">
+            <DocumentSearchContextPanel
+              jdList={jdList}
+              resumes={resumes}
+              analysisReports={analysisReports}
+              interviewQuestions={interviewQuestions}
+              setChatInput={setChatInput}
+            />
           </SectionCard>
         </Col>
         <Col xs={24} xl={15}>
-          <SectionCard title="문서 검색 채팅">
+          <SectionCard className="chat-workspace-card" title="문서 검색 채팅">
             <ChatWindowPanel
               chatMessages={chatMessages}
               chatInput={chatInput}

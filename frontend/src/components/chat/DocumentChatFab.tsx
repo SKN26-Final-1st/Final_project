@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Bubble, Prompts, Sender, Sources, type BubbleItemType } from '@ant-design/x';
 import { Button } from 'antd';
 import {
@@ -10,48 +10,52 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
+import type { JdItem } from '../../api/adapters';
 import type { ChatMessage } from '../../data/appConfig';
+import type { AnalysisReport, InterviewQuestion, Resume } from '../../data/backendTypes';
 import type { Navigate } from '../../types/app';
+import {
+  buildChatContextData,
+  chatScopeOptions,
+  filterChatContextItems,
+  type ChatContextScope,
+} from './chatContextData';
 
 type DocumentChatFabProps = {
   chatMessages: ChatMessage[];
   chatInput: string;
   loadingKey: string | null;
+  jdList: JdItem[];
+  resumes: Resume[];
+  analysisReports: AnalysisReport[];
+  interviewQuestions: InterviewQuestion[];
   setChatInput: (value: string) => void;
   sendChatMessage: () => void;
   navigate: Navigate;
 };
 
-const scopeOptions = ['전체 문서', '회사 정책', 'JD', '분석 리포트'];
-
-const sourceCards = [
-  {
-    key: 'interview-rubric',
-    title: '면접 평가 기준 v3',
-    description: '직무 적합도, 협업 역량, 리스크 질문 기준',
-    icon: <FileSearchOutlined />,
-  },
-  {
-    key: 'recruiting-guide',
-    title: '채용 운영 가이드',
-    description: '서류 검토, 면접 추천, 최종 검토 워크플로',
-    icon: <BookOutlined />,
-  },
-];
-
-const quickQuestions = ['면접 평가 기준 알려줘', '리모트 근무 정책 찾아줘', 'JD 체크리스트 정리해줘'];
-
 export function DocumentChatFab({
   chatMessages,
   chatInput,
   loadingKey,
+  jdList,
+  resumes,
+  analysisReports,
+  interviewQuestions,
   setChatInput,
   sendChatMessage,
   navigate,
 }: DocumentChatFabProps) {
   const [open, setOpen] = useState(false);
-  const [scope, setScope] = useState(scopeOptions[0]);
+  const [scope, setScope] = useState<ChatContextScope>('all');
   const [recommendationsOpen, setRecommendationsOpen] = useState(false);
+  const contextData = useMemo(
+    () => buildChatContextData({ jdList, resumes, analysisReports, interviewQuestions }),
+    [analysisReports, interviewQuestions, jdList, resumes],
+  );
+  const visibleSources = filterChatContextItems(contextData.sources, scope);
+  const visiblePrompts = filterChatContextItems(contextData.prompts, scope);
+  const scopeLabel = chatScopeOptions.find((option) => option.key === scope)?.label ?? '전체';
 
   const openWidget = () => {
     setOpen(true);
@@ -73,6 +77,17 @@ export function DocumentChatFab({
     setRecommendationsOpen(false);
   };
 
+  const selectSource = (payload: unknown) => {
+    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+    const data = record.data && typeof record.data === 'object' ? (record.data as Record<string, unknown>) : {};
+    const key = String(data.key ?? record.key ?? '');
+    const source = visibleSources.find((item) => item.key === key);
+
+    if (source) {
+      selectSuggestion(source.title);
+    }
+  };
+
   const handleSubmit = () => {
     sendChatMessage();
   };
@@ -81,7 +96,7 @@ export function DocumentChatFab({
     {
       key: 'document-intro',
       role: 'ai',
-      content: `${scope}에서 질문과 관련된 사내 근거를 찾아 요약해 드릴게요.`,
+      content: '현재 계정의 JD, 분석 리포트, 면접 질문과 사용 가이드를 바탕으로 답변을 도와드릴게요.',
       header: 'HumouR AI',
     },
     ...chatMessages.map((message, index) => ({
@@ -96,10 +111,10 @@ export function DocumentChatFab({
     bubbleItems.push({
       key: 'document-chat-loading',
       role: 'ai',
-      content: '문서 검색 중',
+      content: '답변을 준비하는 중',
       header: 'HumouR AI',
       loading: true,
-      loadingRender: () => <InlineLoading label="문서 검색 중" />,
+      loadingRender: () => <InlineLoading label="답변 준비 중" />,
       status: 'loading',
     });
   }
@@ -112,12 +127,12 @@ export function DocumentChatFab({
           type="primary"
           onClick={openWidget}
           aria-expanded={open}
-          aria-label="AI 문서 검색 위젯 열기"
+          aria-label="AI 채팅 위젯 열기"
         >
           <span className="document-chat-fab-icon">
             <ThunderboltOutlined />
           </span>
-          <span className="document-chat-fab-text">AI 문서 검색</span>
+          <span className="document-chat-fab-text">AI 채팅</span>
         </Button>
       )}
 
@@ -147,7 +162,7 @@ export function DocumentChatFab({
             <div className="document-recommendation-panel-head">
               <div>
                 <strong>추천 자료</strong>
-                <span>질문에 바로 넣을 자료와 예시입니다.</span>
+                <span>현재 계정에 실제 저장된 데이터만 표시합니다.</span>
               </div>
               <Button
                 aria-label="추천 자료 닫기"
@@ -158,33 +173,35 @@ export function DocumentChatFab({
             </div>
 
             <div className="document-recommendation-section">
-              <span>현재 범위</span>
-              <strong>{scope}</strong>
-              <p>범위를 바꾸면 채팅의 문서 검색 기준도 함께 바뀝니다.</p>
+              <span>추천 분류</span>
+              <strong>{scopeLabel}</strong>
+              <p>선택한 분류에 맞춰 아래 추천 자료와 빠른 질문만 정리합니다.</p>
             </div>
 
             <Sources
               className="document-source-stack"
-              items={sourceCards}
-              onClick={(source) => selectSuggestion(String(source.title))}
+              items={visibleSources}
+              onClick={selectSource}
               title={
                 <span className="document-source-title">
                   <FileSearchOutlined />
-                  <strong>추천 참조 문서</strong>
+                  <strong>추천 참조 데이터</strong>
                 </span>
               }
             />
+            {!visibleSources.length && <p className="document-empty-note">해당 분류에 표시할 데이터가 없습니다.</p>}
 
             <Prompts
               className="document-quick-actions"
-              items={quickQuestions.map((question) => ({
-                key: question,
-                label: question,
+              items={visiblePrompts.map((prompt) => ({
+                key: prompt.key,
+                label: prompt.label,
               }))}
               onItemClick={({ data }) => selectSuggestion(String(data.label ?? data.key))}
               title="빠른 질문"
               wrap
             />
+            {!visiblePrompts.length && <p className="document-empty-note">추천 질문으로 만들 실제 데이터가 없습니다.</p>}
           </aside>
 
           <div className="document-chat-widget-main">
@@ -193,33 +210,28 @@ export function DocumentChatFab({
                 <BookOutlined />
               </span>
               <div className="document-chat-widget-title">
-                <strong id="document-chat-widget-title">AI 문서 검색</strong>
-                <span>사내 문서·채용 데이터 통합 챗봇</span>
+                <strong id="document-chat-widget-title">AI 채팅</strong>
+                <span>JD와 분석 데이터 기반 질의응답</span>
               </div>
               <div className="document-chat-widget-actions">
-                <Button
-                  aria-label="전체 화면에서 열기"
-                  shape="circle"
-                  icon={<FullscreenOutlined />}
-                  onClick={openWorkspace}
-                />
+                <Button aria-label="전체 화면에서 열기" shape="circle" icon={<FullscreenOutlined />} onClick={openWorkspace} />
                 <Button aria-label="위젯 최소화" shape="circle" icon={<MinusOutlined />} onClick={closeWidget} />
                 <Button aria-label="위젯 닫기" shape="circle" icon={<CloseOutlined />} onClick={closeWidget} />
               </div>
             </div>
 
             <div className="document-chat-widget-body">
-              <div className="document-scope-row" role="tablist" aria-label="검색 범위">
-                {scopeOptions.map((option) => (
+              <div className="document-scope-row" role="tablist" aria-label="추천 분류">
+                {chatScopeOptions.map((option) => (
                   <button
-                    key={option}
-                    className={`document-scope-chip ${scope === option ? 'active' : ''}`}
-                    onClick={() => setScope(option)}
+                    key={option.key}
+                    className={`document-scope-chip ${scope === option.key ? 'active' : ''}`}
+                    onClick={() => setScope(option.key)}
                     type="button"
                     role="tab"
-                    aria-selected={scope === option}
+                    aria-selected={scope === option.key}
                   >
-                    {option}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -254,12 +266,11 @@ export function DocumentChatFab({
                 loading={loadingKey === 'chat'}
                 onChange={setChatInput}
                 onSubmit={handleSubmit}
-                placeholder="사내 문서에 대해 질문하기"
+                placeholder="JD, 분석 리포트, 면접 질문에 대해 질문하기"
                 submitType="enter"
                 value={chatInput}
               />
             </div>
-
           </div>
         </section>
       )}
