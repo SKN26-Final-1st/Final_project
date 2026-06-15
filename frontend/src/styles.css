@@ -3022,6 +3022,49 @@ button,
   background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface));
 }
 
+.chat-page-layout-row > .ant-col {
+  min-width: 0;
+}
+
+.chat-page-layout-row .section-card {
+  height: 100%;
+}
+
+.chat-workspace-card {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(460px, calc(100vh - 280px), 680px);
+  max-height: calc(100vh - 210px);
+}
+
+.chat-workspace-card .ant-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-workspace-card .chat-window-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.chat-workspace-card .chat-window {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.chat-workspace-card .chat-input-row {
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding-top: 0;
+}
+
 .chat-window .ant-bubble-list,
 .document-chat-window .ant-bubble-list {
   flex: 1 1 auto;
@@ -4722,6 +4765,15 @@ button,
 
   .document-scope-row {
     padding-inline: 12px;
+  }
+
+  .chat-workspace-card {
+    min-height: min(620px, calc(100vh - 120px));
+    max-height: none;
+  }
+
+  .chat-workspace-card .chat-window {
+    min-height: 0;
   }
 
   .document-chat-window {
