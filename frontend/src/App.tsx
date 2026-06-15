@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState, type Key } from 'react';
 import { Navigate as RouterNavigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { XProvider } from '@ant-design/x';
-import { Alert, App as AntApp, Switch, Tooltip, theme as antdTheme } from 'antd';
+import { App as AntApp, Switch, Tooltip, theme as antdTheme } from 'antd';
 import { MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
 import { apiClient } from './api/backendClient';
 import { palette, type AppRoute, type ChatMessage } from './data/appConfig';
+import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
+import { useAuthSession } from './hooks/useAuthSession';
 import { AdminPage } from './pages/AdminPage';
 import { LoginPage, PasswordResetPage, SignupPage } from './pages/AuthPages';
 import { ChatPage } from './pages/ChatPage';
@@ -20,17 +23,16 @@ import { JdPage } from './pages/JdPage';
 import { MyPage } from './pages/MyPage';
 import { RecruitmentPostPage } from './pages/RecruitmentPostPage';
 import { SharedReportPage } from './pages/SharedReportPage';
-import type { AlertState, KeySetter, ThemeMode } from './types/app';
+import type { KeySetter, ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
-import type { ApiResponse, AuthKey } from './data/backendTypes';
+import type { AuthKey } from './data/backendTypes';
 
 export default function App() {
   const routerNavigate = useNavigate();
   const location = useLocation();
   const route = getRouteFromPathname(location.pathname);
   const [mode, setMode] = useState<ThemeMode>('light');
-  const [alert, setAlert] = useState<AlertState | null>(null);
-  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const { alert, loadingKey, runApiAction, setAlert, showAlert } = useApiAction();
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [selectedJdIdOverride, setSelectedJdIdOverride] = useState<string | null>(null);
@@ -43,46 +45,15 @@ export default function App() {
   const postGenerated = false;
   const templateGenerated = false;
   const [resetStep, setResetStep] = useState(0);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isAuth = authRoutes.includes(route);
   const isShared = route === '/shared';
+  const { authChecked, isAuthenticated, setIsAuthenticated } = useAuthSession(isShared);
   const shouldLoadAppData = authChecked && isAuthenticated && !isAuth && !isShared;
   const { data, loading, error, reload } = useAppData(shouldLoadAppData);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
-
-  useEffect(() => {
-    if (isShared) {
-      return undefined;
-    }
-
-    let active = true;
-
-    void apiClient
-      .getUserProfile()
-      .then(() => {
-        if (active) {
-          setIsAuthenticated(true);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setIsAuthenticated(false);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setAuthChecked(true);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isShared]);
 
   const jdIds = useMemo(() => data?.jdList.map((item) => item.id) ?? [], [data?.jdList]);
   const selectedJdId =
@@ -145,40 +116,6 @@ export default function App() {
     },
     [location.key, setCreatedAuthKey],
   );
-
-  const showAlert = (nextAlert: AlertState) => {
-    setAlert(nextAlert);
-    window.setTimeout(() => setAlert(null), 3400);
-  };
-
-  const runApiAction = async <T,>(
-    key: string,
-    action: () => Promise<ApiResponse<T>>,
-    afterComplete?: (response: ApiResponse<T>) => void,
-  ) => {
-    if (loadingKey) {
-      return;
-    }
-
-    setLoadingKey(key);
-    try {
-      const response = await action();
-      showAlert({
-        type: response.error ? 'error' : 'success',
-        message: response.message ?? (response.error ? 'API 요청이 실패했습니다.' : '요청이 완료되었습니다.'),
-      });
-      afterComplete?.(response);
-    } catch (nextError) {
-      const errorMessage = nextError instanceof Error ? nextError.message : 'API 요청이 실패했습니다.';
-
-      showAlert({
-        type: 'error',
-        message: errorMessage,
-      });
-    } finally {
-      setLoadingKey(null);
-    }
-  };
 
   const sendChatMessage = () => {
     if (loadingKey === 'chat') {
@@ -397,18 +334,7 @@ export default function App() {
     <XProvider theme={themeConfig}>
       <AntApp>
         <div className="app-root" data-theme={mode}>
-          {alert && (
-            <div className="floating-alert">
-              <Alert
-                showIcon
-                closable
-                type={alert.type}
-                title={alert.message}
-                description={alert.description}
-                onClose={() => setAlert(null)}
-              />
-            </div>
-          )}
+          <FloatingAlert alert={alert} onClose={() => setAlert(null)} />
           {isShared ? (
             <SharedReportPage mode={mode} navigate={navigate} themeSwitch={themeSwitch} />
           ) : isAuth ? (

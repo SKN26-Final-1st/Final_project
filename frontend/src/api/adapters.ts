@@ -8,6 +8,10 @@ import type {
   StatusCode,
 } from '../data/backendTypes';
 import type { ChatMessage } from '../data/appConfig';
+export { mapJdList } from './adapters/jd';
+export type { JdItem } from './adapters/jd';
+export { mapCompany, mapUserProfile } from './adapters/user';
+export type { CompanyProfile, UserProfile } from './adapters/user';
 
 export type DashboardSource = {
   account: Account;
@@ -106,32 +110,6 @@ export type AdminData = {
   };
 };
 
-export type CompanyProfile = {
-  name: string;
-  employeeCount: number;
-  teamComposition: string[];
-  description: string;
-  employStyle: string[];
-  completion: number;
-};
-
-export type JdItem = {
-  id: string;
-  title: string;
-  team: string;
-  status: string;
-  statusCode: StatusCode;
-  fit: number;
-  stack: string[];
-  preferredStack: string[];
-  summary: string;
-  requiredExperience: string;
-  employmentType: string;
-  educationLevel: string;
-  major: string;
-  hiringReason: string;
-};
-
 export type CoverLetterDraft = {
   applicantName: string;
   body: string;
@@ -170,25 +148,6 @@ export type RecruitmentPreview = {
 export type TemplateQuestion = {
   title: string;
   guide: string;
-};
-
-export type UserProfile = {
-  displayName: string;
-  username: string;
-  email?: string;
-  avatarUrl?: string;
-  roleName: string;
-  companyName: string;
-  credit: number;
-  subscribe: boolean;
-  subscribeExpirationText: string;
-  verificationQuestion: string;
-};
-
-const JOB_STATUS_LABEL: Record<JobDescription['status'], string> = {
-  prepare: '준비 중',
-  on_going: '진행 중',
-  closed: '마감',
 };
 
 const RESUME_STATUS_LABEL: Record<Resume['status'], string> = {
@@ -317,17 +276,6 @@ function mapResumeStatus(resume: Resume): { label: string; code: StatusCode } {
   }
 
   return { label: RESUME_STATUS_LABEL[resume.status], code: resume.status };
-}
-
-function getJobFit(job: JobDescription, resumes: Resume[], analysisReports: AnalysisReport[]) {
-  const relatedResumeIds = resumes
-    .filter((resume) => resume.job_description_id === job.id)
-    .map((resume) => resume.id);
-  const relatedScores = analysisReports
-    .filter((report) => relatedResumeIds.includes(report.resume_id))
-    .map((report) => gradeToScore(report.overall_grade));
-
-  return average(relatedScores);
 }
 
 function getFirstIntro(resume?: Resume | null) {
@@ -512,50 +460,6 @@ export function mapAdmin(data: DashboardSource): AdminData {
   };
 }
 
-export function mapCompany(data: CompanyInfo): CompanyProfile {
-  const teamComposition = toStringList(data.team_composition);
-  const employStyle = toStringList(data.employ_style);
-  const completedFields = [
-    Boolean(data.company_name),
-    data.employee_count > 0,
-    teamComposition.length > 0,
-    Boolean(data.company_description),
-    employStyle.length > 0,
-  ].filter(Boolean).length;
-
-  return {
-    name: data.company_name,
-    employeeCount: data.employee_count,
-    teamComposition,
-    description: data.company_description,
-    employStyle,
-    completion: Math.round((completedFields / 5) * 100),
-  };
-}
-
-export function mapJdList(
-  data: JobDescription[],
-  resumes: Resume[],
-  analysisReports: AnalysisReport[],
-): JdItem[] {
-  return data.map((item) => ({
-    id: String(item.id),
-    title: item.job_name,
-    team: `${item.education_level} · ${item.career_level}`,
-    status: JOB_STATUS_LABEL[item.status],
-    statusCode: item.status,
-    fit: getJobFit(item, resumes, analysisReports),
-    stack: toStringList(item.required_skill),
-    preferredStack: toStringList(item.preferred_skill),
-    summary: item.main_task,
-    requiredExperience: item.career_level,
-    employmentType: item.work_type,
-    educationLevel: item.education_level,
-    major: item.major,
-    hiringReason: item.hiring_reason,
-  }));
-}
-
 export function mapRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?: JobDescription): RecruitmentPreview {
   if (!jobDescription) {
     return {
@@ -718,15 +622,3 @@ export function mapTemplateQuestions(data: InterviewQuestion[]): TemplateQuestio
   }));
 }
 
-export function mapUserProfile(data: Account, company?: CompanyInfo): UserProfile {
-  return {
-    displayName: data.name,
-    username: data.username,
-    roleName: data.subscribe ? '구독 활성' : '구독 만료',
-    companyName: company?.company_name ?? '회사 정보 없음',
-    credit: data.credit,
-    subscribe: data.subscribe,
-    subscribeExpirationText: formatDateTime(data.subscribe_expiration),
-    verificationQuestion: data.verification_question,
-  };
-}

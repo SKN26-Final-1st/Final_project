@@ -16,13 +16,25 @@ function assert(condition, message) {
 }
 
 const backendClient = read('frontend/src/api/backendClient.ts');
-const authPages = read('frontend/src/pages/AuthPages.tsx');
+const httpClient = read('frontend/src/api/httpClient.ts');
+const authPages = [
+  read('frontend/src/pages/AuthPages.tsx'),
+  read('frontend/src/pages/auth/LoginPage.tsx'),
+  read('frontend/src/pages/auth/SignupPage.tsx'),
+  read('frontend/src/pages/auth/PasswordResetPage.tsx'),
+].join('\n');
 const myPage = read('frontend/src/pages/MyPage.tsx');
 const securitySettingsForm = read('frontend/src/components/mypage/SecuritySettingsForm.tsx');
 const authScreen = read('frontend/src/components/layout/AuthScreen.tsx');
-const sidebarNav = read('frontend/src/components/layout/SidebarNav.tsx');
+const sidebarNav = [
+  read('frontend/src/components/layout/SidebarNav.tsx'),
+  read('frontend/src/components/layout/MobileShellHeader.tsx'),
+  read('frontend/src/components/layout/MenuItems.tsx'),
+  read('frontend/src/components/layout/navigationUtils.ts'),
+].join('\n');
 const topHeader = read('frontend/src/components/layout/TopHeader.tsx');
 const app = read('frontend/src/App.tsx');
+const useApiAction = read('frontend/src/hooks/useApiAction.ts');
 const sharedReportPage = read('frontend/src/pages/SharedReportPage.tsx');
 const recruitmentPostPage = read('frontend/src/pages/RecruitmentPostPage.tsx');
 const coverLetterTemplatePage = read('frontend/src/pages/CoverLetterTemplatePage.tsx');
@@ -31,6 +43,7 @@ const adapters = read('frontend/src/api/adapters.ts');
 const backendTypes = read('frontend/src/data/backendTypes.ts');
 const appConfig = read('frontend/src/data/appConfig.tsx');
 const viteConfig = read('frontend/vite.config.ts');
+const backendClientContractSource = `${backendClient}\n${httpClient}`;
 
 const requiredBackendCalls = [
   'csrf',
@@ -90,7 +103,7 @@ function getRouteMenuObject(source, route) {
 
 for (const endpoint of requiredBackendCalls) {
   assert(
-    containsEndpoint(backendClient, endpoint),
+    containsEndpoint(backendClientContractSource, endpoint),
     `Missing frontend backend call for ${endpoint}`,
   );
 }
@@ -145,7 +158,8 @@ assert(!/function getDashboardSource\(\)[\s\S]*USE_MOCK_API/.test(backendClient)
 assert(!/function getResumeSourceForJob[\s\S]*USE_MOCK_API/.test(backendClient), 'Resume source must not switch to local mock data');
 
 assert(
-  /apiKey\?:\s*string/.test(backendClient) && /headers\.set\(['"]X-API-Key['"],\s*apiKey\s*\?\?\s*API_KEY\)/.test(backendClient),
+  /apiKey\?:\s*string/.test(backendClientContractSource) &&
+    /headers\.set\(['"]X-API-Key['"],\s*apiKey\s*\?\?\s*API_KEY\)/.test(backendClientContractSource),
   'Backend client must support per-request X-API-Key for shared report access',
 );
 
@@ -338,7 +352,7 @@ assert(
 );
 
 assert(
-  /catch \(nextError\)[\s\S]*const errorMessage = nextError instanceof Error \? nextError\.message/.test(app),
+  /catch \(nextError\)[\s\S]*const errorMessage = nextError instanceof Error \? nextError\.message/.test(useApiAction),
   'runApiAction must surface the concrete backend/client error message instead of only a generic API failure',
 );
 
