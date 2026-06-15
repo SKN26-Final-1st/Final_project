@@ -16,6 +16,8 @@
 
 ## 주요 파일
 
+- `src/api/httpClient.ts`
+  - Axios 인스턴스, CSRF 쿠키 읽기, credentials 기본값.
 - `src/api/backendClient.ts`
   - 실제 API 호출, CSRF, credentials, `X-API-Key`, `payload.error` 처리.
 - `src/data/backendTypes.ts`
