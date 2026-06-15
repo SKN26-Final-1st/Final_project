@@ -1,4 +1,4 @@
-import { Button, Col, Form, Input, Progress, Row, Select, type FormInstance } from 'antd';
+import { Button, Col, Form, Input, Progress, Row, Select, Tag, type FormInstance } from 'antd';
 import type { JdItem } from '../../api/adapters';
 import type { Navigate } from '../../types/app';
 
@@ -19,14 +19,21 @@ export type JdEditorFormValues = {
 
 type JdEditorPanelProps = {
   form: FormInstance<JdEditorFormValues>;
-  selectedJd: JdItem;
+  selectedJd: JdItem | null;
   initialValues: JdEditorFormValues;
   navigate: Navigate;
+  mode?: 'create' | 'edit';
 };
 
-export function JdEditorPanel({ form, selectedJd, initialValues, navigate }: JdEditorPanelProps) {
+export function JdEditorPanel({ form, selectedJd, initialValues, navigate, mode = 'edit' }: JdEditorPanelProps) {
+  const isCreateMode = mode === 'create';
+
   return (
-    <Form form={form} layout="vertical" initialValues={initialValues}>
+    <Form className="jd-editor-form" form={form} layout="vertical" initialValues={initialValues}>
+      <div className="jd-editor-mode-row">
+        <Tag color={isCreateMode ? 'processing' : 'blue'}>{isCreateMode ? '신규 작성' : '수정 모드'}</Tag>
+        <span>{isCreateMode ? '필수 항목을 입력해 JD를 등록합니다.' : '선택한 JD 정보를 수정합니다.'}</span>
+      </div>
       <Row gutter={16}>
         <Col xs={24} md={12}>
           <Form.Item label="JD명" name="job_name" rules={[{ required: true, message: 'JD명을 입력하세요.' }]}>
@@ -82,18 +89,30 @@ export function JdEditorPanel({ form, selectedJd, initialValues, navigate }: JdE
         </Col>
         <Col xs={24} md={8}>
           <div className="mini-panel">
-            <span className="form-stat-label">평균 등급 점수</span>
-            <Progress percent={selectedJd.fit} />
+            {isCreateMode ? (
+              <>
+                <span className="form-stat-label">작성 상태</span>
+                <strong>신규 JD</strong>
+                <p className="muted">필수값을 입력한 뒤 JD 등록을 눌러 저장하세요.</p>
+              </>
+            ) : (
+              <>
+                <span className="form-stat-label">평균 등급 점수</span>
+                <Progress percent={selectedJd?.fit ?? 0} />
+              </>
+            )}
           </div>
         </Col>
-        <Col span={24}>
-          <div className="inline-action-box">
-            <span>모집 공고 작성 화면으로 연결</span>
-            <Button onClick={() => navigate('/recruitment-post')} type="primary" ghost>
-              공고 작성
-            </Button>
-          </div>
-        </Col>
+        {!isCreateMode && (
+          <Col span={24}>
+            <div className="inline-action-box">
+              <span>모집 공고 작성 화면으로 연결</span>
+              <Button onClick={() => navigate('/recruitment-post')} type="primary" ghost>
+                공고 작성
+              </Button>
+            </div>
+          </Col>
+        )}
       </Row>
     </Form>
   );
