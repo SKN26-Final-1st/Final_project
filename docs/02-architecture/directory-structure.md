@@ -59,10 +59,36 @@ frontend/
 ├── scripts/
 ├── src/
 │   ├── api/
+│   │   ├── adapters/
+│   │   │   ├── jd.ts
+│   │   │   └── user.ts
+│   │   ├── adapters.ts
+│   │   ├── appDataService.ts
+│   │   ├── backendClient.ts
+│   │   ├── httpClient.ts
+│   │   ├── queryClient.ts
+│   │   ├── queryKeys.ts
+│   │   └── queryOptions.ts
 │   ├── components/
+│   │   ├── admin/
+│   │   ├── charts/
+│   │   ├── chat/
+│   │   ├── common/
+│   │   ├── company/
+│   │   ├── cover-letter/
+│   │   ├── dashboard/
+│   │   ├── jd/
+│   │   ├── layout/
+│   │   ├── mypage/
+│   │   └── recruitment/
 │   ├── data/
 │   ├── hooks/
 │   ├── pages/
+│   │   └── auth/
+│   │       ├── LoginPage.tsx
+│   │       ├── SignupPage.tsx
+│   │       ├── PasswordResetPage.tsx
+│   │       └── types.ts
 │   ├── providers/
 │   ├── types/
 │   ├── utils/
