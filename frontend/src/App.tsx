@@ -37,7 +37,6 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [selectedJdIdOverride, setSelectedJdIdOverride] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[] | null>(null);
-  const [coverUploaded, setCoverUploaded] = useState(false);
   const [analysisDone, setAnalysisDone] = useState(false);
   const [createdAuthKey, setCreatedAuthKey] = useState<(Pick<AuthKey, 'name' | 'value'> & { locationKey: string }) | null>(
     null,
@@ -218,13 +217,11 @@ export default function App() {
           <CoverLetterPage
             jdList={data.jdList}
             selectedJdId={selectedJdId}
-            draft={data.coverLetterDraft}
+            resumes={data.resumes}
             coverRows={data.coverLetterRows}
-            coverUploaded={coverUploaded}
             analysisDone={analysisDone}
             loadingKey={loadingKey}
             setSelectedJdId={setSelectedJdIdOverride}
-            setCoverUploaded={setCoverUploaded}
             setAnalysisDone={setAnalysisDone}
             runApiAction={runApiAction}
             navigate={navigate}
