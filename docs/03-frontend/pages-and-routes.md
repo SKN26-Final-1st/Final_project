@@ -36,8 +36,8 @@
 
 인증 라우트가 아닌 화면은 `AppShell`로 감싸집니다.
 
-- 데스크톱: `SidebarNav`
-- 모바일: `MobileShellHeader`, Drawer 메뉴
+- 데스크톱: `SidebarNav` (브랜드, 메뉴, 핀 고정, 계정 popover)
+- 모바일: `MobileShellHeader`와 Drawer 메뉴 (`SidebarNav.tsx`에서 함께 export)
 - 전역 문서 검색 FAB: `/chat`이 아닌 화면에 표시
 - 계정 popover: 마이페이지, 로그아웃, 크레딧 표시
 
