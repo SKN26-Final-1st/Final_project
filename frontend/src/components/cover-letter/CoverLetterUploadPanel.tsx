@@ -1,88 +1,57 @@
-import { Button, Divider, Table, Upload } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import { EmptyState } from '../common/PageState';
-import type { CoverLetterDraft, CoverLetterRow } from '../../api/adapters';
+import type { CoverLetterRow } from '../../api/adapters';
 import type { Navigate } from '../../types/app';
 import { statusTag } from '../../utils/statusTag';
 
-const { Dragger } = Upload;
-
 type CoverLetterUploadPanelProps = {
-  draft: CoverLetterDraft;
   coverRows: CoverLetterRow[];
-  coverUploaded: boolean;
+  hasSavedResume: boolean;
   analysisDone: boolean;
-  onUpload: () => void;
   navigate: Navigate;
 };
 
 export function CoverLetterUploadPanel({
-  draft,
   coverRows,
-  coverUploaded,
+  hasSavedResume,
   analysisDone,
-  onUpload,
   navigate,
 }: CoverLetterUploadPanelProps) {
   const isWarningStatus = (statusCode: CoverLetterRow['statusCode']) =>
     statusCode === 'onqueue' || statusCode === 'processing' || statusCode === 'needs_review';
+  const hasRows = coverRows.length > 0;
 
   return (
     <>
-      <Dragger
-        beforeUpload={() => {
-          onUpload();
-          return false;
-        }}
-        showUploadList={false}
-        className="upload-box"
-      >
-        <p className="ant-upload-drag-icon">
-          <UploadOutlined />
-        </p>
-        <p className="ant-upload-text">{draft.sampleFileName}</p>
-        <p className="ant-upload-hint">{draft.uploadHint}</p>
-      </Dragger>
-      <Divider />
-      {coverUploaded ? (
-        <>
-          <Table
-            className="desktop-data-table"
-            pagination={false}
-            scroll={{ x: 520 }}
-            dataSource={coverRows}
-            rowClassName={(record) => (isWarningStatus(record.statusCode) ? 'warning-row' : '')}
-            columns={[
-              { title: '지원자', dataIndex: 'applicant' },
-              { title: 'JD', dataIndex: 'jd' },
-              {
-                title: '상태',
-                dataIndex: 'status',
-                render: (_value: string, record) => statusTag(record.status, record.statusCode),
-              },
-              { title: '점수', dataIndex: 'score' },
-            ]}
-          />
-          <div className="mobile-data-list" aria-label="Cover letter upload list">
-            {coverRows.map((row) => (
-              <article className={`mobile-data-card ${isWarningStatus(row.statusCode) ? 'warning' : ''}`} key={row.key}>
-                <div className="mobile-data-card-head">
-                  <div>
-                    <strong>{row.applicant}</strong>
-                    <span>{row.jd}</span>
-                  </div>
-                  {statusTag(row.status, row.statusCode)}
-                </div>
-                <div className="mobile-data-score">
-                  <span>Score</span>
-                  <strong>{row.score}</strong>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
+      <div className="cover-letter-save-hint">
+        <strong>{hasSavedResume ? '저장된 자소서가 있습니다.' : '아직 저장된 자소서가 없습니다.'}</strong>
+        <span>
+          {hasSavedResume
+            ? '오른쪽 작성 폼을 수정한 뒤 저장하면 같은 JD의 자소서가 업데이트됩니다.'
+            : '오른쪽 작성 폼을 작성한 뒤 저장하면 분석 요청을 진행할 수 있습니다.'}
+        </span>
+      </div>
+      {hasRows ? (
+        <div className="cover-letter-list" aria-label="Cover letter list">
+          {coverRows.map((row) => (
+            <article
+              className={`cover-letter-list-card ${isWarningStatus(row.statusCode) ? 'warning' : ''}`}
+              key={row.key}
+            >
+              <div className="cover-letter-list-head">
+                <strong>{row.applicant}</strong>
+                {statusTag(row.status, row.statusCode)}
+              </div>
+              <span className="cover-letter-list-jd">{row.jd}</span>
+              <div className="cover-letter-list-score">
+                <span>점수</span>
+                <strong>{row.score}</strong>
+              </div>
+            </article>
+          ))}
+        </div>
       ) : (
-        <EmptyState description="업로드된 지원서가 없습니다." />
+        <EmptyState description="저장된 자소서가 없습니다." />
       )}
       {analysisDone && (
         <Button className="mt-16" type="primary" block onClick={() => navigate('/chat')}>

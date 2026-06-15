@@ -2562,6 +2562,102 @@ button,
   border-radius: 16px !important;
 }
 
+.cover-letter-save-hint {
+  display: grid;
+  gap: 6px;
+  margin-bottom: calc(var(--layout-gap) / 2);
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.cover-letter-save-hint strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.cover-letter-save-hint span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.split-editor-layout-row > .ant-col {
+  min-width: 0;
+}
+
+.split-editor-layout-row .section-card {
+  height: 100%;
+}
+
+.cover-letter-list {
+  display: grid;
+  gap: calc(var(--layout-gap) / 2);
+}
+
+.cover-letter-list-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.cover-letter-list-card.warning {
+  background: color-mix(in srgb, rgba(245, 158, 11, 0.12) 70%, var(--surface));
+}
+
+.cover-letter-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cover-letter-list-head strong,
+.cover-letter-list-jd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cover-letter-list-head strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.cover-letter-list-jd {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.cover-letter-list-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.cover-letter-list-score span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cover-letter-list-score strong {
+  color: var(--primary);
+  font-size: 14px;
+}
+
 .warning-row td {
   background: rgba(245, 158, 11, 0.09) !important;
 }
