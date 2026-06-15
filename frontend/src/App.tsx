@@ -13,6 +13,7 @@ import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthSession } from './hooks/useAuthSession';
 import { AdminPage } from './pages/AdminPage';
+import { AnalysisReportPage } from './pages/AnalysisReportPage';
 import { LoginPage, PasswordResetPage, SignupPage } from './pages/AuthPages';
 import { ChatPage } from './pages/ChatPage';
 import { CompanyPage } from './pages/CompanyPage';
@@ -37,6 +38,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [selectedJdIdOverride, setSelectedJdIdOverride] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[] | null>(null);
+  const [selectedReportResumeId, setSelectedReportResumeId] = useState<string | null>(null);
   const [analysisDone, setAnalysisDone] = useState(false);
   const [createdAuthKey, setCreatedAuthKey] = useState<(Pick<AuthKey, 'name' | 'value'> & { locationKey: string }) | null>(
     null,
@@ -202,10 +204,12 @@ export default function App() {
         return (
           <JdPage
             jdList={data.jdList}
+            resumes={data.resumes}
             selectedJdId={selectedJdId}
             selectedJd={selectedJd}
             loadingKey={loadingKey}
             setSelectedJdId={setSelectedJdIdOverride}
+            setSelectedReportResumeId={setSelectedReportResumeId}
             runApiAction={runApiAction}
             navigate={navigate}
             showAlert={showAlert}
@@ -222,10 +226,23 @@ export default function App() {
             analysisDone={analysisDone}
             loadingKey={loadingKey}
             setSelectedJdId={setSelectedJdIdOverride}
+            setSelectedReportResumeId={setSelectedReportResumeId}
             setAnalysisDone={setAnalysisDone}
             runApiAction={runApiAction}
             navigate={navigate}
             reloadData={reload}
+          />
+        );
+      case '/analysis-report':
+        return (
+          <AnalysisReportPage
+            reports={data.analysisReports}
+            questions={data.interviewQuestions}
+            resumes={data.resumes}
+            jdList={data.jdList}
+            selectedReportResumeId={selectedReportResumeId}
+            setSelectedReportResumeId={setSelectedReportResumeId}
+            navigate={navigate}
           />
         );
       case '/chat':
@@ -235,6 +252,10 @@ export default function App() {
             chatMessages={activeChatMessages}
             chatInput={chatInput}
             loadingKey={loadingKey}
+            jdList={data.jdList}
+            resumes={data.resumes}
+            analysisReports={data.analysisReports}
+            interviewQuestions={data.interviewQuestions}
             setChatMessages={setChatMessages}
             setChatInput={setChatInput}
             sendChatMessage={sendChatMessage}
@@ -350,6 +371,10 @@ export default function App() {
                     chatMessages={activeChatMessages}
                     chatInput={chatInput}
                     loadingKey={loadingKey}
+                    jdList={data?.jdList ?? []}
+                    resumes={data?.resumes ?? []}
+                    analysisReports={data?.analysisReports ?? []}
+                    interviewQuestions={data?.interviewQuestions ?? []}
                     setChatInput={setChatInput}
                     sendChatMessage={sendChatMessage}
                     navigate={navigate}
