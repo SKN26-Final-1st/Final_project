@@ -30,7 +30,9 @@ AuthKey API 연동:
 
 파일:
 
-- `frontend/src/components/layout/SidebarNav.tsx`
+- `frontend/src/components/layout/AccountMenu.tsx`
+- `frontend/src/components/layout/SidebarNav.tsx` (데스크톱 popover)
+- `frontend/src/components/layout/MobileShellHeader.tsx` (모바일 popover)
 
 역할:
 
@@ -61,6 +63,8 @@ AuthKey API 연동:
 
 저장 버튼은 `apiClient.saveUserProfile()`을 호출합니다. `/api/account/modify/`로 전달됩니다.
 
+비밀번호 변경 시 현재 비밀번호 검증 후 새 비밀번호로 `apiClient.login()`을 다시 호출해 세션을 유지합니다. 로그인 화면으로 보내지 않습니다. 근거: `frontend/src/pages/MyPage.tsx`
+
 ## 인증 화면
 
 화면:
@@ -71,7 +75,10 @@ AuthKey API 연동:
 
 파일:
 
-- `frontend/src/pages/AuthPages.tsx`
+- `frontend/src/pages/auth/LoginPage.tsx`
+- `frontend/src/pages/auth/SignupPage.tsx`
+- `frontend/src/pages/auth/PasswordResetPage.tsx`
+- `frontend/src/pages/AuthPages.tsx` (re-export barrel)
 - `frontend/src/components/layout/AuthScreen.tsx`
 
 백엔드 API:

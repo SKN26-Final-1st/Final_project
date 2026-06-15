@@ -16,9 +16,9 @@
 | `/recruitment-post` | `frontend/src/pages/RecruitmentPostPage.tsx` | X (planned MVP) | 복수 JD 기반 모집 공고 미리보기 |
 | `/cover-letter-template` | `frontend/src/pages/CoverLetterTemplatePage.tsx` | X (planned MVP) | JD 기반 문항/가이드 표시 |
 | `/shared` | `frontend/src/pages/SharedReportPage.tsx` | X | API 키 기반 공유 리포트 조회 |
-| `/login` | `frontend/src/pages/AuthPages.tsx` | X | 로그인 |
-| `/signup` | `frontend/src/pages/AuthPages.tsx` | X | 회원가입 |
-| `/password-reset` | `frontend/src/pages/AuthPages.tsx` | X | 비밀번호 찾기 |
+| `/login` | `frontend/src/pages/auth/LoginPage.tsx` | X | 로그인 |
+| `/signup` | `frontend/src/pages/auth/SignupPage.tsx` | X | 회원가입 |
+| `/password-reset` | `frontend/src/pages/auth/PasswordResetPage.tsx` | X | 비밀번호 찾기 |
 
 `/`와 알 수 없는 라우트는 `/dashboard`로 이동합니다. 근거: `frontend/src/App.tsx`
 
@@ -26,7 +26,7 @@
 
 ## 인증 라우트
 
-`/login`, `/signup`, `/password-reset`은 `authRoutes`로 분리되어 `AppShell` 없이 `AuthScreen`을 사용합니다. 근거: `frontend/src/utils/routes.ts`, `frontend/src/components/layout/AuthScreen.tsx`
+`/login`, `/signup`, `/password-reset`은 `authRoutes`로 분리되어 `AppShell` 없이 `AuthScreen`을 사용합니다. 각 페이지 구현은 `frontend/src/pages/auth/`에 있고, `frontend/src/pages/AuthPages.tsx`는 `App.tsx`용 re-export barrel입니다. 근거: `frontend/src/utils/routes.ts`, `frontend/src/components/layout/AuthScreen.tsx`, `frontend/src/pages/AuthPages.tsx`
 
 ## 공유 리포트 라우트
 
@@ -36,8 +36,8 @@
 
 인증 라우트가 아닌 화면은 `AppShell`로 감싸집니다.
 
-- 데스크톱: `SidebarNav`
-- 모바일: `MobileShellHeader`, Drawer 메뉴
+- 데스크톱: `SidebarNav` (브랜드, 메뉴, 핀 고정, 계정 popover)
+- 모바일: `MobileShellHeader`와 Drawer 메뉴 (`SidebarNav.tsx`에서 함께 export)
 - 전역 문서 검색 FAB: `/chat`이 아닌 화면에 표시
 - 계정 popover: 마이페이지, 로그아웃, 크레딧 표시
 

@@ -9,7 +9,8 @@
 - `loadingKey`: 중복 액션 방지와 버튼 로딩 표시
 - `chatMessages`, `chatInput`: 전체 화면 채팅과 FAB 채팅이 공유
 - `selectedJdIdOverride`, `selectedRowKeys`: JD 선택/공고 선택
-- `coverUploaded`, `analysisDone`: 지원서 업로드/분석 완료 표시
+- `analysisDone`: 지원서 분석 완료 표시
+- `createdAuthKey`: 관리자 화면에서 방금 생성한 AuthKey 표시(라우트 location key와 함께 관리)
 - `resetStep`: 비밀번호 재설정 단계
 - `authChecked`, `isAuthenticated`: 세션 인증 확인
 
@@ -51,7 +52,7 @@ flowchart TD
 
 ## 어댑터 역할
 
-`frontend/src/api/adapters.ts`는 API 스키마를 화면별 모델로 바꿉니다.
+`frontend/src/api/adapters.ts`는 API 스키마를 화면별 모델로 바꿉니다. JD·회사·계정 일부 변환은 `frontend/src/api/adapters/jd.ts`, `frontend/src/api/adapters/user.ts`로 분리되어 `adapters.ts`에서 re-export합니다.
 
 - `mapDashboard`: metrics, applicants, insightCards, tasks, creditPercent 생성
 - `mapAdmin`: 관리자 요약, 멤버, 권한, 운영 상태 생성

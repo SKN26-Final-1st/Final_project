@@ -16,6 +16,8 @@
 
 ## 주요 파일
 
+- `src/api/httpClient.ts`
+  - Axios 인스턴스, CSRF 쿠키 읽기, credentials 기본값.
 - `src/api/backendClient.ts`
   - 실제 API 호출, CSRF, credentials, `X-API-Key`, `payload.error` 처리.
 - `src/data/backendTypes.ts`
@@ -39,7 +41,8 @@
 
 연결 화면/함수:
 
-- `src/pages/AuthPages.tsx`
+- `src/pages/auth/LoginPage.tsx`, `SignupPage.tsx`, `PasswordResetPage.tsx`
+- `src/pages/AuthPages.tsx` (re-export barrel)
 - `src/pages/MyPage.tsx`
 - `apiClient.checkSignupId`
 - `apiClient.completeSignup`
@@ -233,8 +236,8 @@ node scripts\verify-auth-flow.mjs
 3. 저장 후 새로고침하거나 `/api/account/get/` 재조회 결과가 반영되는지 확인한다.
 4. 비밀번호 변경에서 현재 비밀번호를 비우면 client validation이 동작하는지 확인한다.
 5. 현재 비밀번호 오답은 backend error가 표시되는지 확인한다.
-6. 정상 변경 후 로그인 화면으로 이동되는지 확인한다.
-7. 새 비밀번호로 다시 로그인한다.
+6. 정상 변경 후 로그인 상태가 유지되고 "비밀번호가 변경되었습니다. 로그인 상태가 유지됩니다." 안내가 표시되는지 확인한다.
+7. 새 비밀번호로 페이지를 새로고침해도 세션이 유지되는지 확인한다.
 
 자동 검증:
 
@@ -406,6 +409,11 @@ npm.cmd run build
 ```powershell
 cd frontend
 node scripts\verify-auth-flow.mjs
+node scripts\verify-auth-text-links.mjs
+node scripts\verify-admin-layout.mjs
+node scripts\verify-admin-authkey-panel.mjs
+node scripts\verify-jd-create-flow.mjs
+node scripts\verify-cover-letter-save-flow.mjs
 node scripts\verify-shared-route.mjs
 ```
 

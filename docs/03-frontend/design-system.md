@@ -92,7 +92,7 @@ CSS 토큰 기준 색상은 `.app-root`에 정의되어 있습니다. 근거: `f
 
 ### 인증 화면
 
-인증 라우트(`/login`, `/signup`, `/password-reset`)는 `AuthScreen`을 사용하고 앱 shell을 쓰지 않습니다. 좌측 설명 영역과 우측 카드 폼의 2열 구성이며, 1199px 이하에서는 1열로 전환됩니다. 근거: `frontend/src/components/layout/AuthScreen.tsx`, `frontend/src/pages/AuthPages.tsx`
+인증 라우트(`/login`, `/signup`, `/password-reset`)는 `AuthScreen`을 사용하고 앱 shell을 쓰지 않습니다. 좌측 설명 영역과 우측 카드 폼의 2열 구성이며, 1199px 이하에서는 1열로 전환됩니다. 근거: `frontend/src/components/layout/AuthScreen.tsx`, `frontend/src/pages/auth/`
 
 ## 컴포넌트 규칙
 
@@ -128,7 +128,7 @@ Ant Design `Input`, `Select`, `Form`, `Steps`를 사용합니다.
 - 긴 액션 버튼은 모바일에서 full width grid로 전환
 - 비밀번호 찾기처럼 단계가 있는 흐름은 `Steps size="small"` 사용
 
-근거: `frontend/src/pages/AuthPages.tsx`, `frontend/src/components/company/CompanyProfileForm.tsx`, `frontend/src/components/jd/JdEditorPanel.tsx`
+근거: `frontend/src/pages/auth/`, `frontend/src/components/company/CompanyProfileForm.tsx`, `frontend/src/components/jd/JdEditorPanel.tsx`
 
 ### 데이터 표시
 

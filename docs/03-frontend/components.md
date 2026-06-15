@@ -3,7 +3,10 @@
 ## 레이아웃
 
 - `frontend/src/components/layout/AppShell.tsx`: 보호 화면 공통 shell
-- `frontend/src/components/layout/SidebarNav.tsx`: 데스크톱 사이드바, 모바일 헤더/드로어, 계정 popover
+- `frontend/src/components/layout/SidebarNav.tsx`: 데스크톱 사이드바, 브랜드, 핀 고정, 계정 popover
+- `frontend/src/components/layout/MobileShellHeader.tsx`: 모바일 헤더, Drawer 메뉴, 계정 popover (`SidebarNav.tsx`에서 re-export)
+- `frontend/src/components/layout/MenuItems.tsx`: `activeMainMenu` 기반 nav 항목
+- `frontend/src/components/layout/AccountMenu.tsx`: 계정 popover 내부(크레딧, 테마, 마이페이지, 로그아웃)
 - `frontend/src/components/layout/AuthScreen.tsx`: 인증 화면 전용 레이아웃
 - `frontend/src/components/layout/CreditSummary.tsx`: 분석 크레딧 카드
 - `frontend/src/components/layout/TopHeader.tsx`: 현재 코드에 존재하지만 `AppShell`에서는 직접 사용하지 않습니다.
@@ -15,6 +18,7 @@
 - `frontend/src/components/common/PageState.tsx`: 로딩, 에러, empty 상태
 - `frontend/src/components/common/InlineLoading.tsx`: 버튼 내부 spinner
 - `frontend/src/components/common/MetricCard.tsx`: 대시보드 지표 카드
+- `frontend/src/components/common/FloatingAlert.tsx`: 전역 알림 토스트
 
 ## 대시보드
 
@@ -47,7 +51,8 @@
 ## 도메인 패널
 
 - 회사: `CompanyProfileForm`, `CompanyCompletionPanel`
-- JD: `JdListPanel`, `JdEditorPanel`
+- JD: `JdListPanel`, `JdEditorPanel`, `JdDeleteModal`, `JdListEmptyState`
+- 관리자: `AdminSummaryCards`, `AdminCreditPanel`, `AuthKeyCreateForm`, `AuthKeyList`, `CreatedAuthKeyPanel`, `UnsupportedBackendPanel`
 - 지원서: `CoverLetterInputPanel`, `CoverLetterUploadPanel`
 - 마이페이지: `ProfileSummaryCard`, `AccountSettingsForm`, `SecuritySettingsForm`, `CompanySummaryPanel`
 - 모집 공고: `JdSelectionPanel`, `SelectedJdSummary`, `RecruitmentPreviewPanel`

@@ -11,6 +11,9 @@
 - 리포트 프롬프트 실험·평가: `backend/common/report2.py`, `report3.py`, `backend/common/eval/middle_report*_eval.ipynb`
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
 - React 화면, 라우팅, 전역 알림/로딩/채팅 상태: `frontend/src/App.tsx`
+- 전역 알림 토스트: `frontend/src/components/common/FloatingAlert.tsx`
+- 인증 페이지 분리: `frontend/src/pages/auth/`, barrel `frontend/src/pages/AuthPages.tsx`
+- 데스크톱 사이드바 핀 고정: `frontend/src/components/layout/SidebarNav.tsx`
 - 프론트 Django API 클라이언트(CSRF, credentials, `X-API-Key`): `frontend/src/api/backendClient.ts`
 - 대시보드 데이터 조합과 화면 어댑터: `frontend/src/api/appDataService.ts`, `frontend/src/api/adapters.ts`
 - Vite dev server `/api` 프록시: `frontend/vite.config.ts` → `http://127.0.0.1:8000`
