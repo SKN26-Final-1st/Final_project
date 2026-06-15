@@ -67,7 +67,11 @@ GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/w
 | `verify-backend-contract.mjs` | frontend 코드가 backend API 계약(경로, 필드명)을 지키는지 정적 검증 |
 | `verify-live-django-api.mjs` | 임시 SQLite DB와 Django runserver로 실제 API 시나리오 검증 |
 | `verify-auth-flow.mjs` | 로그인/회원가입/비밀번호 재설정 UI 흐름 검증 |
+| `verify-auth-text-links.mjs` | 인증 화면 보조 링크가 텍스트 링크 스타일인지 검증 |
 | `verify-admin-layout.mjs` | 관리자 화면 레이아웃 검증 |
+| `verify-admin-authkey-panel.mjs` | 관리자 AuthKey 생성·표시·복사 패널 검증 |
+| `verify-jd-create-flow.mjs` | JD 생성·삭제 UI 흐름 검증 |
+| `verify-cover-letter-save-flow.mjs` | 자기소개서 저장 UI 흐름 검증 |
 | `verify-document-chat-widget.mjs` | 문서 검색 FAB/위젯 데스크톱·모바일 검증 |
 | `verify-shared-route.mjs` | `/shared` 공유 리포트 라우트 검증 |
 
