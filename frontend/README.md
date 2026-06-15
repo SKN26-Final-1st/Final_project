@@ -409,6 +409,11 @@ npm.cmd run build
 ```powershell
 cd frontend
 node scripts\verify-auth-flow.mjs
+node scripts\verify-auth-text-links.mjs
+node scripts\verify-admin-layout.mjs
+node scripts\verify-admin-authkey-panel.mjs
+node scripts\verify-jd-create-flow.mjs
+node scripts\verify-cover-letter-save-flow.mjs
 node scripts\verify-shared-route.mjs
 ```
 
