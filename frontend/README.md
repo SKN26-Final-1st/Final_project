@@ -41,7 +41,8 @@
 
 연결 화면/함수:
 
-- `src/pages/AuthPages.tsx`
+- `src/pages/auth/LoginPage.tsx`, `SignupPage.tsx`, `PasswordResetPage.tsx`
+- `src/pages/AuthPages.tsx` (re-export barrel)
 - `src/pages/MyPage.tsx`
 - `apiClient.checkSignupId`
 - `apiClient.completeSignup`
