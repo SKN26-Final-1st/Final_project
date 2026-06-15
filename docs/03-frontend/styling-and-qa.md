@@ -39,7 +39,10 @@
 - `verify-backend-contract.mjs` — backend API 계약 정적 검증
 - `verify-live-django-api.mjs` — Django runserver 기반 API 시나리오 검증
 - `verify-document-chat-widget.mjs` — 문서 검색 위젯 시각/동작 QA
-- `verify-auth-flow.mjs`, `verify-admin-layout.mjs`, `verify-shared-route.mjs`
+- `verify-auth-flow.mjs`, `verify-auth-text-links.mjs` — 인증 UI 흐름·텍스트 링크 QA
+- `verify-admin-layout.mjs`, `verify-admin-authkey-panel.mjs` — 관리자 화면 QA
+- `verify-jd-create-flow.mjs`, `verify-cover-letter-save-flow.mjs` — JD·자소서 저장 UI QA
+- `verify-shared-route.mjs`
 
 `package.json`에 npm script는 없으므로 `node scripts/<name>.mjs`로 실행합니다.
 
