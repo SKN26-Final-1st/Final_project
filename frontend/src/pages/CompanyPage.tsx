@@ -9,6 +9,7 @@ import { SectionCard } from '../components/common/SectionCard';
 import type { CompanyProfile } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
 import type { RunApiAction, ShowAlert } from '../types/app';
+import { pageSectionGutter } from '../utils/layout';
 
 type CompanyPageProps = {
   company: CompanyProfile;
@@ -69,7 +70,7 @@ export function CompanyPage({ company, loadingKey, runApiAction, showAlert, relo
           </Space>
         }
       />
-      <Row gutter={[24, 24]}>
+      <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={15}>
           <SectionCard title="회사 프로필">
             <CompanyProfileForm form={form} initialValues={initialValues} />

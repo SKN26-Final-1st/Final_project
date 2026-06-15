@@ -7,6 +7,7 @@ import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { AnalysisReportData } from '../api/adapters';
 import type { ChatMessage } from '../data/appConfig';
+import { pageSectionGutter } from '../utils/layout';
 
 type ChatPageProps = {
   report: AnalysisReportData;
@@ -39,7 +40,7 @@ export function ChatPage({
           </Button>
         }
       />
-      <Row gutter={[24, 24]}>
+      <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={9}>
           <SectionCard title="검색 컨텍스트">
             <DocumentSearchContextPanel setChatInput={setChatInput} />

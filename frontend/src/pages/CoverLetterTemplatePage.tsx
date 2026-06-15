@@ -4,6 +4,7 @@ import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem, TemplateQuestion } from '../api/adapters';
+import { pageSectionGutter } from '../utils/layout';
 
 type CoverLetterTemplatePageProps = {
   selectedJd: JdItem | null;
@@ -44,7 +45,7 @@ export function CoverLetterTemplatePage({
         message="후순위 MVP"
         description="자기소개서 템플릿 문서 생성과 다운로드는 현재 backend API가 없어 백엔드 API 연동 예정 상태입니다. 분석 결과 기반 질문 데이터는 보존하지만 문서 생성 동작은 비활성화했습니다."
       />
-      <Row gutter={[24, 24]}>
+      <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard title="JD 요약">
             {selectedJd ? (

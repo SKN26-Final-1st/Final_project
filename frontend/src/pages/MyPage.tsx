@@ -11,6 +11,7 @@ import { SectionCard } from '../components/common/SectionCard';
 import type { CompanyProfile, UserProfile } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
 import type { Navigate, RunApiAction } from '../types/app';
+import { pageSectionGutter } from '../utils/layout';
 
 type MyPageProps = {
   profile: UserProfile;
@@ -118,14 +119,14 @@ export function MyPage({
           </Button>
         }
       />
-      <Row gutter={[24, 24]}>
+      <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard title="프로필">
             <ProfileSummaryCard profile={profile} />
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <Row gutter={[24, 24]}>
+          <Row className="section-row" gutter={pageSectionGutter}>
             <Col xs={24} lg={12}>
               <SectionCard title="계정 정보">
                 <AccountSettingsForm form={accountForm} initialValues={accountInitialValues} />

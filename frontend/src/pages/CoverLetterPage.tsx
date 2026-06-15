@@ -12,6 +12,7 @@ import { SectionCard } from '../components/common/SectionCard';
 import type { CoverLetterDraft, CoverLetterRow, JdItem } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
 import type { Navigate, RunApiAction } from '../types/app';
+import { pageSectionGutter } from '../utils/layout';
 
 type CoverLetterPageProps = {
   jdList: JdItem[];
@@ -130,7 +131,7 @@ export function CoverLetterPage({
           </Button>
         }
       />
-      <Row gutter={[24, 24]}>
+      <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={11}>
           <SectionCard title="지원서 입력">
             <CoverLetterInputPanel
