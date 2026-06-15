@@ -136,6 +136,20 @@ try {
   let addPayload = null;
   let modifyPayload = null;
   let analysisPayload = null;
+  const generatedReport = {
+    id: 91,
+    resume_id: 501,
+    overall_grade: 'A',
+    overall_summary: 'Good',
+    candidate_summary: 'Summary',
+    checklist: [],
+    competency_analysis: [],
+    fit_analysis: [],
+    strength: [],
+    concern: [],
+    check_point: [],
+    final_comment: 'Done',
+  };
 
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
@@ -151,7 +165,7 @@ try {
     if (path === 'compinfo/get') return fulfillJson(route, { error: false, data: company });
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: resumeStored ? [savedResume] : [] });
-    if (path === 'report/get') return fulfillJson(route, { error: false, data: [] });
+    if (path === 'report/get') return fulfillJson(route, { error: false, data: analysisCalls ? [generatedReport] : [] });
     if (path === 'question/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'resume/add') {
@@ -172,18 +186,7 @@ try {
         error: false,
         data: {
           report: {
-            id: 91,
-            resume_id: 501,
-            overall_grade: 'A',
-            overall_summary: 'Good',
-            candidate_summary: 'Summary',
-            checklist: [],
-            competency_analysis: [],
-            fit_analysis: [],
-            strength: [],
-            concern: [],
-            check_point: [],
-            final_comment: 'Done',
+            ...generatedReport,
           },
           questions: [],
         },
@@ -253,7 +256,8 @@ try {
   }
 
   await analysisButton.click();
-  await page.waitForTimeout(500);
+  await page.waitForURL('**/analysis-report', { timeout: 10000 });
+  await page.locator('.analysis-report-detail').getByText('Good').waitFor({ timeout: 10000 });
 
   if (analysisCalls !== 1 || analysisPayload?.id !== 501) {
     throw new Error(`Analysis must use saved resume id. calls=${analysisCalls}, payload=${JSON.stringify(analysisPayload)}`);
