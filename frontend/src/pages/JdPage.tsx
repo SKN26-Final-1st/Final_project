@@ -259,7 +259,6 @@ export function JdPage({
                 form={form}
                 selectedJd={isCreateMode ? null : selectedJd}
                 initialValues={editorInitialValues}
-                navigate={navigate}
                 mode={isCreateMode ? 'create' : 'edit'}
               />
             ) : (
