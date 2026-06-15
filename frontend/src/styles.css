@@ -70,6 +70,8 @@ button,
   --radius: 16px;
   --radius-lg: 22px;
   --layout-gap: 24px;
+  --section-inner-gap: 12px;
+  --section-tight-gap: 8px;
   --content-max: 1540px;
   min-height: 100vh;
   background: var(--bg);
@@ -2348,42 +2350,212 @@ button,
     align-content: stretch;
   }
 
-  .admin-usage-card .admin-log-row {
+.admin-usage-card .admin-log-row {
     min-height: 71px;
   }
 }
 
+.jd-page {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
 .jd-list {
   display: grid;
-  gap: 12px;
+  gap: var(--section-inner-gap);
 }
 
 .jd-card {
+  position: relative;
   display: grid;
-  gap: 8px;
+  gap: var(--section-tight-gap);
   width: 100%;
-  padding: 16px;
+  min-width: 0;
+  padding:
+    calc(var(--section-inner-gap) + 4px)
+    calc(var(--section-inner-gap) + 36px)
+    calc(var(--section-inner-gap) + 4px)
+    calc(var(--section-inner-gap) + 4px);
   color: var(--text);
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-soft));
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.jd-card strong {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.jd-card-delete-button {
+  position: absolute;
+  top: var(--section-inner-gap);
+  right: var(--section-inner-gap);
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+
+.jd-card-delete-button:hover,
+.jd-card-delete-button:focus-visible {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--danger) 20%, transparent);
+  outline-offset: 1px;
 }
 
 .jd-card:hover,
 .jd-card:focus-visible,
 .jd-card.active {
-  border-color: var(--primary);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
   outline: none;
 }
 
 .jd-card.active {
-  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-strong));
+  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
 }
 
 .jd-card span {
+  min-width: 0;
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.jd-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--section-tight-gap);
+  align-items: center;
+}
+
+.jd-empty-state {
+  display: grid;
+  gap: var(--section-tight-gap);
+  min-height: 132px;
+  align-content: center;
+  padding: var(--section-inner-gap);
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.jd-empty-state strong {
+  color: var(--text);
+}
+
+.jd-editor-form {
+  display: grid;
+  gap: 4px;
+}
+
+.jd-editor-form .ant-form-item {
+  margin-bottom: calc(var(--section-inner-gap) + 4px);
+}
+
+.jd-editor-form .ant-input,
+.jd-editor-form .ant-select-selector {
+  min-height: 40px;
+}
+
+.jd-editor-form textarea.ant-input {
+  min-height: auto;
+}
+
+.jd-editor-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--section-tight-gap);
+  align-items: center;
+  margin-bottom: var(--section-inner-gap);
+  padding: calc(var(--section-inner-gap) - 2px) var(--section-inner-gap);
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.jd-delete-modal .ant-modal-content {
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.jd-delete-modal .ant-modal-header {
+  background: transparent;
+}
+
+.jd-delete-modal .ant-modal-title {
+  color: var(--text);
+}
+
+.jd-delete-modal-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.jd-delete-target {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface-soft));
+}
+
+.jd-delete-target strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.jd-delete-target span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.jd-delete-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.jd-delete-modal-footer .ant-btn-primary.ant-btn-dangerous {
+  color: #fff;
+  border-color: var(--danger);
+  background: var(--danger);
+  box-shadow: none;
+}
+
+.jd-delete-modal-footer .ant-btn-primary.ant-btn-dangerous:not(:disabled):hover,
+.jd-delete-modal-footer .ant-btn-primary.ant-btn-dangerous:not(:disabled):focus-visible {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--danger) 78%, #000);
+  background: color-mix(in srgb, var(--danger) 88%, #000);
 }
 
 .upload-box {
@@ -3329,8 +3501,9 @@ button,
 
 .section-extra-row {
   display: flex;
+  gap: var(--section-tight-gap);
   justify-content: flex-end;
-  margin-bottom: 8px;
+  margin-bottom: var(--section-inner-gap);
 }
 
 .auth-screen {
@@ -3583,6 +3756,8 @@ button,
 @media (max-width: 1199px) {
   .app-root {
     --layout-gap: 22px;
+    --section-inner-gap: 11px;
+    --section-tight-gap: 8px;
   }
 
   .content {
@@ -3839,6 +4014,8 @@ button,
 @media (max-width: 767px) {
   .app-root {
     --layout-gap: 16px;
+    --section-inner-gap: 8px;
+    --section-tight-gap: 6px;
     --shell-content-pad: 14px;
     --radius: 14px;
     --radius-lg: 18px;
@@ -3887,7 +4064,7 @@ button,
   }
 
   .content-frame {
-    gap: 14px;
+    gap: var(--layout-gap);
   }
 
   .page-title {
@@ -4494,6 +4671,8 @@ button,
 @media (max-width: 420px) {
   .app-root {
     --layout-gap: 14px;
+    --section-inner-gap: 7px;
+    --section-tight-gap: 6px;
     --shell-content-pad: 12px;
   }
 
