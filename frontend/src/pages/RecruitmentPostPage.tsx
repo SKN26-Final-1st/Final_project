@@ -8,6 +8,7 @@ import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem, RecruitmentPreview } from '../api/adapters';
 import type { KeySetter } from '../types/app';
+import { pageSectionGutter } from '../utils/layout';
 
 type RecruitmentPostPageProps = {
   jdList: JdItem[];
@@ -52,7 +53,7 @@ export function RecruitmentPostPage({
         message="후순위 MVP"
         description="모집 공고 생성과 PDF 다운로드는 현재 backend API가 없어 백엔드 API 연동 예정 상태입니다. 기존 화면은 보존하되 실제 동작 버튼은 비활성화했습니다."
       />
-      <Row gutter={[24, 24]}>
+      <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={13}>
           <SectionCard title="JD 선택">
             <JdSelectionPanel jdList={jdList} selectedRows={selectedRows} setSelectedRows={setSelectedRows} />

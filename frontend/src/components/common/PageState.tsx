@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Alert, Button, Card, Empty, Skeleton } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 
@@ -36,8 +37,9 @@ export function PageError({ message, onRetry }: PageErrorProps) {
 
 type EmptyStateProps = {
   description: string;
+  action?: ReactNode;
 };
 
-export function EmptyState({ description }: EmptyStateProps) {
-  return <Empty description={description} />;
+export function EmptyState({ description, action }: EmptyStateProps) {
+  return <Empty description={description}>{action}</Empty>;
 }
