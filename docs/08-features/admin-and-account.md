@@ -63,6 +63,8 @@ AuthKey API 연동:
 
 저장 버튼은 `apiClient.saveUserProfile()`을 호출합니다. `/api/account/modify/`로 전달됩니다.
 
+비밀번호 변경 시 현재 비밀번호 검증 후 새 비밀번호로 `apiClient.login()`을 다시 호출해 세션을 유지합니다. 로그인 화면으로 보내지 않습니다. 근거: `frontend/src/pages/MyPage.tsx`
+
 ## 인증 화면
 
 화면:
