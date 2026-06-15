@@ -22,7 +22,7 @@ import {
   type UserProfile,
 } from './adapters';
 import { apiClient } from './backendClient';
-import type { AuthKey, Resume } from '../data/backendTypes';
+import type { AnalysisReport, AuthKey, InterviewQuestion, Resume } from '../data/backendTypes';
 
 export type AppData = {
   admin: AdminData;
@@ -37,6 +37,8 @@ export type AppData = {
   userProfile: UserProfile;
   authKeys: AuthKey[];
   resumes: Resume[];
+  analysisReports: AnalysisReport[];
+  interviewQuestions: InterviewQuestion[];
 };
 
 export async function loadAppData(): Promise<AppData> {
@@ -76,5 +78,7 @@ export async function loadAppData(): Promise<AppData> {
     userProfile: mapUserProfile(account, company),
     authKeys: authKeys.data,
     resumes,
+    analysisReports,
+    interviewQuestions,
   };
 }

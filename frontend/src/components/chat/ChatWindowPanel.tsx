@@ -45,7 +45,7 @@ export function ChatWindowPanel({
   }
 
   return (
-    <>
+    <div className="chat-window-panel">
       <div className="chat-window">
         <Bubble.List
           autoScroll
@@ -79,6 +79,6 @@ export function ChatWindowPanel({
           value={chatInput}
         />
       </div>
-    </>
+    </div>
   );
 }

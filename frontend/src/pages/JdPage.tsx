@@ -11,15 +11,18 @@ import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
+import type { Resume } from '../data/backendTypes';
 import type { Navigate, RunApiAction, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type JdPageProps = {
   jdList: JdItem[];
+  resumes: Resume[];
   selectedJdId: string | null;
   selectedJd: JdItem | null;
   loadingKey: string | null;
   setSelectedJdId: (id: string) => void;
+  setSelectedReportResumeId: (id: string) => void;
   runApiAction: RunApiAction;
   navigate: Navigate;
   showAlert: ShowAlert;
@@ -60,10 +63,12 @@ const EMPTY_JD_EDITOR_VALUES: JdEditorFormValues = {
 
 export function JdPage({
   jdList,
+  resumes,
   selectedJdId,
   selectedJd,
   loadingKey,
   setSelectedJdId,
+  setSelectedReportResumeId,
   runApiAction,
   navigate,
   showAlert,
@@ -81,6 +86,9 @@ export function JdPage({
   const showEditor = isCreateMode || Boolean(selectedJd && editorInitialValues);
   const deleteLoadingKey = deleteTargetJd ? `jd-delete-${deleteTargetJd.id}` : null;
   const isDeletingJd = Boolean(deleteLoadingKey && loadingKey === deleteLoadingKey);
+  const selectedJdResume = selectedJd
+    ? resumes.find((resume) => String(resume.job_description_id) === selectedJd.id) ?? null
+    : null;
 
   useEffect(() => {
     if (isCreateMode) {
@@ -203,14 +211,16 @@ export function JdPage({
             <Button
               type="primary"
               icon={<FileSearchOutlined />}
-              disabled={isCreateMode || !selectedJd || loadingKey === 'jd-analysis'}
+              disabled={isCreateMode || !selectedJd || !selectedJdResume || loadingKey === 'jd-analysis'}
+              title={!selectedJdResume && selectedJd ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.' : undefined}
               onClick={() =>
                 selectedJd &&
                 void runApiAction(
                   'jd-analysis',
                   () => apiClient.requestJobAnalysis(selectedJd.id),
-                  () => {
-                    void reloadData().finally(() => navigate('/cover-letter'));
+                  (response) => {
+                    setSelectedReportResumeId(String(response.data.report.resume_id || response.data.resume_id));
+                    void reloadData().finally(() => navigate('/analysis-report'));
                   },
                 )
               }

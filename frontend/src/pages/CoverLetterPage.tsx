@@ -23,6 +23,7 @@ type CoverLetterPageProps = {
   analysisDone: boolean;
   loadingKey: string | null;
   setSelectedJdId: (id: string) => void;
+  setSelectedReportResumeId: (id: string) => void;
   setAnalysisDone: (value: boolean) => void;
   runApiAction: RunApiAction;
   navigate: Navigate;
@@ -88,6 +89,7 @@ export function CoverLetterPage({
   analysisDone,
   loadingKey,
   setSelectedJdId,
+  setSelectedReportResumeId,
   setAnalysisDone,
   runApiAction,
   navigate,
@@ -168,9 +170,10 @@ export function CoverLetterPage({
     void runApiAction(
       'cover-analysis',
       () => apiClient.requestCoverLetterAnalysis(selectedJdId),
-      () => {
+      (response) => {
+        setSelectedReportResumeId(String(response.data.report.resume_id || response.data.resume_id));
         setAnalysisDone(true);
-        void reloadData();
+        void reloadData().finally(() => navigate('/analysis-report'));
       },
     );
   };

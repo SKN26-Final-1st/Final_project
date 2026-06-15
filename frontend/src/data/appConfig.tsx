@@ -3,6 +3,7 @@ import {
   BankOutlined,
   DashboardOutlined,
   FileDoneOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
   FormOutlined,
   IdcardOutlined,
@@ -17,6 +18,7 @@ export type AppRoute =
   | '/company'
   | '/jd'
   | '/cover-letter'
+  | '/analysis-report'
   | '/chat'
   | '/mypage'
   | '/recruitment-post'
@@ -79,6 +81,12 @@ export const mainMenu: MenuItem[] = [
     label: '자기소개서',
     description: '단건 입력과 Excel 업로드',
     icon: <FileTextOutlined />,
+  },
+  {
+    route: '/analysis-report',
+    label: '리포트 / 질문 추천',
+    description: '저장된 분석 결과와 면접 질문',
+    icon: <FileSearchOutlined />,
   },
   {
     route: '/mypage',
