@@ -18,6 +18,7 @@
 - `frontend/src/components/common/PageState.tsx`: 로딩, 에러, empty 상태
 - `frontend/src/components/common/InlineLoading.tsx`: 버튼 내부 spinner
 - `frontend/src/components/common/MetricCard.tsx`: 대시보드 지표 카드
+- `frontend/src/components/common/FloatingAlert.tsx`: 전역 알림 토스트
 
 ## 대시보드
 
