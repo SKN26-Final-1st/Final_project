@@ -220,7 +220,7 @@ export function JdPage({
           </Space>
         }
       />
-      <Row className="section-row" gutter={pageSectionGutter}>
+      <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard
             title="JD 목록"
