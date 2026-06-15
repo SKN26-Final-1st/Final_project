@@ -30,7 +30,9 @@ AuthKey API 연동:
 
 파일:
 
-- `frontend/src/components/layout/SidebarNav.tsx`
+- `frontend/src/components/layout/AccountMenu.tsx`
+- `frontend/src/components/layout/SidebarNav.tsx` (데스크톱 popover)
+- `frontend/src/components/layout/MobileShellHeader.tsx` (모바일 popover)
 
 역할:
 
