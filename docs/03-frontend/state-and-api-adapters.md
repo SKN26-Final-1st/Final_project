@@ -59,7 +59,7 @@ flowchart TD
 
 ## API 클라이언트
 
-`frontend/src/api/backendClient.ts`는 Django API만 호출합니다.
+`frontend/src/api/backendClient.ts`는 Django API만 호출합니다. Axios 인스턴스와 CSRF 쿠키 처리는 `frontend/src/api/httpClient.ts`에 분리되어 있습니다.
 
 중요 구현:
 
@@ -69,6 +69,15 @@ flowchart TD
 - Django 응답이 `{ error, data, message }` 형태가 아니어도 `normalizePayload()`로 감쌉니다.
 - `getDashboard()`는 account/company/JD/resume/report/question API를 조합합니다.
 - backend API가 없는 후순위 기능은 `unsupportedBackendFeature()`로 명시적 오류를 던집니다.
+- 주요 엔티티 응답은 `frontend/src/api/backendSchemas.ts`의 Zod 스키마(`parseAccount`, `parseResumes` 등)로 런타임 검증합니다.
+
+## 응답 스키마 검증
+
+`frontend/src/api/backendSchemas.ts`는 Django `to_dict()` shape에 맞춘 Zod 스키마를 정의합니다. `backendTypes.ts`의 TypeScript 타입과 `satisfies z.ZodType<...>`로 정합성을 맞춥니다.
+
+- `accountSchema`, `companyInfoSchema`, `authKeySchema`, `jobDescriptionSchema`, `resumeSchema`, `analysisReportSchema`, `interviewQuestionSchema`
+- `parse*` 헬퍼는 `backendClient.ts`에서 API 응답 파싱에 사용합니다.
+- 단위 테스트: `frontend/src/api/backendSchemas.test.ts`
 
 ## 어댑터 역할
 
