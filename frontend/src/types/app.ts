@@ -11,7 +11,7 @@ export type AlertState = {
   description?: string;
 };
 
-export type Navigate = (route: AppRoute) => void;
+export type Navigate = (route: AppRoute | string) => void;
 
 export type ShowAlert = (alert: AlertState) => void;
 
