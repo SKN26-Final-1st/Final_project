@@ -3076,6 +3076,64 @@ button,
   padding: 2px;
 }
 
+.chat-empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 100%;
+  padding: 28px;
+  text-align: center;
+}
+
+.chat-empty-state strong {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.chat-empty-state p {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.chat-empty-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 720px;
+  margin-top: 18px;
+}
+
+.chat-empty-suggestion {
+  max-width: min(100%, 360px);
+  padding: 8px 12px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.chat-empty-suggestion:hover,
+.chat-empty-suggestion:focus-visible {
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  outline: none;
+}
+
 .chat-bubble-x .ant-bubble-header {
   color: var(--muted);
   font-size: 12px;
