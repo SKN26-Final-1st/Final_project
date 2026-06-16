@@ -46,6 +46,8 @@ VITE_API_KEY=your-api-key
 cd frontend
 npm run lint
 npm run build
+npm run test          # Vitest 단위·통합 테스트
+npm run test:e2e      # Playwright E2E (로그인 접근성)
 ```
 
 백엔드:
@@ -79,7 +81,7 @@ GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/w
 | `verify-chat-context-real-data.mjs` | 채팅 컨텍스트 실데이터 연결 검증 |
 | `verify-qa-stability-fixes.mjs` | UI 안정성 회귀 검증 |
 
-`package.json`에는 npm script로 등록되어 있지 않으므로, 프론트 루트에서 직접 실행합니다.
+`verify-*.mjs` 스크립트는 npm script로 등록되어 있지 않으므로, 프론트 루트에서 직접 실행합니다. Vitest(`npm run test`)와 Playwright E2E(`npm run test:e2e`)는 `package.json`에 등록되어 있습니다.
 
 ```bash
 cd frontend
