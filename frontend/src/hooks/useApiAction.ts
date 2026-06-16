@@ -16,8 +16,9 @@ export function useApiAction() {
       key: string,
       action: () => Promise<ApiResponse<T>>,
       afterComplete?: (response: ApiResponse<T>) => void,
+      onError?: (message: string, error: unknown) => void,
     ) => {
-      if (loadingKey) {
+      if (loadingKey === key) {
         return;
       }
 
@@ -36,6 +37,7 @@ export function useApiAction() {
           type: 'error',
           message: errorMessage,
         });
+        onError?.(errorMessage, nextError);
       } finally {
         setLoadingKey(null);
       }

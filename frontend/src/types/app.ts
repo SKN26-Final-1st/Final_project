@@ -19,6 +19,7 @@ export type RunApiAction = <T>(
   key: string,
   action: () => Promise<ApiResponse<T>>,
   afterComplete?: (response: ApiResponse<T>) => void,
+  onError?: (message: string, error: unknown) => void,
 ) => Promise<void>;
 
 export type ChatMessagesSetter = Dispatch<SetStateAction<ChatMessage[]>>;
