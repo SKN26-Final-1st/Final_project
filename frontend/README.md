@@ -20,6 +20,8 @@
   - Axios 인스턴스, CSRF 쿠키 읽기, credentials 기본값.
 - `src/api/backendClient.ts`
   - 실제 API 호출, CSRF, credentials, `X-API-Key`, `payload.error` 처리.
+- `src/api/backendSchemas.ts`
+  - Django 응답 shape에 맞춘 Zod 스키마와 `parse*` 런타임 검증.
 - `src/data/backendTypes.ts`
   - Django `to_dict()` 응답 shape에 맞춘 frontend 타입.
 - `src/api/appDataService.ts`
@@ -402,6 +404,20 @@ build/typecheck:
 ```powershell
 cd frontend
 npm.cmd run build
+```
+
+Vitest 단위·통합 테스트:
+
+```powershell
+cd frontend
+npm.cmd run test
+```
+
+Playwright E2E (로그인 접근성):
+
+```powershell
+cd frontend
+npm.cmd run test:e2e
 ```
 
 브라우저 smoke:
