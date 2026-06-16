@@ -17,6 +17,21 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat('ko-KR').format(Math.round(value));
 }
 
+function maskAuthKeyValue(value: string) {
+  if (!value) {
+    return '****';
+  }
+
+  if (value.includes('****')) {
+    return value;
+  }
+
+  const suffix = value.slice(-4);
+  const prefix = value.startsWith('sk_') ? value.split('_').slice(0, 2).join('_') : '';
+
+  return prefix ? `${prefix}_****${suffix}` : `****${suffix}`;
+}
+
 export function AuthKeyList({
   authKeys,
   loadingKey,
@@ -62,7 +77,7 @@ export function AuthKeyList({
                 <div className="authkey-meta">
                   <strong className="authkey-name">{authKey.name}</strong>
                   <div className="authkey-tags">
-                    <Tag className="authkey-value-tag">{authKey.value}</Tag>
+                    <Tag className="authkey-value-tag">{maskAuthKeyValue(authKey.value)}</Tag>
                     <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
                   </div>
                 </div>
