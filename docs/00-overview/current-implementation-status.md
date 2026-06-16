@@ -10,7 +10,8 @@
 - OpenAI 리포트/면접질문 생성 파이프라인(운영): `backend/common/report.py` — API는 이 모듈만 사용
 - 리포트 프롬프트 실험·평가: `backend/common/report2.py`, `report3.py`, `backend/common/eval/middle_report*_eval.ipynb`
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
-- React 화면, 라우팅, 전역 알림/로딩/채팅 상태: `frontend/src/App.tsx`
+- React 화면, 라우팅, 전역 알림/로딩: `frontend/src/App.tsx`
+- 페이지별 데이터·mutation 훅: `frontend/src/hooks/` (`useJdPageData`, `useCoverLetterPageData`, `useAnalysisReportPageData`, `useChatPageData`, `useAdminPageData`, `useDocumentChatState`, `hooks/mutations/*`)
 - 전역 알림 토스트: `frontend/src/components/common/FloatingAlert.tsx`
 - 인증 페이지 분리: `frontend/src/pages/auth/`, barrel `frontend/src/pages/AuthPages.tsx`
 - 데스크톱 사이드바 핀 고정: `frontend/src/components/layout/SidebarNav.tsx`
