@@ -13,6 +13,12 @@
 - Axios
 - ECharts
 - React Router 7
+- Zod 4 (API 응답 런타임 검증)
+
+개발·검증 도구:
+
+- Vitest, Testing Library, MSW (단위·통합 테스트)
+- Playwright, axe-core (E2E·접근성 테스트)
 
 ## 앱 진입점
 
@@ -42,6 +48,7 @@
 프론트는 Django API를 직접 호출합니다. mock API 모드는 제거되었습니다.
 
 - API 클라이언트: `frontend/src/api/backendClient.ts` — Django API 메서드, `httpClient.ts` — Axios/CSRF
+- 응답 검증: `frontend/src/api/backendSchemas.ts` — Zod 스키마와 `parse*` 헬퍼
 - 타입 정의: `frontend/src/data/backendTypes.ts` — Django `to_dict()` 응답 shape
 - 라우트/메뉴/팔레트: `frontend/src/data/appConfig.tsx`
 - 화면 표시 모델 변환: `frontend/src/api/adapters.ts`
