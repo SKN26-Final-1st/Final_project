@@ -359,7 +359,8 @@ async function getResumeSourceForJob(jobDescriptionId: number) {
   return getResumesForJob(jobDescriptionId);
 }
 
-async function requestResumeAnalysisForJob(jdId: string): Promise<ResumeAnalysisPayload> {
+async function deprecatedRequestResumeAnalysisForJob(jdId: string): Promise<ResumeAnalysisPayload> {
+  throw new Error(`JD ${jdId} 분석은 지원자가 모호할 수 있습니다. requestResumeAnalysis(resumeId)를 사용해 주세요.`);
   const resumes = await getResumeSourceForJob(Number(jdId));
   const resume = resumes[0];
 
@@ -543,7 +544,7 @@ export const apiClient = {
   },
 
   requestJobAnalysis: async (jdId: string) => {
-    const data = await requestResumeAnalysisForJob(jdId);
+    const data = await deprecatedRequestResumeAnalysisForJob(jdId);
     return toApiResponse('지원서 분석 요청이 완료되었습니다.', data);
   },
 
@@ -575,7 +576,7 @@ export const apiClient = {
   },
 
   requestCoverLetterAnalysis: async (jdId: string) => {
-    const data = await requestResumeAnalysisForJob(jdId);
+    const data = await deprecatedRequestResumeAnalysisForJob(jdId);
     return toApiResponse('지원서 분석이 완료되었습니다.', data);
   },
 
