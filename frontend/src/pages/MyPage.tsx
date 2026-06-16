@@ -7,6 +7,7 @@ import { CompanySummaryPanel } from '../components/mypage/CompanySummaryPanel';
 import { ProfileSummaryCard } from '../components/mypage/ProfileSummaryCard';
 import { SecuritySettingsForm, type SecuritySettingsFormValues } from '../components/mypage/SecuritySettingsForm';
 import { InlineLoading } from '../components/common/InlineLoading';
+import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { UserProfile } from '../api/adapters';
@@ -61,7 +62,7 @@ export function MyPage({
   }, [accountForm, profile, securityForm]);
 
   if (!profile || !company) {
-    return null;
+    return <EmptyState description="마이페이지 정보를 불러오지 못했습니다." />;
   }
 
   const saveProfile = () => {
