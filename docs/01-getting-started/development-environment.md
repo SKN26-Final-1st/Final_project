@@ -33,6 +33,14 @@
 - TanStack Query
 - Axios
 - ECharts
+- Zod
+
+주요 개발·테스트 패키지:
+
+- Vitest, `@vitest/coverage-v8`, jsdom
+- `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`
+- MSW
+- `@playwright/test`, `@axe-core/playwright`, `playwright-core`
 
 ## 환경 변수
 

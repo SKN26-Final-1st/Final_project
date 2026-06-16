@@ -48,16 +48,57 @@
 - `verify-chat-context-real-data.mjs` — 채팅 컨텍스트 실데이터 연결 검증
 - `verify-qa-stability-fixes.mjs` — UI 안정성 회귀 검증
 
-`package.json`에 npm script는 없으므로 `node scripts/<name>.mjs`로 실행합니다.
+`verify-*.mjs` 스크립트는 npm script로 등록되어 있지 않으므로 `node scripts/<name>.mjs`로 실행합니다.
+
+## 단위·통합 테스트 (Vitest)
+
+`frontend/vite.config.ts`의 `test` 블록과 `frontend/src/test/setup.ts`가 Vitest 환경을 설정합니다.
+
+- 테스트 러너: Vitest 4, jsdom 환경
+- DOM 검증: Testing Library (`@testing-library/react`, `@testing-library/jest-dom`)
+- API 모킹: MSW (`frontend/src/test/server.ts`)
+- 대상: `src/**/*.test.{ts,tsx}` (`tests/e2e/**`는 제외)
+
+현재 테스트 파일:
+
+| 파일 | 역할 |
+| --- | --- |
+| `frontend/src/api/backendSchemas.test.ts` | Zod 스키마 파싱 검증 |
+| `frontend/src/components/admin/AuthKeyList.test.tsx` | AuthKey 목록 렌더링 |
+| `frontend/src/hooks/useDocumentChatState.test.tsx` | 문서 채팅 상태 훅 |
+| `frontend/src/pages/auth/SignupPage.test.tsx` | 회원가입 폼 검증 |
+
+```bash
+cd frontend
+npm run test              # vitest run
+npm run test:watch        # vitest watch
+npm run test:coverage     # vitest run --coverage
+```
+
+## E2E·접근성 테스트 (Playwright)
+
+`frontend/playwright.config.ts`와 `frontend/tests/e2e/`가 Playwright E2E를 담당합니다.
+
+- `auth-accessibility.spec.ts`: Vite dev server를 띄운 뒤 `/login` 화면에 axe-core로 critical 접근성 위반을 검사합니다.
+- 기본 포트: `E2E_PORT` 환경 변수, 미설정 시 `5181`
+- Chrome/Edge 실행 파일은 Windows 경로 후보에서 자동 탐색합니다. 실패 시 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`을 지정합니다.
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+`verify-document-chat-widget.mjs`는 Playwright Core를 직접 사용하는 별도 QA 스크립트입니다. `npm run test:e2e`와는 다른 실행 경로입니다.
 
 ## 빌드와 lint
 
 `frontend/package.json`:
 
-- `npm run dev`: Vite dev server
+- `npm run dev`: Vite dev server (`--host 127.0.0.1`)
 - `npm run build`: `tsc --noEmit && vite build`
 - `npm run lint`: ESLint
 - `npm run preview`: Vite preview
+- `npm run analyze`: 번들 시각화 리포트 (`dist/bundle-report.html`)
 
 ## 관련 문서
 

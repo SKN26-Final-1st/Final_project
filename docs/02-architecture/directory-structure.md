@@ -65,6 +65,8 @@ frontend/
 │   │   ├── adapters.ts
 │   │   ├── appDataService.ts
 │   │   ├── backendClient.ts
+│   │   ├── backendSchemas.ts
+│   │   ├── backendSchemas.test.ts
 │   │   ├── httpClient.ts
 │   │   ├── queryClient.ts
 │   │   ├── queryKeys.ts
@@ -106,13 +108,20 @@ frontend/
 │   │       ├── PasswordResetPage.tsx
 │   │       └── types.ts
 │   ├── providers/
+│   ├── test/
+│   │   ├── setup.ts
+│   │   └── server.ts
 │   ├── types/
 │   ├── utils/
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── styles.css
+├── tests/
+│   └── e2e/
+│       └── auth-accessibility.spec.ts
 ├── package.json
 ├── package-lock.json
+├── playwright.config.ts
 ├── tsconfig.json
 ├── eslint.config.js
 └── vite.config.ts

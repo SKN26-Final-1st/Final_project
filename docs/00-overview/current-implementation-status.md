@@ -21,6 +21,9 @@
 - 공유 리포트 화면(API 키 + resume id): `frontend/src/pages/SharedReportPage.tsx`
 - 관리자 AuthKey CRUD: `frontend/src/pages/AdminPage.tsx` → `/api/authkey/*`
 - Elastic Beanstalk 배포 워크플로: `.github/workflows/deploy-eb.yml`
+- 프론트 Vitest 단위·통합 테스트: `frontend/src/**/*.test.{ts,tsx}`, MSW 설정 `frontend/src/test/`
+- 프론트 Playwright E2E·접근성: `frontend/tests/e2e/auth-accessibility.spec.ts`
+- API 응답 Zod 검증: `frontend/src/api/backendSchemas.ts` → `backendClient.ts`
 
 ## UI 보존·백엔드 미연동 영역
 
