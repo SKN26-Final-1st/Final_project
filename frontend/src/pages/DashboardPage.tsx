@@ -4,19 +4,27 @@ import { ApplicantReviewTable } from '../components/dashboard/ApplicantReviewTab
 import { DashboardHero } from '../components/dashboard/DashboardHero';
 import { DashboardMetrics } from '../components/dashboard/DashboardMetrics';
 import { TaskListPanel } from '../components/dashboard/TaskListPanel';
-import type { DashboardData } from '../api/adapters';
 import type { Navigate, ShowAlert, ThemeMode } from '../types/app';
+import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import { pageSectionGutter } from '../utils/layout';
 
 type DashboardPageProps = {
-  dashboard: DashboardData;
   mode: ThemeMode;
   navigate: Navigate;
   showAlert: ShowAlert;
-  reloadData: () => Promise<void>;
 };
 
-export function DashboardPage({ dashboard, mode, navigate, showAlert, reloadData }: DashboardPageProps) {
+export function DashboardPage({ mode, navigate, showAlert }: DashboardPageProps) {
+  const { data, refetch } = useAppDataQuery();
+  const dashboard = data?.dashboard;
+  const reloadData = async () => {
+    await refetch();
+  };
+
+  if (!dashboard) {
+    return null;
+  }
+
   return (
     <div className="dashboard-page">
       <DashboardHero dashboard={dashboard} navigate={navigate} showAlert={showAlert} reloadData={reloadData} />
