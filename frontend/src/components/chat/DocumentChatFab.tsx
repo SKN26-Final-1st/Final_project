@@ -77,7 +77,7 @@ export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
     {
       key: 'document-intro',
       role: 'ai',
-      content: '현재 계정의 JD, 분석 리포트, 면접 질문과 사용 가이드를 바탕으로 답변을 도와드릴게요.',
+      content: '현재 계정의 JD와 사용 가이드를 중심으로 답변을 도와드릴게요. 리포트와 면접 질문은 추천 자료에서만 확인할 수 있습니다.',
       header: 'HumouR AI',
     },
     ...chatMessages.map((message, index) => ({
@@ -192,7 +192,7 @@ export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
               </span>
               <div className="document-chat-widget-title">
                 <strong id="document-chat-widget-title">AI 채팅</strong>
-                <span>JD와 분석 데이터 기반 질의응답</span>
+                <span>JD와 사용 가이드 기반 질의응답</span>
               </div>
               <div className="document-chat-widget-actions">
                 <Button aria-label="전체 화면에서 열기" shape="circle" icon={<FullscreenOutlined />} onClick={openWorkspace} />
@@ -247,7 +247,7 @@ export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
                 loading={loadingKey === 'chat'}
                 onChange={setChatInput}
                 onSubmit={handleSubmit}
-                placeholder="JD, 분석 리포트, 면접 질문에 대해 질문하기"
+                placeholder="JD와 사용 가이드에 대해 질문하기"
                 submitType="enter"
                 value={chatInput}
               />
