@@ -13,3 +13,7 @@
 
 - [프로젝트 개요](../00-overview/project-overview.md)
 - [데이터 흐름](../02-architecture/data-flow.md)
+
+## 쉬운 설명 문서
+
+- [프론트엔드 쉽게 이해하기](frontend-easy-guide.md)
