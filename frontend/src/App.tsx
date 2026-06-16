@@ -196,7 +196,6 @@ export default function App() {
 
   const protectedContent = (
     <DocumentChatProvider
-      defaultMessages={data?.analysisReport.chatMessages ?? []}
       loadingKey={loadingKey}
       runApiAction={runApiAction}
       showAlert={showAlert}
