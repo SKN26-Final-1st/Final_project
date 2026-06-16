@@ -66,7 +66,8 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
   const location = useLocation();
   const [form] = Form.useForm<SharedLookupForm>();
   const [bundle, setBundle] = useState<SharedBundle | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [bundleLoading, setBundleLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -78,7 +79,7 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
   const initialResumeId = useMemo(() => getInitialResumeId(location.search), [location.search]);
 
   const loadSharedBundle = async (values: SharedLookupForm) => {
-    setLoading(true);
+    setBundleLoading(true);
     setError(null);
 
     try {
@@ -88,12 +89,12 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
       setBundle(null);
       setError(nextError instanceof Error ? nextError.message : '공유 결과를 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      setBundleLoading(false);
     }
   };
 
   const sendSharedChat = async () => {
-    if (!bundle || loading) {
+    if (!bundle || chatLoading) {
       return;
     }
 
@@ -114,16 +115,18 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
 
     setChatMessages(nextVisibleMessages);
     setChatInput('');
-    setLoading(true);
+    setChatLoading(true);
     setError(null);
 
     try {
       const response = await apiClient.sendChatMessage(trimmed, [...chatMessages, contextMessage], apiKey);
       setChatMessages((current) => [...current, response.data]);
     } catch (nextError) {
+      setChatMessages(chatMessages);
+      setChatInput(trimmed);
       setError(nextError instanceof Error ? nextError.message : '채팅 응답을 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -170,7 +173,7 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
               </Col>
             </Row>
             <Space wrap>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={loading}>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={bundleLoading}>
                 결과 조회
               </Button>
               <Alert
@@ -278,11 +281,12 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                         placeholder="리포트나 질문지에 대해 물어보세요."
                         onChange={(event) => setChatInput(event.target.value)}
                         onPressEnter={() => void sendSharedChat()}
+                        disabled={chatLoading}
                       />
                       <Button
                         type="primary"
                         icon={<SendOutlined />}
-                        loading={loading}
+                        loading={chatLoading}
                         disabled={!bundle || !chatInput.trim()}
                         onClick={() => void sendSharedChat()}
                       >
