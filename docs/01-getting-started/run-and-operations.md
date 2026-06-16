@@ -74,6 +74,10 @@ GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/w
 | `verify-cover-letter-save-flow.mjs` | 자기소개서 저장 UI 흐름 검증 |
 | `verify-document-chat-widget.mjs` | 문서 검색 FAB/위젯 데스크톱·모바일 검증 |
 | `verify-shared-route.mjs` | `/shared` 공유 리포트 라우트 검증 |
+| `verify-state-management-refactor.mjs` | `App.tsx`와 페이지 훅·mutation 분리 정적 검증 |
+| `verify-analysis-report-page.mjs` | 분석 리포트 화면 QA |
+| `verify-chat-context-real-data.mjs` | 채팅 컨텍스트 실데이터 연결 검증 |
+| `verify-qa-stability-fixes.mjs` | UI 안정성 회귀 검증 |
 
 `package.json`에는 npm script로 등록되어 있지 않으므로, 프론트 루트에서 직접 실행합니다.
 
