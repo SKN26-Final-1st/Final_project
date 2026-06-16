@@ -19,7 +19,8 @@
 - `frontend/src/main.tsx`: React root 생성, `AppQueryProvider`, `BrowserRouter`, `App` 연결
 - `frontend/src/providers/AppQueryProvider.tsx`: TanStack Query `QueryClientProvider`
 - `frontend/src/api/queryClient.ts`: query 기본 옵션 설정
-- `frontend/src/App.tsx`: 라우트별 페이지 렌더링, 테마, 알림, 로딩 상태, 채팅 상태, 선택 JD 상태, 인증 가드
+- `frontend/src/App.tsx`: 라우트별 페이지 렌더링, 테마, 전역 알림·로딩, 인증 가드, `DocumentChatProvider` 래핑
+- `frontend/src/hooks/`: 페이지별 데이터 slice·로컬 UI 상태, mutation 훅 (`mutations/`)
 
 ## 테마와 UI 시스템
 

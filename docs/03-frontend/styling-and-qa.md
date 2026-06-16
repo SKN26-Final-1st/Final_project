@@ -42,7 +42,11 @@
 - `verify-auth-flow.mjs`, `verify-auth-text-links.mjs` — 인증 UI 흐름·텍스트 링크 QA
 - `verify-admin-layout.mjs`, `verify-admin-authkey-panel.mjs` — 관리자 화면 QA
 - `verify-jd-create-flow.mjs`, `verify-cover-letter-save-flow.mjs` — JD·자소서 저장 UI QA
-- `verify-shared-route.mjs`
+- `verify-shared-route.mjs` — `/shared` 공유 리포트 라우트 검증
+- `verify-state-management-refactor.mjs` — `App.tsx`와 페이지 훅 분리 정적 검증
+- `verify-analysis-report-page.mjs` — 분석 리포트 화면 QA
+- `verify-chat-context-real-data.mjs` — 채팅 컨텍스트 실데이터 연결 검증
+- `verify-qa-stability-fixes.mjs` — UI 안정성 회귀 검증
 
 `package.json`에 npm script는 없으므로 `node scripts/<name>.mjs`로 실행합니다.
 

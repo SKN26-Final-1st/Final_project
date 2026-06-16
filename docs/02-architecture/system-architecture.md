@@ -19,7 +19,8 @@ flowchart LR
 ## 프론트엔드 계층
 
 - `frontend/src/main.tsx`: React 앱 마운트, Router, Query Provider 연결
-- `frontend/src/App.tsx`: 라우트 분기, 테마, 알림, 로딩 키, 선택 JD, 채팅 상태 관리
+- `frontend/src/App.tsx`: 라우트 분기, 테마, 전역 알림·로딩, 인증 가드, `DocumentChatProvider`
+- `frontend/src/hooks/`: TanStack Query 기반 페이지 데이터·mutation·채팅 컨텍스트
 - `frontend/src/api/backendClient.ts`: Django API 호출(CSRF, credentials, `X-API-Key`)
 - `frontend/src/api/appDataService.ts`: 대시보드 원천 데이터를 각 화면용 모델로 조립
 - `frontend/src/api/adapters.ts`: 백엔드 응답 스키마를 화면 표시 모델로 변환

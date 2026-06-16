@@ -7,6 +7,7 @@
 3. `useAppData()`는 `useAppDataQuery()`를 통해 `loadAppData()`를 실행합니다.
 4. `frontend/src/api/appDataService.ts`는 `apiClient.getDashboard()`, `apiClient.getUserProfile()`, `apiClient.getAuthKeys()`를 병렬 호출합니다.
 5. `frontend/src/api/adapters.ts`가 원천 데이터를 화면별 표시 모델로 변환합니다.
+6. 각 페이지는 `useAppDataQuery()` 캐시에서 필요한 slice를 읽습니다. JD·지원서·리포트·채팅·관리자 화면은 `frontend/src/hooks/use*PageData.ts`가 담당합니다.
 
 `getDashboard()`는 내부적으로 여러 Django API를 조합합니다. 근거: `frontend/src/api/backendClient.ts`의 `getDashboardData()`
 
@@ -22,7 +23,23 @@ flowchart TD
   Client --> Report["POST /api/report/get/ per resume"]
   Client --> Question["POST /api/question/get/ per resume"]
   Load --> Adapters["mapDashboard, mapAdmin, mapCompany..."]
+  Adapters --> Cache["TanStack Query cache"]
+  Cache --> PageHooks["useJdPageData, useCoverLetterPageData..."]
 ```
+
+## 페이지 데이터 slice
+
+인증 후 `useAppDataQuery()`가 한 번 로드한 `AppData`를 여러 화면이 공유합니다. mutation 성공 시 `useInvalidateAppData()`가 캐시를 무효화해 최신 데이터를 다시 가져옵니다.
+
+| 화면 | 데이터 훅 | mutation 훅 |
+| --- | --- | --- |
+| `/jd` | `useJdPageData` | `useJdMutations` |
+| `/cover-letter` | `useCoverLetterPageData` | `useResumeMutations` |
+| `/analysis-report` | `useAnalysisReportPageData` | — |
+| `/chat`, FAB | `useChatPageData` + `useDocumentChatState` | `runApiAction` via chat send |
+| `/admin` | `useAdminPageData` | `useAdminMutations` |
+
+근거: `frontend/src/hooks/`, `frontend/scripts/verify-state-management-refactor.mjs`
 
 ## API 호출 흐름
 

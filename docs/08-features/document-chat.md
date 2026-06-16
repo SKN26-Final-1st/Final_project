@@ -14,7 +14,9 @@
 
 ## 공유 상태
 
-`frontend/src/App.tsx`가 `chatMessages`, `chatInput`, `sendChatMessage()`를 관리합니다. `/chat` 화면과 FAB 위젯은 같은 상태를 받으므로 대화 내용이 이어집니다.
+`App.tsx`의 `DocumentChatProvider`(`frontend/src/hooks/useDocumentChatState.ts`)가 `chatMessages`, `chatInput`, `sendChatMessage()`를 관리합니다. `/chat` 화면과 FAB 위젯은 `useDocumentChatState()`로 같은 컨텍스트를 읽으므로 대화 내용이 이어집니다.
+
+초기 메시지는 `mapAnalysisReport()`가 만든 `data.analysisReport.chatMessages`를 `defaultMessages`로 전달합니다. 근거: `frontend/src/App.tsx`, `frontend/src/api/adapters.ts`
 
 위젯 내부의 검색 범위 칩(`전체 문서`, `회사 정책`, `JD`, `분석 리포트`)은 `DocumentChatFab` 내부 state입니다.
 
