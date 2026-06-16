@@ -45,7 +45,7 @@
 - `ChatWindowPanel`: Ant Design X `Bubble.List`, `Sender` 기반 채팅 창
 - `DocumentChatFab`: 전역 플로팅 문서 검색 위젯
 - `DocumentSearchContextPanel`: `/chat` 왼쪽 검색 컨텍스트/추천 질문
-- `chatContextData.tsx`: 채팅 컨텍스트용 리포트·JD·질문 데이터 조합
+- `chatContextData.tsx`: JD·지원서·리포트·면접 질문 기반 추천 자료·빠른 질문·범위 칩 데이터 조합
 - `ReportContextPanel`: 리포트 탭과 예시 질문 패널. 현재 `ChatPage`에는 직접 연결되어 있지 않습니다.
 
 근거: `frontend/src/components/chat/`
