@@ -169,7 +169,7 @@ export function CoverLetterPage({
 
     void runApiAction(
       'cover-analysis',
-      () => apiClient.requestCoverLetterAnalysis(selectedJdId),
+      () => apiClient.requestResumeAnalysis(currentResume.id),
       (response) => {
         setSelectedReportResumeId(String(response.data.report.resume_id || response.data.resume_id));
         setAnalysisDone(true);

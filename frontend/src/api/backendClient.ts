@@ -365,6 +365,26 @@ async function requestResumeAnalysisForJob(jdId: string): Promise<ResumeAnalysis
   };
 }
 
+async function requestResumeAnalysisById(resumeId: number): Promise<ResumeAnalysisPayload> {
+  const resumes = ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }));
+  const resume = resumes.find((item) => item.id === resumeId) ?? resumes[0];
+
+  if (!resume) {
+    throw new Error('분석 요청할 지원서를 찾을 수 없습니다.');
+  }
+
+  const analysis = await requestBackend<{
+        report: AnalysisReport;
+        questions: InterviewQuestion[];
+      }>('resume/analize', { id: resume.id });
+
+  return {
+    jd_id: String(resume.job_description_id),
+    resume_id: resume.id,
+    ...analysis,
+  };
+}
+
 function sanitizeAccountModifyBody(body: AccountModifyBody): Record<string, unknown> {
   const allowedBody: Record<string, unknown> = { ...body };
   delete allowedBody.id;
@@ -539,6 +559,11 @@ export const apiClient = {
   requestCoverLetterAnalysis: async (jdId: string) => {
     const data = await requestResumeAnalysisForJob(jdId);
     return toApiResponse('지원서 분석이 완료되었습니다.', data);
+  },
+
+  requestResumeAnalysis: async (resumeId: number) => {
+    const data = await requestResumeAnalysisById(resumeId);
+    return toApiResponse('지원서 분석을 완료했습니다.', data);
   },
 
   sendChatMessage: async (

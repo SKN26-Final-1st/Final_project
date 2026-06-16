@@ -42,13 +42,12 @@ export type AppData = {
 };
 
 export async function loadAppData(): Promise<AppData> {
-  const [dashboard, userProfile, authKeys] = await Promise.all([
+  const [dashboard, authKeys] = await Promise.all([
     apiClient.getDashboard(),
-    apiClient.getUserProfile().catch(() => null),
     apiClient.getAuthKeys().catch(() => ({ data: [] as AuthKey[] })),
   ]);
   const dashboardSource = dashboard.data;
-  const account = userProfile?.data ?? dashboardSource.account;
+  const account = dashboardSource.account;
   const company = dashboardSource.company_info;
   const jobDescriptions = dashboardSource.job_descriptions;
   const resumes = dashboardSource.resumes;

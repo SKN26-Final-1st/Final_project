@@ -132,8 +132,14 @@ export default function App() {
     const nextChatMessages: ChatMessage[] = [...activeChatMessages, { role: 'user', text: trimmed }];
     setChatMessages(nextChatMessages);
     setChatInput('');
-    void runApiAction('chat', () => apiClient.sendChatMessage(trimmed, nextChatMessages), (response) =>
-      setChatMessages((prev) => [...prev, response.data]),
+    void runApiAction(
+      'chat',
+      () => apiClient.sendChatMessage(trimmed, nextChatMessages),
+      (response) => setChatMessages((prev) => [...prev, response.data]),
+      () => {
+        setChatMessages((prev) => prev.slice(0, -1));
+        setChatInput(trimmed);
+      },
     );
   };
 
