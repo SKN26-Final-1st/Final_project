@@ -3,6 +3,7 @@ import { Navigate as RouterNavigate, Route, Routes, useLocation, useNavigate } f
 import { XProvider } from '@ant-design/x';
 import { App as AntApp, Switch, Tooltip, theme as antdTheme } from 'antd';
 import { MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
@@ -232,6 +233,7 @@ export default function App() {
           ) : (
             protectedContent
           )}
+          {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
         </div>
       </AntApp>
     </XProvider>
