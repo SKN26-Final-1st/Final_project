@@ -104,6 +104,28 @@ cython_debug/
 tempCodeRunnerFile.py
 
 # =============================================================================
+# Frontend (Vite / React / Vitest / Playwright) — see frontend/package.json
+# =============================================================================
+node_modules/
+.npm-cache/
+dist/
+.vite/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.eslintcache
+*.tsbuildinfo
+qa-screenshots/
+.superpowers/
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =============================================================================
 # Env / secrets (repo-wide)
 # =============================================================================
 .env
@@ -128,7 +150,15 @@ ehthumbs.db
 Desktop.ini
 
 # =============================================================================
-# Custom
+# Custom — scratch test dirs/files (keep formal test suites)
 # =============================================================================
 **/test*
 !*/tests.py
+!**/*.test.ts
+!**/*.test.tsx
+!**/*.spec.ts
+!**/*.spec.tsx
+!frontend/src/test/
+!frontend/src/test/**
+!frontend/tests/
+!frontend/tests/**
