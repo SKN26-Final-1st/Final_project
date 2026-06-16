@@ -11,6 +11,7 @@
 | `/company` | `frontend/src/pages/CompanyPage.tsx` | O | 회사 프로필과 분석 기준 입력 |
 | `/jd` | `frontend/src/pages/JdPage.tsx` | O | JD 목록, JD 상세, 분석 요청 시작 |
 | `/cover-letter` | `frontend/src/pages/CoverLetterPage.tsx` | O | 지원서 입력, 업로드, 분석 요청 |
+| `/analysis-report` | `frontend/src/pages/AnalysisReportPage.tsx` | O | 저장된 분석 리포트·면접 질문 조회 |
 | `/mypage` | `frontend/src/pages/MyPage.tsx` | O | 프로필, 계정, 보안, 회사 요약 |
 | `/chat` | `frontend/src/pages/ChatPage.tsx` | FAB | 전체 화면 문서 검색 채팅 |
 | `/recruitment-post` | `frontend/src/pages/RecruitmentPostPage.tsx` | X (planned MVP) | 복수 JD 기반 모집 공고 미리보기 |
@@ -45,7 +46,7 @@
 
 ## 라우트 상태
 
-`App.tsx`가 `useLocation()`과 `getRouteFromPathname()`으로 현재 라우트를 계산합니다. 선택 JD, 선택 행, 채팅 입력/메시지, 업로드/분석 완료 여부는 앱 컴포넌트 state로 관리됩니다.
+`App.tsx`가 `useLocation()`과 `getRouteFromPathname()`으로 현재 라우트를 계산합니다. 페이지별 선택 상태·채팅·mutation은 각 화면 훅이 담당합니다. 예: JD 선택은 `useJdPageData`, 리포트 선택은 `useAnalysisReportPageData`(`?resumeId=`), 채팅은 `DocumentChatProvider`. 자세한 표는 [상태와 API 어댑터](state-and-api-adapters.md)를 참고하세요.
 
 ## 관련 문서
 
