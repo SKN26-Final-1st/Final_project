@@ -10,6 +10,20 @@ import {
 } from '../data/backendTypes';
 import type { ChatMessage } from '../data/appConfig';
 import {
+  parseAccount,
+  parseAnalysisReport,
+  parseAnalysisReports,
+  parseAuthKey,
+  parseAuthKeys,
+  parseCompanyInfo,
+  parseInterviewQuestion,
+  parseInterviewQuestions,
+  parseJobDescription,
+  parseJobDescriptions,
+  parseResume,
+  parseResumes,
+} from './backendSchemas';
+import {
   getRequestErrorMessage,
   httpClient,
   normalizePayload,
@@ -254,25 +268,25 @@ function ensureArray<T>(value: T[] | T | null | undefined): T[] {
 }
 
 async function getAccount() {
-  return requestBackend<Account>('account/get');
+  return parseAccount(await requestBackend<Account>('account/get'));
 }
 
 async function getCompanyInfo() {
-  return requestBackend<CompanyInfo>('compinfo/get');
+  return parseCompanyInfo(await requestBackend<CompanyInfo>('compinfo/get'));
 }
 
 async function getJobDescriptions(apiKey?: string) {
-  return requestBackend<JobDescription[]>('jd/get', {}, { apiKey });
+  return parseJobDescriptions(await requestBackend<JobDescription[]>('jd/get', {}, { apiKey }));
 }
 
 async function getResumesForJob(jobDescriptionId: number, apiKey?: string) {
   const data = await requestBackend<Resume[] | Resume>('resume/get', { job_description_id: jobDescriptionId }, { apiKey });
-  return ensureArray(data);
+  return parseResumes(ensureArray(data));
 }
 
 async function getReportsForResume(resumeId: number, apiKey?: string) {
   try {
-    return requestBackend<AnalysisReport[]>('report/get', { resume_id: resumeId }, { apiKey });
+    return parseAnalysisReports(await requestBackend<AnalysisReport[]>('report/get', { resume_id: resumeId }, { apiKey }));
   } catch {
     return [];
   }
@@ -285,7 +299,7 @@ async function getQuestionsForResume(resumeId: number, apiKey?: string) {
       { resume_id: resumeId },
       { apiKey },
     );
-    return ensureArray(data);
+    return parseInterviewQuestions(ensureArray(data));
   } catch {
     return [];
   }
@@ -361,12 +375,13 @@ async function requestResumeAnalysisForJob(jdId: string): Promise<ResumeAnalysis
   return {
     jd_id: jdId,
     resume_id: resume.id,
-    ...analysis,
+    report: parseAnalysisReport(analysis.report),
+    questions: parseInterviewQuestions(analysis.questions),
   };
 }
 
 async function requestResumeAnalysisById(resumeId: number): Promise<ResumeAnalysisPayload> {
-  const resumes = ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }));
+  const resumes = parseResumes(ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId })));
   const resume = resumes.find((item) => item.id === resumeId) ?? resumes[0];
 
   if (!resume) {
@@ -381,7 +396,8 @@ async function requestResumeAnalysisById(resumeId: number): Promise<ResumeAnalys
   return {
     jd_id: String(resume.job_description_id),
     resume_id: resume.id,
-    ...analysis,
+    report: parseAnalysisReport(analysis.report),
+    questions: parseInterviewQuestions(analysis.questions),
   };
 }
 
@@ -394,7 +410,9 @@ function sanitizeAccountModifyBody(body: AccountModifyBody): Record<string, unkn
 }
 
 async function getSharedResumeBundle(resumeId: number, apiKey: string) {
-  const resumes = ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }, { apiKey }));
+  const resumes = parseResumes(
+    ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }, { apiKey })),
+  );
   const resume = resumes.find((item) => item.id === resumeId) ?? resumes[0];
 
   if (!resume) {
@@ -485,11 +503,11 @@ export const apiClient = {
   getAuthKeys: async () =>
     toApiResponse(
       '인증 키 목록을 불러왔습니다.',
-      await requestBackend<AuthKey[]>('authkey/get'),
+      parseAuthKeys(await requestBackend<AuthKey[]>('authkey/get')),
     ),
 
   addAuthKey: async (body: AuthKeyAddBody) => {
-    const data = await requestBackend<AuthKey>('authkey/add', body);
+    const data = parseAuthKey(await requestBackend<AuthKey>('authkey/add', body));
 
     return toApiResponse('인증 키를 생성했습니다.', data);
   },
@@ -507,19 +525,19 @@ export const apiClient = {
   },
 
   addJobDescription: async (body: JobDescriptionAddBody) => {
-    const data = await requestBackend<JobDescription>('jd/add', body);
+    const data = parseJobDescription(await requestBackend<JobDescription>('jd/add', body));
 
     return toApiResponse('JD를 등록했습니다.', data);
   },
 
   saveJobDescription: async (body: JobDescriptionModifyBody) => {
-    const data = await requestBackend<JobDescription>('jd/modify', body);
+    const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', body));
 
     return toApiResponse('JD를 저장했습니다.', data);
   },
 
   deleteJobDescription: async (id: number) => {
-    const data = await requestBackend<JobDescription>('jd/modify', { id, delete: true });
+    const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', { id, delete: true }));
 
     return toApiResponse('JD를 삭제했습니다.', data ?? { id });
   },
@@ -530,19 +548,19 @@ export const apiClient = {
   },
 
   addResume: async (body: ResumeAddBody) => {
-    const data = await requestBackend<Resume>('resume/add', body);
+    const data = parseResume(await requestBackend<Resume>('resume/add', body));
 
     return toApiResponse('지원서를 저장했습니다.', data);
   },
 
   saveResume: async (body: ResumeModifyBody) => {
-    const data = await requestBackend<Resume>('resume/modify', body);
+    const data = parseResume(await requestBackend<Resume>('resume/modify', body));
 
     return toApiResponse('지원서를 수정했습니다.', data);
   },
 
   deleteResume: async (id: number) => {
-    const data = await requestBackend<Resume>('resume/modify', { id, delete: true });
+    const data = parseResume(await requestBackend<Resume>('resume/modify', { id, delete: true }));
 
     return toApiResponse('지원서를 삭제했습니다.', data ?? { id });
   },
@@ -582,13 +600,13 @@ export const apiClient = {
   },
 
   saveReport: async (body: ReportModifyBody) => {
-    const data = await requestBackend<AnalysisReport>('report/modify', body);
+    const data = parseAnalysisReport(await requestBackend<AnalysisReport>('report/modify', body));
 
     return toApiResponse('분석 리포트를 저장했습니다.', data);
   },
 
   saveQuestion: async (body: QuestionModifyBody) => {
-    const data = await requestBackend<InterviewQuestion>('question/modify', body);
+    const data = parseInterviewQuestion(await requestBackend<InterviewQuestion>('question/modify', body));
 
     return toApiResponse('면접 질문을 저장했습니다.', data);
   },
