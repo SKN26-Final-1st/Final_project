@@ -15,7 +15,8 @@
 - 전역 알림 토스트: `frontend/src/components/common/FloatingAlert.tsx`
 - 인증 페이지 분리: `frontend/src/pages/auth/`, barrel `frontend/src/pages/AuthPages.tsx`
 - 데스크톱 사이드바 핀 고정: `frontend/src/components/layout/SidebarNav.tsx`
-- 프론트 Django API 클라이언트(CSRF, credentials, `X-API-Key`): `frontend/src/api/backendClient.ts`
+- 프론트 Django API 클라이언트(CSRF, credentials, 명시 `apiKey` 시 `X-API-Key`): `frontend/src/api/httpClient.ts`, `frontend/src/api/backendClient.ts`
+- 문서 채팅 참조 데이터 조합: `frontend/src/components/chat/chatContextData.tsx`
 - 대시보드 데이터 조합과 화면 어댑터: `frontend/src/api/appDataService.ts`, `frontend/src/api/adapters.ts`
 - Vite dev server `/api` 프록시: `frontend/vite.config.ts` → `http://127.0.0.1:8000`
 - 공유 리포트 화면(API 키 + resume id): `frontend/src/pages/SharedReportPage.tsx`
