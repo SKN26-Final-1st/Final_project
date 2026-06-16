@@ -199,7 +199,7 @@ try {
 
   await mockBackend(page);
   await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1000);
+  await page.locator('input').first().waitFor({ timeout: 10000 }).catch(() => undefined);
 
   if ((await page.locator('input').count()) === 0) {
     throw new Error(
