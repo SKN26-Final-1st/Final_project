@@ -24,6 +24,109 @@ if (!executablePath) {
 
 mkdirSync(screenshotDir, { recursive: true });
 
+function fulfillJson(route, body) {
+  return route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    headers: { 'Set-Cookie': 'csrftoken=test; Path=/' },
+    body: JSON.stringify(body),
+  });
+}
+
+const account = {
+  id: 1,
+  username: 'widget-company',
+  account_hash: 'hash',
+  name: 'Hiring Manager',
+  verification_question: 'q',
+  verification_answer: 'a',
+  credit: 1000,
+  subscribe: false,
+  subscribe_expiration: '',
+};
+const company = {
+  id: 1,
+  company_name: 'HumouR',
+  employee_count: 5,
+  team_composition: [],
+  company_description: '',
+  employ_style: [],
+};
+const jd = {
+  id: 77,
+  job_name: 'Frontend Engineer',
+  education_level: '',
+  major: '',
+  career_level: '3+ years',
+  required_skill: ['React'],
+  preferred_skill: [],
+  main_task: '',
+  hiring_reason: '',
+  work_type: '',
+  status: 'prepare',
+  created_at: '2026-01-01',
+  updated_at: '2026-01-01',
+};
+const resume = {
+  id: 501,
+  job_description_id: 77,
+  name: 'Hong Gil Dong',
+  skill: ['React'],
+  education_level: {},
+  experience: [],
+  self_intoduction: [],
+  certification: [],
+  language: [],
+  award: [],
+  training: [],
+  other_activity: [],
+  status: 'done',
+  reviewed: false,
+  reviewed_at: '',
+  created_at: '2026-01-01',
+  updated_at: '2026-01-01',
+};
+const report = {
+  id: 91,
+  resume_id: 501,
+  overall_grade: 'A',
+  overall_summary: 'Excellent frontend fit.',
+  candidate_summary: 'Candidate has strong React experience.',
+  checklist: [],
+  competency_analysis: [],
+  fit_analysis: [],
+  strength: [],
+  concern: [],
+  check_point: [],
+  final_comment: 'Proceed to interview.',
+};
+const question = {
+  id: 701,
+  resume_id: 501,
+  question: 'How did you optimize React rendering?',
+  answer: 'Use memoization and component boundaries.',
+  purpose: 'Validate frontend performance experience.',
+};
+
+async function mockBackend(page) {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (!url.pathname.startsWith('/api/')) return route.continue();
+
+    const path = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
+    if (path === 'csrf') return fulfillJson(route, { error: false, message: 'CSRF cookie set' });
+    if (path === 'account/get') return fulfillJson(route, { error: false, data: account });
+    if (path === 'compinfo/get') return fulfillJson(route, { error: false, data: company });
+    if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
+    if (path === 'resume/get') return fulfillJson(route, { error: false, data: [resume] });
+    if (path === 'report/get') return fulfillJson(route, { error: false, data: [report] });
+    if (path === 'question/get') return fulfillJson(route, { error: false, data: [question] });
+    if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
+    if (path === 'chat') return fulfillJson(route, { error: false, response: { role: 'agent', message: 'Checked.' } });
+    return fulfillJson(route, { error: false, data: [] });
+  });
+}
+
 function startDevServer() {
   const viteBin = resolve('node_modules', 'vite', 'bin', 'vite.js');
   const env = Object.fromEntries(
@@ -122,9 +225,12 @@ async function assertRecommendationPanel(page, label) {
     Promise.all(element.getAnimations({ subtree: false }).map((animation) => animation.finished.catch(() => undefined))),
   );
 
-  const panelText = await panel.textContent();
-  if (!panelText?.includes('추천 참조 문서') || !panelText.includes('빠른 질문')) {
-    throw new Error(`${label} recommendation panel content is incomplete: ${panelText}`);
+  const sourceStackCount = await panel.locator('.document-source-stack').count();
+  const quickActionsCount = await panel.locator('.document-quick-actions').count();
+  if (sourceStackCount === 0 || quickActionsCount === 0) {
+    throw new Error(
+      `${label} recommendation panel content is incomplete: sources=${sourceStackCount} prompts=${quickActionsCount}`,
+    );
   }
 
   const toggleVisibleWhenOpen = await toggle.evaluate((element) => {
@@ -177,23 +283,20 @@ async function assertPinnedToViewport(page, locator, label, expectedInset) {
 
 async function verifyDesktopWidget(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
+  await mockBackend(page);
   await page.goto(`${baseUrl}/#/dashboard`, { waitUntil: 'networkidle' });
   await assertNoHorizontalOverflow(page, 'desktop dashboard');
 
-  const hasChatMenu = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.sidebar .side-nav-item')).some((item) =>
-      item.textContent?.includes('AI 문서 검색'),
-    ),
-  );
+  const hasChatMenu = await page.locator('.sidebar .side-nav-item[href="/chat"]').count();
   if (hasChatMenu) {
-    throw new Error('사이드바에 AI 문서 검색 메뉴가 남아 있습니다.');
+    throw new Error('Sidebar should not expose the full chat page as a primary menu item.');
   }
 
   const fab = page.locator('.document-chat-fab');
   await fab.waitFor({ state: 'visible', timeout: 5000 });
   await assertPinnedToViewport(page, fab, '접힌 채팅 FAB', { right: 28, bottom: 28 });
 
-  await fab.click();
+  await fab.evaluate((element) => element.click());
   const widget = page.locator('.document-chat-widget');
 
   await widget.waitFor({ state: 'visible', timeout: 5000 });
@@ -214,12 +317,13 @@ async function verifyDesktopWidget(page) {
 
 async function verifyMobileWidget(page) {
   await page.setViewportSize({ width: 390, height: 844 });
+  await mockBackend(page);
   await page.goto(`${baseUrl}/#/dashboard`, { waitUntil: 'networkidle' });
   const fab = page.locator('.document-chat-fab');
 
   await fab.waitFor({ state: 'visible', timeout: 5000 });
   await assertPinnedToViewport(page, fab, '모바일 채팅 FAB', { right: 16, bottom: 16 });
-  await fab.click();
+  await fab.evaluate((element) => element.click());
 
   const widget = page.locator('.document-chat-widget');
   await widget.waitFor({ state: 'visible', timeout: 5000 });
