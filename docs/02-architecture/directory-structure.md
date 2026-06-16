@@ -83,6 +83,22 @@ frontend/
 │   │   └── recruitment/
 │   ├── data/
 │   ├── hooks/
+│   │   ├── mutations/
+│   │   │   ├── useAdminMutations.ts
+│   │   │   ├── useJdMutations.ts
+│   │   │   ├── useResumeMutations.ts
+│   │   │   └── useMutationHelpers.ts
+│   │   ├── useAppData.ts
+│   │   ├── useAppDataQuery.ts
+│   │   ├── useJdPageData.ts
+│   │   ├── useCoverLetterPageData.ts
+│   │   ├── useAnalysisReportPageData.ts
+│   │   ├── useChatPageData.ts
+│   │   ├── useAdminPageData.ts
+│   │   ├── useDocumentChatState.ts
+│   │   ├── useApiAction.ts
+│   │   ├── useAuthSession.ts
+│   │   └── useLogoutAction.ts
 │   ├── pages/
 │   │   └── auth/
 │   │       ├── LoginPage.tsx
@@ -102,7 +118,7 @@ frontend/
 └── vite.config.ts
 ```
 
-`src/api`는 호출/어댑터 계층, `src/pages`는 화면 조립, `src/components`는 재사용 UI와 도메인 패널입니다.
+`src/api`는 호출/어댑터 계층, `src/hooks`는 Query 캐시·페이지 상태·mutation, `src/pages`는 화면 조립, `src/components`는 재사용 UI와 도메인 패널입니다.
 
 ## 데이터
 
