@@ -51,9 +51,9 @@ export function useJdMutations(showAlert: ShowAlert) {
   const analyzeJd = useMutation<
     ApiResponse<{ report: { resume_id: number }; resume_id: number } & Record<string, unknown>>,
     unknown,
-    string
+    number
   >({
-    mutationFn: apiClient.requestJobAnalysis,
+    mutationFn: apiClient.requestResumeAnalysis,
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
