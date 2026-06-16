@@ -34,7 +34,22 @@
 - `report_service.invoke()`
 - `_save_analysis_result()`
 
-## 분석 결과
+## 분석 결과 조회 화면
+
+화면: `/analysis-report` (nav: 리포트 / 질문 추천)
+
+파일:
+
+- `frontend/src/pages/AnalysisReportPage.tsx`
+- `frontend/src/hooks/useAnalysisReportPageData.ts`
+
+역할:
+
+- 저장된 `AnalysisReport`와 연결 resume·JD·면접 질문을 목록으로 표시
+- `?resumeId=` 쿼리로 선택 항목 유지 (`useSearchParams`)
+- 리포트 탭 내용과 추천 질문 패널 표시
+
+## 분석 결과 데이터
 
 저장 모델:
 
