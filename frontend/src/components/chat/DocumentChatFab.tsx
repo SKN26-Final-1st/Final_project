@@ -10,9 +10,8 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
-import type { JdItem } from '../../api/adapters';
-import type { ChatMessage } from '../../data/appConfig';
-import type { AnalysisReport, InterviewQuestion, Resume } from '../../data/backendTypes';
+import { useChatPageData } from '../../hooks/useChatPageData';
+import { useDocumentChatState } from '../../hooks/useDocumentChatState';
 import type { Navigate } from '../../types/app';
 import {
   buildChatContextData,
@@ -22,30 +21,12 @@ import {
 } from './chatContextData';
 
 type DocumentChatFabProps = {
-  chatMessages: ChatMessage[];
-  chatInput: string;
-  loadingKey: string | null;
-  jdList: JdItem[];
-  resumes: Resume[];
-  analysisReports: AnalysisReport[];
-  interviewQuestions: InterviewQuestion[];
-  setChatInput: (value: string) => void;
-  sendChatMessage: () => void;
   navigate: Navigate;
 };
 
-export function DocumentChatFab({
-  chatMessages,
-  chatInput,
-  loadingKey,
-  jdList,
-  resumes,
-  analysisReports,
-  interviewQuestions,
-  setChatInput,
-  sendChatMessage,
-  navigate,
-}: DocumentChatFabProps) {
+export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
+  const { analysisReports, interviewQuestions, jdList, resumes } = useChatPageData();
+  const { chatInput, chatMessages, loadingKey, sendChatMessage, setChatInput } = useDocumentChatState();
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<ChatContextScope>('all');
   const [recommendationsOpen, setRecommendationsOpen] = useState(false);
