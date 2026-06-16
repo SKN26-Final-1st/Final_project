@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { ApiResponse } from '../data/backendTypes';
 import type { AlertState } from '../types/app';
 
 export function useApiAction() {
   const [alert, setAlert] = useState<AlertState | null>(null);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const inFlightKeysRef = useRef<Set<string>>(new Set());
 
   const showAlert = useCallback((nextAlert: AlertState) => {
     setAlert(nextAlert);
@@ -18,10 +19,11 @@ export function useApiAction() {
       afterComplete?: (response: ApiResponse<T>) => void,
       onError?: (message: string, error: unknown) => void,
     ) => {
-      if (loadingKey === key) {
+      if (inFlightKeysRef.current.has(key)) {
         return;
       }
 
+      inFlightKeysRef.current.add(key);
       setLoadingKey(key);
       try {
         const response = await action();
@@ -39,10 +41,11 @@ export function useApiAction() {
         });
         onError?.(errorMessage, nextError);
       } finally {
+        inFlightKeysRef.current.delete(key);
         setLoadingKey(null);
       }
     },
-    [loadingKey, showAlert],
+    [showAlert],
   );
 
   return {
