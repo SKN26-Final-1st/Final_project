@@ -9,61 +9,43 @@ import { CreatedAuthKeyPanel } from '../components/admin/CreatedAuthKeyPanel';
 import { UnsupportedBackendPanel } from '../components/admin/UnsupportedBackendPanel';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { AdminData } from '../api/adapters';
-import { apiClient } from '../api/backendClient';
 import type { AuthKey, Resume } from '../data/backendTypes';
-import type { Navigate, RunApiAction, ShowAlert } from '../types/app';
+import { useAdminPageData } from '../hooks/useAdminPageData';
+import { useAdminMutations } from '../hooks/mutations/useAdminMutations';
+import type { Navigate, ShowAlert } from '../types/app';
 
 type AdminPageProps = {
-  admin: AdminData;
-  authKeys: AuthKey[];
-  resumes: Resume[];
-  loadingKey: string | null;
   navigate: Navigate;
-  runApiAction: RunApiAction;
   showAlert: ShowAlert;
-  reloadData: () => Promise<void>;
-  createdAuthKey: Pick<AuthKey, 'name' | 'value'> | null;
-  setCreatedAuthKey: (nextAuthKey: Pick<AuthKey, 'name' | 'value'> | null) => void;
 };
 
 function formatResumeLabel(resume: Resume) {
   return `${resume.name || '이름 없음'} · #${resume.id}`;
 }
 
-export function AdminPage({
-  admin,
-  authKeys,
-  resumes,
-  loadingKey,
-  navigate,
-  runApiAction,
-  showAlert,
-  reloadData,
-  createdAuthKey,
-  setCreatedAuthKey,
-}: AdminPageProps) {
+export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateFormValues>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
+  const [createdAuthKey, setCreatedAuthKey] = useState<Pick<AuthKey, 'name' | 'value'> | null>(null);
+  const { admin, authKeys, resumes } = useAdminPageData();
+  const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAuthKey } =
+    useAdminMutations(showAlert);
+  const loadingKey = createAuthKeyMutation.isPending
+    ? 'authkey-add'
+    : saveAuthKey.isPending && saveAuthKey.variables
+      ? `authkey-save-${saveAuthKey.variables.id}`
+      : deleteAuthKeyMutation.isPending && deleteAuthKeyMutation.variables
+        ? `authkey-delete-${deleteAuthKeyMutation.variables}`
+        : null;
   const resumeOptions = useMemo(
     () => resumes.map((resume) => ({ value: resume.id, label: formatResumeLabel(resume) })),
     [resumes],
   );
 
   const createAuthKey = async (values: AuthKeyCreateFormValues) => {
-    await runApiAction(
-      'authkey-add',
-      () => apiClient.addAuthKey(values),
-      (response) => {
-        form.resetFields();
-        setCreatedAuthKey({ name: response.data.name, value: response.data.value });
-        showAlert({
-          type: 'success',
-          message: '새 API key가 생성되었습니다.',
-        });
-        void reloadData();
-      },
-    );
+    const response = await createAuthKeyMutation.mutateAsync(values);
+    form.resetFields();
+    setCreatedAuthKey({ name: response.data.name, value: response.data.value });
   };
 
   const copyCreatedAuthKey = async () => {
@@ -75,7 +57,7 @@ export function AdminPage({
       await navigator.clipboard.writeText(createdAuthKey.value);
       showAlert({ type: 'success', message: 'API key를 복사했습니다.' });
     } catch {
-      showAlert({ type: 'error', message: '복사에 실패했습니다. API key를 직접 선택해 복사해주세요.' });
+      showAlert({ type: 'error', message: '복사에 실패했습니다. API key를 직접 선택해 복사하세요.' });
     }
   };
 
@@ -86,40 +68,40 @@ export function AdminPage({
   };
 
   const saveAuthorizedResumes = (authKey: AuthKey) => {
-    void runApiAction(
-      `authkey-save-${authKey.id}`,
-      () => apiClient.saveAuthKey({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey) }),
-      () => {
+    void saveAuthKey
+      .mutateAsync({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey) })
+      .then(() => {
         setAuthorizedDrafts((current) => {
           const next = { ...current };
           delete next[authKey.id];
           return next;
         });
-        void reloadData();
-      },
-    );
+      });
   };
 
   const deleteAuthKey = (authKey: AuthKey) => {
-    void runApiAction(
-      `authkey-delete-${authKey.id}`,
-      () => apiClient.deleteAuthKey(authKey.id),
-      () => void reloadData(),
-    );
+    void deleteAuthKeyMutation.mutateAsync(authKey.id);
   };
+
+  if (!admin) {
+    return null;
+  }
 
   return (
     <div className="admin-page startup-admin-page">
       <PageTitle
         eyebrow="Company Admin"
         title="관리자"
-        description={`${admin.companyName}의 포인트, 구독 상태, 공유 API key 접근 범위를 관리합니다.`}
+        description={`${admin.companyName}의 크레딧, 구독 상태, 공유 API key 접근 범위를 관리합니다.`}
         actions={
           <Space wrap>
             <Button icon={<SettingOutlined />} onClick={() => navigate('/company')}>
               회사 정보
             </Button>
-            <Button icon={<ApiOutlined />} onClick={() => showAlert({ type: 'info', message: '플랜/결제 API는 아직 backend에 없습니다.' })}>
+            <Button
+              icon={<ApiOutlined />}
+              onClick={() => showAlert({ type: 'info', message: '플랜/결제 API는 아직 backend에 없습니다.' })}
+            >
               플랜 상태 보기
             </Button>
           </Space>
@@ -137,7 +119,11 @@ export function AdminPage({
             </Tag>
           }
         >
-          <AuthKeyCreateForm form={form} loading={loadingKey === 'authkey-add'} onFinish={(values) => void createAuthKey(values)} />
+          <AuthKeyCreateForm
+            form={form}
+            loading={createAuthKeyMutation.isPending}
+            onFinish={(values) => void createAuthKey(values)}
+          />
 
           {createdAuthKey && (
             <CreatedAuthKeyPanel

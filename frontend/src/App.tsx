@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type Key } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate as RouterNavigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { XProvider } from '@ant-design/x';
 import { App as AntApp, Switch, Tooltip, theme as antdTheme } from 'antd';
@@ -7,11 +7,12 @@ import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
-import { apiClient } from './api/backendClient';
-import { palette, type AppRoute, type ChatMessage } from './data/appConfig';
+import { palette, type AppRoute } from './data/appConfig';
 import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthSession } from './hooks/useAuthSession';
+import { DocumentChatProvider } from './hooks/useDocumentChatState';
+import { useLogoutAction } from './hooks/useLogoutAction';
 import { AdminPage } from './pages/AdminPage';
 import { AnalysisReportPage } from './pages/AnalysisReportPage';
 import { LoginPage, PasswordResetPage, SignupPage } from './pages/AuthPages';
@@ -24,9 +25,8 @@ import { JdPage } from './pages/JdPage';
 import { MyPage } from './pages/MyPage';
 import { RecruitmentPostPage } from './pages/RecruitmentPostPage';
 import { SharedReportPage } from './pages/SharedReportPage';
-import type { KeySetter, ThemeMode } from './types/app';
+import type { ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
-import type { AuthKey } from './data/backendTypes';
 
 export default function App() {
   const routerNavigate = useNavigate();
@@ -34,17 +34,6 @@ export default function App() {
   const route = getRouteFromPathname(location.pathname);
   const [mode, setMode] = useState<ThemeMode>('light');
   const { alert, loadingKey, runApiAction, setAlert, showAlert } = useApiAction();
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [selectedJdIdOverride, setSelectedJdIdOverride] = useState<string | null>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[] | null>(null);
-  const [selectedReportResumeId, setSelectedReportResumeId] = useState<string | null>(null);
-  const [analysisDone, setAnalysisDone] = useState(false);
-  const [createdAuthKey, setCreatedAuthKey] = useState<(Pick<AuthKey, 'name' | 'value'> & { locationKey: string }) | null>(
-    null,
-  );
-  const postGenerated = false;
-  const templateGenerated = false;
   const [resetStep, setResetStep] = useState(0);
   const isAuth = authRoutes.includes(route);
   const isShared = route === '/shared';
@@ -55,23 +44,6 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
-
-  const jdIds = useMemo(() => data?.jdList.map((item) => item.id) ?? [], [data?.jdList]);
-  const selectedJdId =
-    selectedJdIdOverride && jdIds.includes(selectedJdIdOverride) ? selectedJdIdOverride : data?.jdList[0]?.id ?? null;
-  const selectedRows = useMemo(() => {
-    if (selectedRowKeys === null) {
-      return selectedJdId ? [selectedJdId] : [];
-    }
-
-    const validRows = selectedRowKeys.filter((id) => jdIds.includes(String(id)));
-    return validRows;
-  }, [jdIds, selectedJdId, selectedRowKeys]);
-  const activeChatMessages = chatMessages.length ? chatMessages : data?.analysisReport.chatMessages ?? [];
-  const selectedJd = data?.jdList.find((item) => item.id === selectedJdId) ?? data?.jdList[0] ?? null;
-  const updateSelectedRows: KeySetter = (nextRows) => {
-    setSelectedRowKeys((current) => (typeof nextRows === 'function' ? nextRows(current ?? []) : nextRows));
-  };
 
   const themeConfig = useMemo(
     () => ({
@@ -104,56 +76,10 @@ export default function App() {
     [mode],
   );
 
-  const navigate = useCallback((nextRoute: AppRoute) => {
+  const navigate = useCallback((nextRoute: AppRoute | string) => {
     void routerNavigate(nextRoute);
   }, [routerNavigate]);
-
-  const visibleCreatedAuthKey =
-    route === '/admin' && createdAuthKey?.locationKey === location.key ? createdAuthKey : null;
-
-  const updateCreatedAuthKey = useCallback(
-    (nextAuthKey: Pick<AuthKey, 'name' | 'value'> | null) => {
-      setCreatedAuthKey(nextAuthKey ? { ...nextAuthKey, locationKey: location.key } : null);
-    },
-    [location.key, setCreatedAuthKey],
-  );
-
-  const sendChatMessage = () => {
-    if (loadingKey === 'chat') {
-      return;
-    }
-
-    const trimmed = chatInput.trim();
-    if (!trimmed) {
-      showAlert({ type: 'warning', message: '빈 메시지는 전송할 수 없습니다.' });
-      return;
-    }
-
-    const nextChatMessages: ChatMessage[] = [...activeChatMessages, { role: 'user', text: trimmed }];
-    setChatMessages(nextChatMessages);
-    setChatInput('');
-    void runApiAction(
-      'chat',
-      () => apiClient.sendChatMessage(trimmed, nextChatMessages),
-      (response) => setChatMessages((prev) => [...prev, response.data]),
-      () => {
-        setChatMessages((prev) => prev.slice(0, -1));
-        setChatInput(trimmed);
-      },
-    );
-  };
-
-  const logout = () => {
-    if (loadingKey === 'logout') {
-      return;
-    }
-
-    void runApiAction('logout', () => apiClient.logout(), () => {
-      setChatMessages([]);
-      setIsAuthenticated(false);
-      navigate('/login');
-    });
-  };
+  const logout = useLogoutAction({ navigate, runApiAction, setIsAuthenticated });
 
   const themeSwitch = (
     <Tooltip title={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}>
@@ -182,129 +108,42 @@ export default function App() {
 
     switch (route) {
       case '/admin':
-        return (
-          <AdminPage
-            admin={data.admin}
-            authKeys={data.authKeys}
-            resumes={data.resumes}
-            loadingKey={loadingKey}
-            navigate={navigate}
-            runApiAction={runApiAction}
-            showAlert={showAlert}
-            reloadData={reload}
-            createdAuthKey={visibleCreatedAuthKey}
-            setCreatedAuthKey={updateCreatedAuthKey}
-          />
-        );
+        return <AdminPage navigate={navigate} showAlert={showAlert} />;
       case '/company':
         return (
           <CompanyPage
-            company={data.company}
             loadingKey={loadingKey}
             runApiAction={runApiAction}
             showAlert={showAlert}
-            reloadData={reload}
           />
         );
       case '/jd':
-        return (
-          <JdPage
-            jdList={data.jdList}
-            resumes={data.resumes}
-            selectedJdId={selectedJdId}
-            selectedJd={selectedJd}
-            loadingKey={loadingKey}
-            setSelectedJdId={setSelectedJdIdOverride}
-            setSelectedReportResumeId={setSelectedReportResumeId}
-            runApiAction={runApiAction}
-            navigate={navigate}
-            showAlert={showAlert}
-            reloadData={reload}
-          />
-        );
+        return <JdPage navigate={navigate} showAlert={showAlert} />;
       case '/cover-letter':
-        return (
-          <CoverLetterPage
-            jdList={data.jdList}
-            selectedJdId={selectedJdId}
-            resumes={data.resumes}
-            coverRows={data.coverLetterRows}
-            analysisDone={analysisDone}
-            loadingKey={loadingKey}
-            setSelectedJdId={setSelectedJdIdOverride}
-            setSelectedReportResumeId={setSelectedReportResumeId}
-            setAnalysisDone={setAnalysisDone}
-            runApiAction={runApiAction}
-            navigate={navigate}
-            reloadData={reload}
-          />
-        );
+        return <CoverLetterPage navigate={navigate} showAlert={showAlert} />;
       case '/analysis-report':
-        return (
-          <AnalysisReportPage
-            reports={data.analysisReports}
-            questions={data.interviewQuestions}
-            resumes={data.resumes}
-            jdList={data.jdList}
-            selectedReportResumeId={selectedReportResumeId}
-            setSelectedReportResumeId={setSelectedReportResumeId}
-            navigate={navigate}
-          />
-        );
+        return <AnalysisReportPage navigate={navigate} />;
       case '/chat':
-        return (
-          <ChatPage
-            report={data.analysisReport}
-            chatMessages={activeChatMessages}
-            chatInput={chatInput}
-            loadingKey={loadingKey}
-            jdList={data.jdList}
-            resumes={data.resumes}
-            analysisReports={data.analysisReports}
-            interviewQuestions={data.interviewQuestions}
-            setChatMessages={setChatMessages}
-            setChatInput={setChatInput}
-            sendChatMessage={sendChatMessage}
-          />
-        );
+        return <ChatPage />;
       case '/mypage':
         return (
           <MyPage
-            profile={data.userProfile}
-            company={data.company}
             loadingKey={loadingKey}
             navigate={navigate}
             runApiAction={runApiAction}
-            reloadData={reload}
           />
         );
       case '/recruitment-post':
-        return (
-          <RecruitmentPostPage
-            jdList={data.jdList}
-            recruitmentPreview={data.recruitmentPreview}
-            selectedRows={selectedRows}
-            postGenerated={postGenerated}
-            setSelectedRows={updateSelectedRows}
-          />
-        );
+        return <RecruitmentPostPage />;
       case '/cover-letter-template':
-        return (
-          <CoverLetterTemplatePage
-            selectedJd={selectedJd}
-            templateQuestions={data.templateQuestions}
-            templateGenerated={templateGenerated}
-          />
-        );
+        return <CoverLetterTemplatePage />;
       case '/dashboard':
       default:
         return (
           <DashboardPage
-            dashboard={data.dashboard}
             mode={mode}
             navigate={navigate}
             showAlert={showAlert}
-            reloadData={reload}
           />
         );
     }
@@ -354,6 +193,29 @@ export default function App() {
     }
   };
 
+  const protectedContent = (
+    <DocumentChatProvider
+      defaultMessages={data?.analysisReport.chatMessages ?? []}
+      loadingKey={loadingKey}
+      runApiAction={runApiAction}
+      showAlert={showAlert}
+    >
+      <AppShell
+        route={route}
+        mode={mode}
+        assistantFab={route === '/chat' ? undefined : <DocumentChatFab navigate={navigate} />}
+        themeSwitch={themeSwitch}
+        creditPercent={data?.dashboard.creditPercent ?? 0}
+        profile={data?.userProfile}
+        navigate={navigate}
+        onLogout={logout}
+        showAlert={showAlert}
+      >
+        {renderProtectedPage()}
+      </AppShell>
+    </DocumentChatProvider>
+  );
+
   const pageContent = (
     <XProvider theme={themeConfig}>
       <AntApp>
@@ -368,34 +230,7 @@ export default function App() {
           ) : !isAuthenticated ? (
             <RouterNavigate to="/login" replace />
           ) : (
-            <AppShell
-              route={route}
-              mode={mode}
-              assistantFab={
-                route === '/chat' ? undefined : (
-                  <DocumentChatFab
-                    chatMessages={activeChatMessages}
-                    chatInput={chatInput}
-                    loadingKey={loadingKey}
-                    jdList={data?.jdList ?? []}
-                    resumes={data?.resumes ?? []}
-                    analysisReports={data?.analysisReports ?? []}
-                    interviewQuestions={data?.interviewQuestions ?? []}
-                    setChatInput={setChatInput}
-                    sendChatMessage={sendChatMessage}
-                    navigate={navigate}
-                  />
-                )
-              }
-              themeSwitch={themeSwitch}
-              creditPercent={data?.dashboard.creditPercent ?? 0}
-              profile={data?.userProfile}
-              navigate={navigate}
-              onLogout={logout}
-              showAlert={showAlert}
-            >
-              {renderProtectedPage()}
-            </AppShell>
+            protectedContent
           )}
         </div>
       </AntApp>

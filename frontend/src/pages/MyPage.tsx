@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Button, Col, Form, Row } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import { SaveOutlined } from '@ant-design/icons';
 import { AccountSettingsForm, type AccountSettingsFormValues } from '../components/mypage/AccountSettingsForm';
 import { CompanySummaryPanel } from '../components/mypage/CompanySummaryPanel';
@@ -8,18 +9,17 @@ import { SecuritySettingsForm, type SecuritySettingsFormValues } from '../compon
 import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { CompanyProfile, UserProfile } from '../api/adapters';
+import type { UserProfile } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
+import { queryKeys } from '../api/queryKeys';
+import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { Navigate, RunApiAction } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type MyPageProps = {
-  profile: UserProfile;
-  company: CompanyProfile;
   loadingKey: string | null;
   navigate: Navigate;
   runApiAction: RunApiAction;
-  reloadData: () => Promise<void>;
 };
 
 function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
@@ -33,21 +33,36 @@ function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
 }
 
 export function MyPage({
-  profile,
-  company,
   loadingKey,
   navigate,
   runApiAction,
-  reloadData,
 }: MyPageProps) {
   const [accountForm] = Form.useForm<AccountSettingsFormValues>();
   const [securityForm] = Form.useForm<SecuritySettingsFormValues>();
-  const accountInitialValues = toAccountFormValues(profile);
+  const queryClient = useQueryClient();
+  const { data } = useAppDataQuery();
+  const profile = data?.userProfile;
+  const company = data?.company;
+  const accountInitialValues = profile
+    ? toAccountFormValues(profile)
+    : {
+        username: '',
+        name: '',
+        credit: 0,
+        subscribe: false,
+        verification_question: '',
+      };
 
   useEffect(() => {
-    accountForm.setFieldsValue(toAccountFormValues(profile));
-    securityForm.resetFields();
+    if (profile) {
+      accountForm.setFieldsValue(toAccountFormValues(profile));
+      securityForm.resetFields();
+    }
   }, [accountForm, profile, securityForm]);
+
+  if (!profile || !company) {
+    return null;
+  }
 
   const saveProfile = () => {
     let passwordChanged = false;
@@ -93,11 +108,11 @@ export function MyPage({
       () => {
         if (passwordChanged) {
           securityForm.resetFields();
-          void reloadData();
+          void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
           return;
         }
 
-        void reloadData();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
       },
     );
   };

@@ -1,29 +1,16 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Button, Col, Row, Tabs, Tag } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { JdItem } from '../api/adapters';
-import type { AnalysisReport, InterviewQuestion, Resume } from '../data/backendTypes';
+import type { AnalysisReport } from '../data/backendTypes';
+import { useAnalysisReportPageData } from '../hooks/useAnalysisReportPageData';
 import type { Navigate } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type AnalysisReportPageProps = {
-  reports: AnalysisReport[];
-  questions: InterviewQuestion[];
-  resumes: Resume[];
-  jdList: JdItem[];
-  selectedReportResumeId: string | null;
-  setSelectedReportResumeId: (id: string) => void;
   navigate: Navigate;
-};
-
-type ReportItem = {
-  report: AnalysisReport;
-  resume: Resume | null;
-  jd: JdItem | null;
-  questions: InterviewQuestion[];
 };
 
 function toDisplayText(value: unknown) {
@@ -70,32 +57,8 @@ function ReportTextList({ items, emptyText }: { items: string[]; emptyText: stri
   );
 }
 
-export function AnalysisReportPage({
-  reports,
-  questions,
-  resumes,
-  jdList,
-  selectedReportResumeId,
-  setSelectedReportResumeId,
-  navigate,
-}: AnalysisReportPageProps) {
-  const reportItems = useMemo<ReportItem[]>(
-    () =>
-      reports.map((report) => {
-        const resume = resumes.find((item) => item.id === report.resume_id) ?? null;
-        const jd = resume ? jdList.find((item) => Number(item.id) === resume.job_description_id) ?? null : null;
-
-        return {
-          report,
-          resume,
-          jd,
-          questions: questions.filter((item) => item.resume_id === report.resume_id),
-        };
-      }),
-    [jdList, questions, reports, resumes],
-  );
-  const selectedItem =
-    reportItems.find((item) => String(item.report.resume_id) === selectedReportResumeId) ?? reportItems[0] ?? null;
+export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
+  const { reportItems, selectedItem, selectedReportResumeId, setSelectedReportResumeId } = useAnalysisReportPageData();
   const selectedChecklist = selectedItem ? checklistItems(selectedItem.report) : [];
 
   useEffect(() => {
@@ -249,7 +212,7 @@ export function AnalysisReportPage({
                 />
               </div>
             ) : (
-              <EmptyState description="분석 요청을 완료하면 리포트와 질문 추천이 표시됩니다." />
+              <EmptyState description="분석 요청이 완료되면 리포트와 질문 추천이 표시됩니다." />
             )}
           </SectionCard>
         </Col>

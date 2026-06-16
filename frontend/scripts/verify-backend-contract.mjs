@@ -194,7 +194,8 @@ assert(
 );
 
 assert(
-  /const postGenerated = false;/.test(app) && /const templateGenerated = false;/.test(app),
+  /const postGenerated = false;/.test(recruitmentPostPage) &&
+    /const templateGenerated = false;/.test(coverLetterTemplatePage),
   'Unsupported recruitment/template generation pages must not start in mock-generated success state',
 );
 
@@ -308,7 +309,7 @@ assert(
 assert(
   /apiClient\.login\(profile\.username,\s*securityValues\.password\)/.test(myPage) &&
     /securityForm\.resetFields\(\)/.test(myPage) &&
-    /void reloadData\(\)/.test(myPage) &&
+    /invalidateQueries\(\{\s*queryKey:\s*queryKeys\.appData\(\)\s*\}\)/.test(myPage) &&
     !/onPasswordChanged/.test(myPage) &&
     !/onPasswordChanged=/.test(app),
   'Password changes must refresh the session with the new password, clear password fields, and stay on protected routes',

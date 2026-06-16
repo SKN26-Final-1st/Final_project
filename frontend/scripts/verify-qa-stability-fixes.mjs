@@ -20,9 +20,9 @@ assert(/setCheckedUsername\(null\)/.test(signupPage), 'SignupPage must reset use
 assert(/available === true/.test(signupPage), 'SignupPage must only mark username as checked when backend says available=true.');
 assert(/checkedUsername !== values\.username\.trim\(\)/.test(signupPage), 'SignupPage submit must block when the checked username differs from the current value.');
 
-const app = read('src/App.tsx');
-assert(/setChatInput\(trimmed\)/.test(app), 'Chat failure must restore the original input.');
-assert(/prev\.slice\(0,\s*-1\)/.test(app), 'Chat failure must remove the optimistic user message.');
+const chatState = read('src/hooks/useDocumentChatState.ts');
+assert(/setChatInput\(trimmed\)/.test(chatState), 'Chat failure must restore the original input.');
+assert(/prev\.slice\(0,\s*-1\)/.test(chatState), 'Chat failure must remove the optimistic user message.');
 
 const useAppData = read('src/hooks/useAppData.ts');
 assert(/loading:\s*enabled\s*&&\s*isPending/.test(useAppData), 'useAppData loading must be based on initial pending state only.');

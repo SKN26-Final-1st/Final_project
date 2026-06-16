@@ -9,25 +9,15 @@ import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUp
 import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { CoverLetterRow, JdItem } from '../api/adapters';
-import { apiClient } from '../api/backendClient';
 import type { Resume } from '../data/backendTypes';
-import type { Navigate, RunApiAction } from '../types/app';
+import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
+import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
+import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type CoverLetterPageProps = {
-  jdList: JdItem[];
-  selectedJdId: string | null;
-  resumes: Resume[];
-  coverRows: CoverLetterRow[];
-  analysisDone: boolean;
-  loadingKey: string | null;
-  setSelectedJdId: (id: string) => void;
-  setSelectedReportResumeId: (id: string) => void;
-  setAnalysisDone: (value: boolean) => void;
-  runApiAction: RunApiAction;
   navigate: Navigate;
-  reloadData: () => Promise<void>;
+  showAlert: ShowAlert;
 };
 
 function getSelfIntroduction(resume: Resume | null) {
@@ -81,22 +71,11 @@ function toEmptyCoverLetterValues(selectedJdId: string | null): CoverLetterInput
   };
 }
 
-export function CoverLetterPage({
-  jdList,
-  selectedJdId,
-  resumes,
-  coverRows,
-  analysisDone,
-  loadingKey,
-  setSelectedJdId,
-  setSelectedReportResumeId,
-  setAnalysisDone,
-  runApiAction,
-  navigate,
-  reloadData,
-}: CoverLetterPageProps) {
+export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const [form] = Form.useForm<CoverLetterInputFormValues>();
   const [isCreatingCoverLetter, setIsCreatingCoverLetter] = useState(false);
+  const { coverRows, jdList, resumes, selectedJdId, setSelectedJdId } = useCoverLetterPageData();
+  const { addResume, analyzeResume, saveResume } = useResumeMutations(showAlert);
   const currentResume = useMemo(
     () => resumes.find((resume) => String(resume.job_description_id) === selectedJdId) ?? null,
     [resumes, selectedJdId],
@@ -109,11 +88,10 @@ export function CoverLetterPage({
         : toCoverLetterInitialValues(selectedJdId, editingResume),
     [editingResume, isCreatingCoverLetter, selectedJdId],
   );
-  const isSaving = loadingKey === 'cover-save';
-  const isAnalyzing = loadingKey === 'cover-analysis';
   const hasCurrentResume = Boolean(currentResume);
   const isEditMode = Boolean(editingResume);
   const canAnalyze = Boolean(selectedJdId && currentResume && !isCreatingCoverLetter);
+  const analysisDone = currentResume?.status === 'done';
 
   useEffect(() => {
     form.setFieldsValue(initialValues);
@@ -149,33 +127,22 @@ export function CoverLetterPage({
       ],
     };
 
-    await runApiAction(
-      'cover-save',
-      () =>
-        editingResume
-          ? apiClient.saveResume({ id: editingResume.id, ...payload })
-          : apiClient.addResume({ job_description_id: jobDescriptionId, ...payload }),
-      () => {
-        setIsCreatingCoverLetter(false);
-        void reloadData();
-      },
-    );
+    if (editingResume) {
+      await saveResume.mutateAsync({ id: editingResume.id, ...payload });
+    } else {
+      await addResume.mutateAsync({ job_description_id: jobDescriptionId, ...payload });
+    }
+
+    setIsCreatingCoverLetter(false);
   };
 
-  const requestAnalysis = () => {
-    if (!selectedJdId || !currentResume) {
+  const requestAnalysis = async () => {
+    if (!currentResume) {
       return;
     }
 
-    void runApiAction(
-      'cover-analysis',
-      () => apiClient.requestResumeAnalysis(currentResume.id),
-      (response) => {
-        setSelectedReportResumeId(String(response.data.report.resume_id || response.data.resume_id));
-        setAnalysisDone(true);
-        void reloadData().finally(() => navigate('/analysis-report'));
-      },
-    );
+    const response = await analyzeResume.mutateAsync(currentResume.id);
+    navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
   };
 
   return (
@@ -186,16 +153,16 @@ export function CoverLetterPage({
         description="저장된 자소서를 확인하고, 선택한 JD에 맞춰 작성/수정 후 분석 요청을 진행합니다."
         actions={
           <Space wrap>
-            <Button icon={<SaveOutlined />} loading={isSaving} onClick={() => void saveCurrentResume()}>
+            <Button icon={<SaveOutlined />} loading={saveResume.isPending || addResume.isPending} onClick={() => void saveCurrentResume()}>
               저장
             </Button>
             <Button
               type="primary"
               icon={<FileSearchOutlined />}
-              disabled={!canAnalyze || isAnalyzing}
-              onClick={requestAnalysis}
+              disabled={!canAnalyze || analyzeResume.isPending}
+              onClick={() => void requestAnalysis()}
             >
-              {isAnalyzing ? <InlineLoading label="분석 중" /> : '분석 요청'}
+              {analyzeResume.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}
             </Button>
           </Space>
         }
