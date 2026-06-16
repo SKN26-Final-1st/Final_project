@@ -53,12 +53,15 @@
 파일:
 
 - `frontend/src/pages/JdPage.tsx`
+- `frontend/src/hooks/useJdPageData.ts`, `frontend/src/hooks/mutations/useJdMutations.ts`
 - `frontend/src/components/jd/JdListPanel.tsx`
 - `frontend/src/components/jd/JdEditorPanel.tsx`
+- `frontend/src/components/jd/JdDeleteModal.tsx`
+- `frontend/src/components/jd/JdListEmptyState.tsx`
 
 역할:
 
-- JD 목록 선택
+- JD 목록 선택·생성·수정·삭제 (`useJdMutations`)
 - JD 상세 표시
 - 분석 요청 버튼으로 지원서 분석 흐름 시작
 - 모집 공고 작성 화면으로 이동

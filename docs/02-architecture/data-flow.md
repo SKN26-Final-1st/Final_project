@@ -46,7 +46,7 @@ flowchart TD
 1. Vite dev server가 `/api` 요청을 `http://127.0.0.1:8000`으로 프록시합니다. 근거: `frontend/vite.config.ts`
 2. `apiClient`는 Axios 인스턴스로 `/api/.../`에 POST합니다. `withCredentials: true`로 세션 쿠키를 전달합니다.
 3. POST 요청은 CSRF 쿠키가 없으면 `/api/csrf/`를 먼저 호출합니다.
-4. `VITE_API_KEY`가 있으면 `X-API-Key` 헤더를 추가합니다.
+4. 호출부가 `{ apiKey }` 옵션을 넘긴 경우에만 `X-API-Key` 헤더를 추가합니다.
 5. Django는 `backend/api/urls.py`에 등록된 view로 요청을 보냅니다.
 6. view는 `backend/api/models.py` 모델을 조회/수정하고 `to_dict()` 결과를 JSON으로 반환합니다.
 

@@ -14,11 +14,22 @@
 
 ## 공유 상태
 
-`App.tsx`의 `DocumentChatProvider`(`frontend/src/hooks/useDocumentChatState.ts`)가 `chatMessages`, `chatInput`, `sendChatMessage()`를 관리합니다. `/chat` 화면과 FAB 위젯은 `useDocumentChatState()`로 같은 컨텍스트를 읽으므로 대화 내용이 이어집니다.
+`App.tsx`의 `DocumentChatProvider`(`frontend/src/hooks/useDocumentChatState.ts`)가 `chatMessages`, `chatInput`, `sendChatMessage()`, `resetChatMessages()`를 관리합니다. `/chat` 화면과 FAB 위젯은 `useDocumentChatState()`로 같은 컨텍스트를 읽으므로 대화 내용이 이어집니다.
 
-초기 메시지는 `mapAnalysisReport()`가 만든 `data.analysisReport.chatMessages`를 `defaultMessages`로 전달합니다. 근거: `frontend/src/App.tsx`, `frontend/src/api/adapters.ts`
+채팅 메시지 state는 빈 배열로 시작합니다. `ChatPage`의 "대화 초기화" 버튼이 `resetChatMessages()`를 호출합니다. 근거: `frontend/src/hooks/useDocumentChatState.ts`, `frontend/src/pages/ChatPage.tsx`
 
-위젯 내부의 검색 범위 칩(`전체 문서`, `회사 정책`, `JD`, `분석 리포트`)은 `DocumentChatFab` 내부 state입니다.
+UI 안내 문구는 state와 분리되어 있습니다.
+
+- FAB: `DocumentChatFab`가 첫 번째 버블에 고정 intro 문구를 렌더링합니다.
+- `/chat`: `ChatWindowPanel`이 메시지가 없을 때 empty state와 `suggestedQuestions`를 표시합니다. 추천 질문은 `ChatPage`가 `jdList` 첫 항목을 기준으로 생성합니다.
+
+`mapAnalysisReport()`의 `chatMessages` 필드는 `AppData.analysisReport` view model에 남아 있지만, `DocumentChatProvider`에는 연결되지 않습니다. 근거: `frontend/src/api/adapters.ts`, `frontend/src/api/appDataService.ts`
+
+## 참조 데이터·추천 패널
+
+FAB와 `/chat` 왼쪽 패널은 `useChatPageData()`로 JD·지원서·리포트·면접 질문 slice를 읽고, `frontend/src/components/chat/chatContextData.tsx`의 `buildChatContextData()`로 추천 자료·빠른 질문을 조합합니다.
+
+FAB의 검색 범위 칩은 `chatScopeOptions` 기준이며 라벨은 `전체`, `JD`, `분석 리포트`, `면접 질문`, `사용 가이드`입니다. `DocumentChatFab` 내부 `scope` state로 필터링합니다. 근거: `frontend/src/components/chat/chatContextData.tsx`, `frontend/src/components/chat/DocumentChatFab.tsx`
 
 ## 프론트 전송
 

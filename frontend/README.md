@@ -18,8 +18,9 @@
 
 - `src/api/httpClient.ts`
   - Axios 인스턴스, CSRF 쿠키 읽기, credentials 기본값.
+  - `X-API-Key`는 `{ apiKey }` 옵션을 넘긴 요청에만 붙입니다. `VITE_API_KEY`는 읽지 않습니다.
 - `src/api/backendClient.ts`
-  - 실제 API 호출, CSRF, credentials, `X-API-Key`, `payload.error` 처리.
+  - 실제 API 호출, CSRF, credentials, 명시 `apiKey` 시 `X-API-Key`, `payload.error` 처리.
 - `src/api/backendSchemas.ts`
   - Django 응답 shape에 맞춘 Zod 스키마와 `parse*` 런타임 검증.
 - `src/data/backendTypes.ts`

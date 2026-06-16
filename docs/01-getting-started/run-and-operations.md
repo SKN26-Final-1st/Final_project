@@ -30,13 +30,7 @@ npm run dev
 
 `dev` 스크립트는 `vite --host 127.0.0.1`이며, 기본 포트는 `5173`입니다. `/api` 요청은 Vite 프록시를 통해 백엔드로 전달됩니다. 근거: `frontend/vite.config.ts`
 
-선택 환경 변수:
-
-```env
-VITE_API_KEY=your-api-key
-```
-
-`VITE_API_KEY`는 `X-API-Key` 헤더로 전달되어 API 키 기반 접근 테스트에 사용됩니다.
+API 키 기반 접근(`/shared` 등)은 화면에서 사용자가 입력한 키를 `apiClient` 호출 시 `{ apiKey }` 옵션으로 넘깁니다. 세션 API에는 자동으로 `X-API-Key`가 붙지 않습니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`
 
 ## 검사 명령
 

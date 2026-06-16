@@ -65,7 +65,7 @@ flowchart TD
 
 - Axios `baseURL: '/api'`, `withCredentials: true`
 - POST 전에 CSRF 쿠키가 없으면 `/api/csrf/`를 호출합니다.
-- `VITE_API_KEY`가 있으면 `X-API-Key` 헤더를 붙입니다.
+- `X-API-Key`는 `requestBackend()` / `requestAction()` 호출 시 `{ apiKey }` 옵션을 넘긴 경우에만 붙습니다. `VITE_API_KEY` 환경 변수는 현재 `httpClient.ts`에서 읽지 않습니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`
 - Django 응답이 `{ error, data, message }` 형태가 아니어도 `normalizePayload()`로 감쌉니다.
 - `getDashboard()`는 account/company/JD/resume/report/question API를 조합합니다.
 - backend API가 없는 후순위 기능은 `unsupportedBackendFeature()`로 명시적 오류를 던집니다.
@@ -88,7 +88,7 @@ flowchart TD
 - `mapCompany`: 회사 정보 완성도 계산
 - `mapJdList`: JD 목록 표시 모델과 평균 적합도 생성
 - `mapCoverLetterRows`: 지원서 테이블 행 생성
-- `mapAnalysisReport`: 리포트 탭, 예시 질문, 초기 채팅 메시지 생성
+- `mapAnalysisReport`: 리포트 탭, 예시 질문 생성. `chatMessages` 필드는 view model에 포함되지만 문서 채팅 state(`useDocumentChatState`)에는 연결되지 않습니다.
 - `mapTemplateQuestions`: 면접 질문을 자기소개서 문항 가이드로 변환
 - `mapUserProfile`: 계정 정보를 마이페이지 표시 모델로 변환
 
