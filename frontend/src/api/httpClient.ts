@@ -15,7 +15,6 @@ type ApiKeyAxiosConfig = AxiosRequestConfig & {
 };
 
 const API_ROOT = '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
 
 export const httpClient = axios.create({
   baseURL: API_ROOT,
@@ -112,8 +111,8 @@ httpClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =
   const headers = AxiosHeaders.from(config.headers);
   const apiKey = (config as InternalAxiosRequestConfig & RequestOptions).apiKey;
 
-  if (apiKey ?? API_KEY) {
-    headers.set('X-API-Key', apiKey ?? API_KEY);
+  if (apiKey) {
+    headers.set('X-API-Key', apiKey);
   }
 
   if ((config.method ?? 'get').toLowerCase() === 'get') {
