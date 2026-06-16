@@ -159,7 +159,8 @@ assert(!/function getResumeSourceForJob[\s\S]*USE_MOCK_API/.test(backendClient),
 
 assert(
   /apiKey\?:\s*string/.test(backendClientContractSource) &&
-    /headers\.set\(['"]X-API-Key['"],\s*apiKey\s*\?\?\s*API_KEY\)/.test(backendClientContractSource),
+    /headers\.set\(['"]X-API-Key['"],\s*apiKey\)/.test(backendClientContractSource) &&
+    !/apiKey\s*\?\?\s*API_KEY/.test(backendClientContractSource),
   'Backend client must support per-request X-API-Key for shared report access',
 );
 
@@ -195,7 +196,7 @@ assert(
 
 assert(
   /const postGenerated = false;/.test(recruitmentPostPage) &&
-    /const templateGenerated = false;/.test(coverLetterTemplatePage),
+    /templateQuestions\.length/.test(coverLetterTemplatePage),
   'Unsupported recruitment/template generation pages must not start in mock-generated success state',
 );
 

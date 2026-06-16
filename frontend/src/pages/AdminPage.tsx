@@ -7,6 +7,7 @@ import { AuthKeyCreateForm, type AuthKeyCreateFormValues } from '../components/a
 import { AuthKeyList } from '../components/admin/AuthKeyList';
 import { CreatedAuthKeyPanel } from '../components/admin/CreatedAuthKeyPanel';
 import { UnsupportedBackendPanel } from '../components/admin/UnsupportedBackendPanel';
+import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { AuthKey, Resume } from '../data/backendTypes';
@@ -84,7 +85,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   };
 
   if (!admin) {
-    return null;
+    return <EmptyState description="관리자 데이터를 불러오지 못했습니다." />;
   }
 
   return (

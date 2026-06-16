@@ -10,7 +10,6 @@ export function CoverLetterTemplatePage() {
   const { data } = useAppDataQuery();
   const selectedJd = data?.jdList[0] ?? null;
   const templateQuestions = data?.templateQuestions ?? [];
-  const templateGenerated = false;
 
   return (
     <>
@@ -61,7 +60,7 @@ export function CoverLetterTemplatePage() {
         </Col>
         <Col xs={24} xl={16}>
           <SectionCard title="문항 및 작성 가이드">
-            {templateGenerated ? (
+            {templateQuestions.length ? (
               <List
                 dataSource={templateQuestions}
                 renderItem={(item) => (

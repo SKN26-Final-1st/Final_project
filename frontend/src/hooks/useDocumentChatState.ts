@@ -3,7 +3,6 @@ import {
   createElement,
   useCallback,
   useContext,
-  useMemo,
   useState,
   type Dispatch,
   type ReactNode,
@@ -25,7 +24,6 @@ type DocumentChatState = {
 
 type DocumentChatProviderProps = {
   children: ReactNode;
-  defaultMessages?: ChatMessage[];
   loadingKey: string | null;
   runApiAction: RunApiAction;
   showAlert: ShowAlert;
@@ -34,21 +32,16 @@ type DocumentChatProviderProps = {
 const DocumentChatContext = createContext<DocumentChatState | null>(null);
 
 function useDocumentChatController({
-  defaultMessages = [],
   loadingKey,
   runApiAction,
   showAlert,
 }: Omit<DocumentChatProviderProps, 'children'>): DocumentChatState {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const activeChatMessages = useMemo(
-    () => (chatMessages.length ? chatMessages : defaultMessages),
-    [chatMessages, defaultMessages],
-  );
 
   const resetChatMessages = useCallback(() => {
-    setChatMessages(defaultMessages);
-  }, [defaultMessages]);
+    setChatMessages([]);
+  }, []);
 
   const sendChatMessage = useCallback(() => {
     if (loadingKey === 'chat') {
@@ -61,7 +54,7 @@ function useDocumentChatController({
       return;
     }
 
-    const nextChatMessages: ChatMessage[] = [...activeChatMessages, { role: 'user', text: trimmed }];
+    const nextChatMessages: ChatMessage[] = [...chatMessages, { role: 'user', text: trimmed }];
     setChatMessages(nextChatMessages);
     setChatInput('');
     void runApiAction(
@@ -73,11 +66,11 @@ function useDocumentChatController({
         setChatInput(trimmed);
       },
     );
-  }, [activeChatMessages, chatInput, loadingKey, runApiAction, showAlert]);
+  }, [chatInput, chatMessages, loadingKey, runApiAction, showAlert]);
 
   return {
     chatInput,
-    chatMessages: activeChatMessages,
+    chatMessages,
     loadingKey,
     resetChatMessages,
     sendChatMessage,
@@ -88,12 +81,11 @@ function useDocumentChatController({
 
 export function DocumentChatProvider({
   children,
-  defaultMessages,
   loadingKey,
   runApiAction,
   showAlert,
 }: DocumentChatProviderProps) {
-  const value = useDocumentChatController({ defaultMessages, loadingKey, runApiAction, showAlert });
+  const value = useDocumentChatController({ loadingKey, runApiAction, showAlert });
 
   return createElement(DocumentChatContext.Provider, { value }, children);
 }

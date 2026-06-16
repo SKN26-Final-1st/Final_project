@@ -5,6 +5,7 @@ import { ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { CompanyCompletionPanel } from '../components/company/CompanyCompletionPanel';
 import { CompanyProfileForm, type CompanyProfileFormValues } from '../components/company/CompanyProfileForm';
 import { InlineLoading } from '../components/common/InlineLoading';
+import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { CompanyProfile } from '../api/adapters';
@@ -52,7 +53,7 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
   }, [company, form]);
 
   if (!company) {
-    return null;
+    return <EmptyState description="회사 정보를 불러오지 못했습니다." />;
   }
 
   const saveCompany = async () => {

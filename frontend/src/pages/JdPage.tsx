@@ -65,9 +65,17 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     [isCreateMode, selectedJd],
   );
   const showEditor = isCreateMode || Boolean(selectedJd && editorInitialValues);
-  const selectedJdResume = selectedJd
-    ? resumes.find((resume) => String(resume.job_description_id) === selectedJd.id) ?? null
-    : null;
+  const selectedJdResumes = useMemo(
+    () => (selectedJd ? resumes.filter((resume) => String(resume.job_description_id) === selectedJd.id) : []),
+    [resumes, selectedJd],
+  );
+  const analysisTargetResume = selectedJdResumes.length === 1 ? selectedJdResumes[0] : null;
+  const analysisDisabledReason =
+    selectedJd && selectedJdResumes.length > 1
+      ? '연결된 자소서가 여러 개입니다. 자소서 페이지에서 분석할 지원자를 선택해 주세요.'
+      : selectedJd && selectedJdResumes.length === 0
+        ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.'
+        : undefined;
 
   useEffect(() => {
     if (isCreateMode) {
@@ -149,11 +157,15 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   };
 
   const requestAnalysis = async () => {
-    if (!selectedJd) {
+    if (!analysisTargetResume) {
+      showAlert({
+        type: 'warning',
+        message: analysisDisabledReason ?? '분석할 지원자를 찾을 수 없습니다.',
+      });
       return;
     }
 
-    const response = await analyzeJd.mutateAsync(selectedJd.id);
+    const response = await analyzeJd.mutateAsync(analysisTargetResume.id);
     navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
   };
 
@@ -181,8 +193,8 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
             <Button
               type="primary"
               icon={<FileSearchOutlined />}
-              disabled={isCreateMode || !selectedJd || !selectedJdResume || analyzeJd.isPending}
-              title={!selectedJdResume && selectedJd ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.' : undefined}
+              disabled={isCreateMode || !selectedJd || !analysisTargetResume || analyzeJd.isPending}
+              title={analysisDisabledReason}
               onClick={() => void requestAnalysis()}
             >
               {analyzeJd.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}

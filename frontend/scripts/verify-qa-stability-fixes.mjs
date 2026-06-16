@@ -33,6 +33,6 @@ assert(!/apiClient\.getUserProfile\(\)/.test(appDataService), 'loadAppData must 
 
 const useApiAction = read('src/hooks/useApiAction.ts');
 assert(!/if\s*\(\s*loadingKey\s*\)\s*\{\s*return;?\s*\}/.test(useApiAction), 'useApiAction must not use a global API action lock.');
-assert(/if\s*\(\s*loadingKey\s*===\s*key\s*\)/.test(useApiAction), 'useApiAction should only block duplicate actions for the same key.');
+assert(/inFlightKeysRef/.test(useApiAction) && /\.has\(key\)/.test(useApiAction), 'useApiAction should only block duplicate actions for the same key.');
 
 console.log('QA stability checks passed.');
