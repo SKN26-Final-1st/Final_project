@@ -88,7 +88,7 @@ flowchart TD
 - `mapCompany`: 회사 정보 완성도 계산
 - `mapJdList`: JD 목록 표시 모델과 평균 적합도 생성
 - `mapCoverLetterRows`: 지원서 테이블 행 생성
-- `mapAnalysisReport`: 리포트 탭, 예시 질문, 초기 채팅 메시지 생성
+- `mapAnalysisReport`: 리포트 탭, 예시 질문 생성. `chatMessages` 필드는 view model에 포함되지만 문서 채팅 state(`useDocumentChatState`)에는 연결되지 않습니다.
 - `mapTemplateQuestions`: 면접 질문을 자기소개서 문항 가이드로 변환
 - `mapUserProfile`: 계정 정보를 마이페이지 표시 모델로 변환
 
