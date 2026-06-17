@@ -48,9 +48,19 @@ export function useResumeMutations(showAlert: ShowAlert) {
     onError: (error) => alertError(showAlert, error),
   });
 
+  const deleteResume = useMutation({
+    mutationFn: apiClient.deleteResume,
+    onSuccess: async (response) => {
+      alertSuccess(showAlert, response);
+      await invalidateAppData();
+    },
+    onError: (error) => alertError(showAlert, error),
+  });
+
   return {
     addResume,
     analyzeResume,
+    deleteResume,
     saveResume,
   };
 }
