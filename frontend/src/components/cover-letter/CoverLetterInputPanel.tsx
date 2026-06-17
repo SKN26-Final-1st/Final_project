@@ -48,9 +48,11 @@ export function CoverLetterInputPanel({
       <Form.Item
         label="연결 JD"
         name="job_description_id"
+        extra={isCreateMode ? undefined : '기존 자소서의 연결 JD는 수정하지 않습니다.'}
         rules={[{ required: true, message: '저장할 JD를 선택해 주세요.' }]}
       >
         <Select
+          disabled={!isCreateMode}
           onChange={(value) => setSelectedJdId(String(value))}
           options={jdList.map((item) => ({ value: Number(item.id), label: item.title }))}
           placeholder="JD를 선택하세요"
