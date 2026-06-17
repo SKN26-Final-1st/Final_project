@@ -4134,6 +4134,132 @@ button,
   }
 }
 
+@media (min-width: 992px) {
+  .content:has(.viewport-page) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .content:has(.viewport-page) .content-frame {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - (var(--shell-content-pad) * 2));
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .viewport-page {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--layout-gap);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .viewport-page > .page-title {
+    flex: 0 0 auto;
+  }
+
+  .viewport-page .page-title {
+    padding-block: calc(var(--layout-gap) - 4px);
+  }
+
+  .viewport-page .page-title p {
+    margin-top: 6px;
+    line-height: 1.55;
+  }
+
+  .viewport-page > .split-editor-layout-row,
+  .viewport-page > .chat-page-layout-row {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+  }
+
+  .viewport-page .split-editor-layout-row > .ant-col,
+  .viewport-page .chat-page-layout-row > .ant-col {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .viewport-page .section-card {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .viewport-page .section-card > .ant-card-head {
+    flex: 0 0 auto;
+  }
+
+  .viewport-page .section-card > .ant-card-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .viewport-page .scroll-card-body > .ant-card-body {
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .viewport-page .admin-workspace-grid {
+    flex: 1 1 0;
+    align-items: stretch;
+    height: 0;
+    min-height: 0;
+  }
+
+  .viewport-page .admin-workspace-grid > .section-card,
+  .viewport-page .admin-workspace-side {
+    min-height: 0;
+  }
+
+  .viewport-page .admin-workspace-side {
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .viewport-page .viewport-column-scroll {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .viewport-page .analysis-report-detail,
+  .viewport-page .analysis-report-tab-panel,
+  .viewport-page .analysis-report-question-list,
+  .viewport-page .cover-letter-list,
+  .viewport-page .jd-list {
+    min-height: 0;
+  }
+
+  .viewport-page .chat-workspace-card {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .viewport-page .chat-workspace-card > .ant-card-body {
+    overflow: hidden;
+  }
+
+  .viewport-page .chat-window-panel,
+  .viewport-page .chat-window {
+    min-height: 0;
+  }
+
+  .viewport-page .chat-window {
+    max-height: none;
+  }
+}
+
 @media (max-width: 1399px) {
   .dashboard-hero {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
