@@ -2806,6 +2806,13 @@ button,
   line-height: 1.5;
 }
 
+.analysis-report-list-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .analysis-report-detail {
   display: grid;
   gap: var(--section-inner-gap);
