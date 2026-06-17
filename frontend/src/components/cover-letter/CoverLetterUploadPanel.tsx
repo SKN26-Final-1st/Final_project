@@ -1,4 +1,4 @@
-import { Button } from 'antd';
+import { Button, Tag } from 'antd';
 import { EmptyState } from '../common/PageState';
 import type { CoverLetterRow } from '../../api/adapters';
 import type { Navigate } from '../../types/app';
@@ -43,10 +43,18 @@ export function CoverLetterUploadPanel({
                 {statusTag(row.status, row.statusCode)}
               </div>
               <span className="cover-letter-list-jd">{row.jd}</span>
+              <div className="cover-letter-list-tags">
+                {row.skills.slice(0, 3).map((skill) => (
+                  <Tag key={skill}>{skill}</Tag>
+                ))}
+                {row.experienceCount > 0 && <Tag color="geekblue">경력 {row.experienceCount}건</Tag>}
+                {row.reviewed && <Tag color="green">검토 완료</Tag>}
+              </div>
               <div className="cover-letter-list-score">
                 <span>점수</span>
                 <strong>{row.score}</strong>
               </div>
+              <span className="cover-letter-list-updated">최근 수정 {row.updatedAt}</span>
             </article>
           ))}
         </div>
