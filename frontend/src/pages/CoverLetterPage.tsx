@@ -5,11 +5,13 @@ import {
   CoverLetterInputPanel,
   type CoverLetterInputFormValues,
 } from '../components/cover-letter/CoverLetterInputPanel';
+import { CoverLetterDeleteModal } from '../components/cover-letter/CoverLetterDeleteModal';
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
 import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { Resume } from '../data/backendTypes';
+import type { CoverLetterRow } from '../api/adapters';
 import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
 import type { Navigate, ShowAlert } from '../types/app';
@@ -68,7 +70,7 @@ function toCoverLetterInitialValues(
   const intro = getSelfIntroduction(currentResume);
 
   return {
-    job_description_id: selectedJdId ? Number(selectedJdId) : currentResume?.job_description_id,
+    job_description_id: currentResume?.job_description_id ?? (selectedJdId ? Number(selectedJdId) : undefined),
     name: currentResume?.name ?? '',
     skill: toStringArray(currentResume?.skill),
     education_level_text: toEducationSummary(currentResume?.education_level),
@@ -103,11 +105,13 @@ function toEmptyCoverLetterValues(selectedJdId: string | null): CoverLetterInput
 export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const [form] = Form.useForm<CoverLetterInputFormValues>();
   const [isCreatingCoverLetter, setIsCreatingCoverLetter] = useState(false);
-  const { coverRows, jdList, resumes, selectedJdId, setSelectedJdId } = useCoverLetterPageData();
-  const { addResume, analyzeResume, saveResume } = useResumeMutations(showAlert);
+  const [deleteTargetResume, setDeleteTargetResume] = useState<CoverLetterRow | null>(null);
+  const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId } =
+    useCoverLetterPageData();
+  const { addResume, analyzeResume, deleteResume, saveResume } = useResumeMutations(showAlert);
   const currentResume = useMemo(
-    () => resumes.find((resume) => String(resume.job_description_id) === selectedJdId) ?? null,
-    [resumes, selectedJdId],
+    () => resumes.find((resume) => String(resume.id) === selectedResumeId) ?? null,
+    [resumes, selectedResumeId],
   );
   const editingResume = isCreatingCoverLetter ? null : currentResume;
   const initialValues = useMemo(
@@ -117,18 +121,72 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
         : toCoverLetterInitialValues(selectedJdId, editingResume),
     [editingResume, isCreatingCoverLetter, selectedJdId],
   );
-  const hasCurrentResume = Boolean(currentResume);
+  const hasCurrentResume = Boolean(editingResume);
   const isEditMode = Boolean(editingResume);
-  const canAnalyze = Boolean(selectedJdId && currentResume && !isCreatingCoverLetter);
-  const analysisDone = currentResume?.status === 'done';
+  const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter);
+  const analysisDone = editingResume?.status === 'done';
 
   useEffect(() => {
+    form.resetFields();
     form.setFieldsValue(initialValues);
   }, [form, initialValues]);
 
   const startCreateCoverLetter = () => {
     setIsCreatingCoverLetter(true);
     form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
+  };
+
+  const selectResume = (resumeId: string) => {
+    const nextResume = resumes.find((resume) => String(resume.id) === resumeId);
+
+    setIsCreatingCoverLetter(false);
+    setSelectedResumeId(resumeId);
+
+    if (nextResume) {
+      setSelectedJdId(String(nextResume.job_description_id));
+      form.resetFields();
+      form.setFieldsValue(toCoverLetterInitialValues(null, nextResume));
+    }
+  };
+
+  const requestDeleteResume = (resumeId: string) => {
+    const targetResume = coverRows.find((row) => row.key === resumeId);
+
+    if (!targetResume) {
+      showAlert({ type: 'warning', message: '삭제할 자소서를 찾을 수 없습니다.' });
+      return;
+    }
+
+    setDeleteTargetResume(targetResume);
+  };
+
+  const closeDeleteResumeModal = () => {
+    if (!deleteResume.isPending) {
+      setDeleteTargetResume(null);
+    }
+  };
+
+  const confirmDeleteResume = async () => {
+    if (!deleteTargetResume) {
+      return;
+    }
+
+    const targetId = deleteTargetResume.key;
+    await deleteResume.mutateAsync(Number(targetId));
+    setDeleteTargetResume(null);
+
+    if (selectedResumeId === targetId) {
+      const nextResume = resumes.find((resume) => String(resume.id) !== targetId);
+
+      if (nextResume) {
+        selectResume(String(nextResume.id));
+      } else {
+        setSelectedResumeId(null);
+        setIsCreatingCoverLetter(true);
+        form.resetFields();
+        form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
+      }
+    }
   };
 
   const saveCurrentResume = async () => {
@@ -164,20 +222,23 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     };
 
     if (editingResume) {
-      await saveResume.mutateAsync({ id: editingResume.id, ...payload });
+      const response = await saveResume.mutateAsync({ id: editingResume.id, ...payload });
+      setSelectedResumeId(String(response.data.id));
     } else {
-      await addResume.mutateAsync({ job_description_id: jobDescriptionId, ...payload });
+      const response = await addResume.mutateAsync({ job_description_id: jobDescriptionId, ...payload });
+      setSelectedResumeId(String(response.data.id));
+      setSelectedJdId(String(response.data.job_description_id));
     }
 
     setIsCreatingCoverLetter(false);
   };
 
   const requestAnalysis = async () => {
-    if (!currentResume) {
+    if (!editingResume) {
       return;
     }
 
-    const response = await analyzeResume.mutateAsync(currentResume.id);
+    const response = await analyzeResume.mutateAsync(editingResume.id);
     navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
   };
 
@@ -219,6 +280,9 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
               hasSavedResume={hasCurrentResume}
               analysisDone={analysisDone}
               navigate={navigate}
+              selectedResumeId={isCreatingCoverLetter ? null : selectedResumeId}
+              onSelectResume={selectResume}
+              onDeleteResume={requestDeleteResume}
             />
           </SectionCard>
         </Col>
@@ -234,6 +298,12 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
           </SectionCard>
         </Col>
       </Row>
+      <CoverLetterDeleteModal
+        targetResume={deleteTargetResume}
+        deleting={deleteResume.isPending}
+        onCancel={closeDeleteResumeModal}
+        onConfirm={() => void confirmDeleteResume()}
+      />
     </div>
   );
 }
