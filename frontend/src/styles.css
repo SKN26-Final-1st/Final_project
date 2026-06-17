@@ -5037,6 +5037,149 @@ button,
   width: min(360px, 100%);
 }
 
+.authkey-delete-modal-content {
+  display: grid;
+  gap: 12px;
+}
+
+.authkey-delete-modal .ant-modal-content {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.authkey-delete-modal .ant-modal-header,
+.authkey-delete-modal .ant-modal-body,
+.authkey-delete-modal .ant-modal-footer {
+  padding-inline: 18px;
+}
+
+.authkey-delete-modal .ant-modal-header {
+  padding-top: 18px;
+  padding-bottom: 8px;
+}
+
+.authkey-delete-modal .ant-modal-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.authkey-delete-modal .ant-modal-close {
+  top: 12px;
+  inset-inline-end: 12px;
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+
+.authkey-delete-modal .ant-modal-close:hover,
+.authkey-delete-modal .ant-modal-close:focus-visible {
+  color: var(--text);
+  background: var(--surface-soft);
+  outline: 2px solid color-mix(in srgb, var(--primary) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.authkey-delete-modal .ant-modal-body {
+  padding-top: 8px;
+  padding-bottom: 12px;
+}
+
+.authkey-delete-modal .ant-modal-footer {
+  padding-top: 8px;
+  padding-bottom: 16px;
+}
+
+.authkey-delete-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.authkey-delete-modal-footer .ant-btn-default {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-raised) !important;
+}
+
+.authkey-delete-modal-footer .ant-btn-primary.ant-btn-dangerous {
+  color: #fff;
+  border-color: var(--danger);
+  background: var(--danger) !important;
+  box-shadow: none;
+}
+
+.authkey-delete-modal-footer .ant-btn-primary.ant-btn-dangerous:not(:disabled):hover,
+.authkey-delete-modal-footer .ant-btn-primary.ant-btn-dangerous:not(:disabled):focus-visible {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--danger) 78%, #000);
+  background: color-mix(in srgb, var(--danger) 88%, #000) !important;
+}
+
+.authkey-delete-modal-footer .ant-btn-primary.ant-btn-dangerous:disabled {
+  color: rgba(255, 255, 255, 0.78);
+  border-color: color-mix(in srgb, var(--danger) 44%, var(--border));
+  background: color-mix(in srgb, var(--danger) 58%, var(--surface-soft)) !important;
+}
+
+.authkey-delete-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-soft));
+  color: var(--text);
+}
+
+.authkey-delete-warning > .anticon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--warning);
+  font-size: 16px;
+}
+
+.authkey-delete-warning strong,
+.authkey-delete-warning p {
+  margin: 0;
+}
+
+.authkey-delete-warning strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.authkey-delete-warning p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.authkey-delete-target {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.authkey-delete-target strong,
+.authkey-delete-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .admin-credit-panel {
   display: flex;
   align-items: center;
