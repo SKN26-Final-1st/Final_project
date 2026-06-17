@@ -64,7 +64,7 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
   };
 
   return (
-    <>
+    <div className="company-page viewport-page">
       <PageTitle
         eyebrow="Company"
         title="회사 정보 입력"
@@ -91,18 +91,18 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
           </Space>
         }
       />
-      <Row className="section-row" gutter={pageSectionGutter}>
+      <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={15}>
-          <SectionCard title="회사 프로필">
+          <SectionCard className="scroll-card-body" title="회사 프로필">
             <CompanyProfileForm form={form} initialValues={initialValues} />
           </SectionCard>
         </Col>
         <Col xs={24} xl={9}>
-          <SectionCard title="입력 완성도">
+          <SectionCard className="scroll-card-body" title="입력 완성도">
             <CompanyCompletionPanel company={company} showAlert={showAlert} />
           </SectionCard>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

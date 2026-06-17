@@ -119,7 +119,7 @@ export function MyPage({
   };
 
   return (
-    <>
+    <div className="mypage-page viewport-page">
       <PageTitle
         eyebrow="My Page"
         title="마이페이지"
@@ -135,13 +135,13 @@ export function MyPage({
           </Button>
         }
       />
-      <Row className="section-row" gutter={pageSectionGutter}>
+      <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
-          <SectionCard title="프로필">
+          <SectionCard className="scroll-card-body" title="프로필">
             <ProfileSummaryCard profile={profile} />
           </SectionCard>
         </Col>
-        <Col xs={24} xl={16}>
+        <Col className="viewport-column-scroll" xs={24} xl={16}>
           <Row className="section-row" gutter={pageSectionGutter}>
             <Col xs={24} lg={12}>
               <SectionCard title="계정 정보">
@@ -161,6 +161,6 @@ export function MyPage({
           </Row>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

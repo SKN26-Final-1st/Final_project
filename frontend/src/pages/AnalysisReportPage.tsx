@@ -68,7 +68,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
   }, [selectedItem, selectedReportResumeId, setSelectedReportResumeId]);
 
   return (
-    <>
+    <div className="analysis-report-page viewport-page">
       <PageTitle
         eyebrow="Analysis Report"
         title="분석 리포트 / 질문 추천"
@@ -81,7 +81,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
       />
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
-          <SectionCard title="리포트 목록">
+          <SectionCard className="scroll-card-body" title="리포트 목록">
             {reportItems.length ? (
               <div className="analysis-report-list" aria-label="Analysis report list">
                 {reportItems.map((item) => {
@@ -106,7 +106,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard title="리포트 / 질문 상세">
+          <SectionCard className="scroll-card-body" title="리포트 / 질문 상세">
             {selectedItem ? (
               <div className="analysis-report-detail">
                 <div className="analysis-report-selected-summary">
@@ -217,6 +217,6 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
           </SectionCard>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

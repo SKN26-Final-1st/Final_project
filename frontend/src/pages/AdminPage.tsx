@@ -4,6 +4,7 @@ import { ApiOutlined, KeyOutlined, SettingOutlined } from '@ant-design/icons';
 import { AdminCreditPanel } from '../components/admin/AdminCreditPanel';
 import { AdminSummaryCards } from '../components/admin/AdminSummaryCards';
 import { AuthKeyCreateForm, type AuthKeyCreateFormValues } from '../components/admin/AuthKeyCreateForm';
+import { AuthKeyDeleteModal } from '../components/admin/AuthKeyDeleteModal';
 import { AuthKeyList } from '../components/admin/AuthKeyList';
 import { CreatedAuthKeyPanel } from '../components/admin/CreatedAuthKeyPanel';
 import { UnsupportedBackendPanel } from '../components/admin/UnsupportedBackendPanel';
@@ -28,6 +29,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateFormValues>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
   const [createdAuthKey, setCreatedAuthKey] = useState<Pick<AuthKey, 'name' | 'value'> | null>(null);
+  const [deleteTargetAuthKey, setDeleteTargetAuthKey] = useState<AuthKey | null>(null);
   const { admin, authKeys, resumes } = useAdminPageData();
   const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAuthKey } =
     useAdminMutations(showAlert);
@@ -81,7 +83,16 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   };
 
   const deleteAuthKey = (authKey: AuthKey) => {
-    void deleteAuthKeyMutation.mutateAsync(authKey.id);
+    setDeleteTargetAuthKey(authKey);
+  };
+
+  const confirmDeleteAuthKey = async () => {
+    if (!deleteTargetAuthKey) {
+      return;
+    }
+
+    await deleteAuthKeyMutation.mutateAsync(deleteTargetAuthKey.id);
+    setDeleteTargetAuthKey(null);
   };
 
   if (!admin) {
@@ -89,7 +100,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   }
 
   return (
-    <div className="admin-page startup-admin-page">
+    <div className="admin-page startup-admin-page viewport-page">
       <PageTitle
         eyebrow="Company Admin"
         title="관리자"
@@ -113,6 +124,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
 
       <div className="admin-workspace-grid">
         <SectionCard
+          className="scroll-card-body"
           title="공유 API key"
           extra={
             <Tag color="blue" icon={<KeyOutlined />}>
@@ -142,6 +154,14 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
             updateAuthorizedDraft={updateAuthorizedDraft}
             saveAuthorizedResumes={saveAuthorizedResumes}
             deleteAuthKey={deleteAuthKey}
+          />
+
+          <AuthKeyDeleteModal
+            authKey={deleteTargetAuthKey}
+            open={Boolean(deleteTargetAuthKey)}
+            loading={deleteAuthKeyMutation.isPending}
+            onCancel={() => setDeleteTargetAuthKey(null)}
+            onConfirm={() => void confirmDeleteAuthKey()}
           />
         </SectionCard>
 

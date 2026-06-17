@@ -32,7 +32,7 @@ export function ChatPage() {
   }, [jdList]);
 
   return (
-    <>
+    <div className="chat-page viewport-page">
       <PageTitle
         eyebrow="AI Document Search"
         title="AI 채팅"
@@ -45,7 +45,7 @@ export function ChatPage() {
       />
       <Row className="section-row chat-page-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={9}>
-          <SectionCard title="참조 데이터">
+          <SectionCard className="scroll-card-body" title="참조 데이터">
             <DocumentSearchContextPanel
               jdList={jdList}
               resumes={resumes}
@@ -71,6 +71,6 @@ export function ChatPage() {
           </SectionCard>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

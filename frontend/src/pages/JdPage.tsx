@@ -170,7 +170,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   };
 
   return (
-    <div className="jd-page">
+    <div className="jd-page viewport-page">
       <PageTitle
         eyebrow="JD Management"
         title="JD 관리"
@@ -205,6 +205,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard
+            className="scroll-card-body"
             title="JD 목록"
             extra={
               <Button size="small" icon={<PlusOutlined />} onClick={startCreateJd}>
@@ -225,7 +226,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard title="JD 작성/수정">
+          <SectionCard className="scroll-card-body" title="JD 작성/수정">
             {showEditor && editorInitialValues ? (
               <JdEditorPanel
                 form={form}
