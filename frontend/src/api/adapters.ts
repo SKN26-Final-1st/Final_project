@@ -124,6 +124,10 @@ export type CoverLetterRow = {
   status: string;
   statusCode: StatusCode;
   score: number;
+  skills: string[];
+  experienceCount: number;
+  updatedAt: string;
+  reviewed: boolean;
 };
 
 export type AnalysisReportData = {
@@ -516,6 +520,10 @@ export function mapCoverLetterRows(
       status: status.label,
       statusCode: status.code,
       score: gradeToScore(report?.overall_grade),
+      skills: toStringList(resume.skill).slice(0, 4),
+      experienceCount: Array.isArray(resume.experience) ? resume.experience.length : 0,
+      updatedAt: formatDateTime(resume.updated_at),
+      reviewed: resume.reviewed,
     };
   });
 }
