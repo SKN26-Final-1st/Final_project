@@ -174,9 +174,8 @@ try {
   if ((await reportList.getByText('Excellent frontend fit.').count()) > 0) {
     throw new Error('Report list should show only applicant name and JD title, not summaries.');
   }
-  if ((await reportList.getByText('A').count()) > 0) {
-    throw new Error('Report list should not show grade badges.');
-  }
+  await reportList.getByText('A 등급').waitFor({ timeout: 10000 });
+  await reportList.getByText('1개 질문').waitFor({ timeout: 10000 });
 
   await page.getByRole('tab', { name: '분석 리포트' }).waitFor({ timeout: 10000 });
   await page.getByRole('tab', { name: '질문 추천' }).waitFor({ timeout: 10000 });

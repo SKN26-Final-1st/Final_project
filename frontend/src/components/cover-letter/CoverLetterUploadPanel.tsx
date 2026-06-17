@@ -1,4 +1,5 @@
-import { Button, Tag } from 'antd';
+import { Button, Tag, Tooltip } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
 import { EmptyState } from '../common/PageState';
 import type { CoverLetterRow } from '../../api/adapters';
 import type { Navigate } from '../../types/app';
@@ -9,6 +10,9 @@ type CoverLetterUploadPanelProps = {
   hasSavedResume: boolean;
   analysisDone: boolean;
   navigate: Navigate;
+  selectedResumeId: string | null;
+  onSelectResume: (resumeId: string) => void;
+  onDeleteResume: (resumeId: string) => void;
 };
 
 export function CoverLetterUploadPanel({
@@ -16,6 +20,9 @@ export function CoverLetterUploadPanel({
   hasSavedResume,
   analysisDone,
   navigate,
+  selectedResumeId,
+  onSelectResume,
+  onDeleteResume,
 }: CoverLetterUploadPanelProps) {
   const isWarningStatus = (statusCode: CoverLetterRow['statusCode']) =>
     statusCode === 'onqueue' || statusCode === 'processing' || statusCode === 'needs_review';
@@ -24,20 +31,47 @@ export function CoverLetterUploadPanel({
   return (
     <>
       <div className="cover-letter-save-hint">
-        <strong>{hasSavedResume ? '저장된 자소서가 있습니다.' : '아직 저장된 자소서가 없습니다.'}</strong>
+        <p className="list-panel-hint">자소서를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
+        <strong>{hasSavedResume ? '선택한 자소서를 수정하고 있습니다.' : '아직 선택된 자소서가 없습니다.'}</strong>
         <span>
           {hasSavedResume
-            ? '오른쪽 작성 폼을 수정한 뒤 저장하면 같은 JD의 자소서가 업데이트됩니다.'
-            : '오른쪽 작성 폼을 작성한 뒤 저장하면 분석 요청을 진행할 수 있습니다.'}
+            ? '왼쪽 목록에서 자소서를 선택하면 오른쪽 폼에 내용이 로드됩니다.'
+            : '새 자소서 작성 버튼으로 지원서를 저장한 뒤 분석을 요청할 수 있습니다.'}
         </span>
       </div>
       {hasRows ? (
         <div className="cover-letter-list" aria-label="Cover letter list">
           {coverRows.map((row) => (
-            <article
-              className={`cover-letter-list-card ${isWarningStatus(row.statusCode) ? 'warning' : ''}`}
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={`${row.applicant} 자소서 선택`}
+              aria-pressed={selectedResumeId === row.key}
+              className={`cover-letter-list-card ${selectedResumeId === row.key ? 'active' : ''} ${
+                isWarningStatus(row.statusCode) ? 'warning' : ''
+              }`}
               key={row.key}
+              onClick={() => onSelectResume(row.key)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onSelectResume(row.key);
+                }
+              }}
             >
+              <Tooltip title="자소서 삭제">
+                <Button
+                  aria-label={`${row.applicant} 자소서 삭제`}
+                  className="jd-card-delete-button"
+                  icon={<CloseOutlined />}
+                  size="small"
+                  type="text"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteResume(row.key);
+                  }}
+                />
+              </Tooltip>
               <div className="cover-letter-list-head">
                 <strong>{row.applicant}</strong>
                 {statusTag(row.status, row.statusCode)}
@@ -55,7 +89,7 @@ export function CoverLetterUploadPanel({
                 <strong>{row.score}</strong>
               </div>
               <span className="cover-letter-list-updated">최근 수정 {row.updatedAt}</span>
-            </article>
+            </div>
           ))}
         </div>
       ) : (

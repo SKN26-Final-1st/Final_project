@@ -213,6 +213,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
               </Button>
             }
           >
+            <p className="list-panel-hint">JD를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
             {jdList.length ? (
               <JdListPanel
                 jdList={jdList}

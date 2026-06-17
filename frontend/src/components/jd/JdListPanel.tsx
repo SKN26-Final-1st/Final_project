@@ -19,6 +19,8 @@ export function JdListPanel({ jdList, selectedJdId, setSelectedJdId, onDeleteJd 
           tabIndex={0}
           className={`jd-card ${selectedJdId === item.id ? 'active' : ''}`}
           key={item.id}
+          aria-label={`${item.title} JD 선택`}
+          aria-pressed={selectedJdId === item.id}
           onClick={() => setSelectedJdId(item.id)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {

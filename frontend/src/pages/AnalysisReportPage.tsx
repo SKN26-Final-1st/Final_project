@@ -82,6 +82,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard className="scroll-card-body" title="리포트 목록">
+            <p className="list-panel-hint">리포트를 선택하면 오른쪽에서 분석 결과와 추천 질문을 확인할 수 있습니다.</p>
             {reportItems.length ? (
               <div className="analysis-report-list" aria-label="Analysis report list">
                 {reportItems.map((item) => {
@@ -92,10 +93,15 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                       className={`analysis-report-list-card ${active ? 'active' : ''}`}
                       key={item.report.id}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setSelectedReportResumeId(String(item.report.resume_id))}
                     >
                       <strong>{item.resume?.name || '지원자 정보 없음'}</strong>
                       <span>{item.jd?.title || '연결 JD 없음'}</span>
+                      <div className="analysis-report-list-tags">
+                        <Tag color="blue">{item.report.overall_grade || 'N/A'} 등급</Tag>
+                        <Tag>{item.questions.length}개 질문</Tag>
+                      </div>
                     </button>
                   );
                 })}

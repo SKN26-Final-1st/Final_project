@@ -2603,6 +2603,22 @@ button,
   line-height: 1.55;
 }
 
+.list-panel-hint {
+  margin: 0 0 calc(var(--section-inner-gap) / 1.5);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.cover-letter-save-hint .list-panel-hint {
+  margin-bottom: 10px;
+}
+
 .split-editor-layout-row > .ant-col {
   min-width: 0;
 }
@@ -2617,17 +2633,47 @@ button,
 }
 
 .cover-letter-list-card {
+  position: relative;
   display: grid;
   gap: 10px;
-  padding: 14px;
+  width: 100%;
+  padding: 14px 42px 14px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.cover-letter-list-card:hover,
+.cover-letter-list-card:focus-visible,
+.cover-letter-list-card.active {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.cover-letter-list-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.cover-letter-list-card.active {
+  background: var(--primary-soft);
 }
 
 .cover-letter-list-card.warning {
   background: color-mix(in srgb, rgba(245, 158, 11, 0.12) 70%, var(--surface));
+}
+
+.cover-letter-list-card.active.warning {
+  background: color-mix(in srgb, var(--primary-soft) 80%, rgba(245, 158, 11, 0.12));
 }
 
 .cover-letter-list-head {
@@ -2758,6 +2804,13 @@ button,
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.analysis-report-list-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .analysis-report-detail {
