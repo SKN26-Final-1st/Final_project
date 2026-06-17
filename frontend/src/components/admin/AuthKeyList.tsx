@@ -65,6 +65,9 @@ export function AuthKeyList({
                   <div className="authkey-tags">
                     <Tag className="authkey-value-tag">{maskAuthKeyValue(authKey.value)}</Tag>
                     <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                    <Tag color={authKey.authorized_resume.length ? 'green' : 'default'}>
+                      허용 지원서 {authKey.authorized_resume.length}건
+                    </Tag>
                   </div>
                 </div>
               }

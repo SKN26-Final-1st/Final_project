@@ -46,6 +46,21 @@ function toStringArray(value: unknown[] | undefined) {
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function toEducationSummary(value: Record<string, unknown> | undefined) {
+  if (!value || !Object.keys(value).length) {
+    return '';
+  }
+
+  const summary = value.summary;
+  if (typeof summary === 'string') {
+    return summary;
+  }
+
+  return Object.entries(value)
+    .map(([key, nextValue]) => `${key}: ${String(nextValue)}`)
+    .join(', ');
+}
+
 function toCoverLetterInitialValues(
   selectedJdId: string | null,
   currentResume: Resume | null,
@@ -56,8 +71,15 @@ function toCoverLetterInitialValues(
     job_description_id: selectedJdId ? Number(selectedJdId) : currentResume?.job_description_id,
     name: currentResume?.name ?? '',
     skill: toStringArray(currentResume?.skill),
+    education_level_text: toEducationSummary(currentResume?.education_level),
+    experience: toStringArray(currentResume?.experience),
     question: intro.question,
     answer: intro.answer,
+    certification: toStringArray(currentResume?.certification),
+    language: toStringArray(currentResume?.language),
+    award: toStringArray(currentResume?.award),
+    training: toStringArray(currentResume?.training),
+    other_activity: toStringArray(currentResume?.other_activity),
   };
 }
 
@@ -66,8 +88,15 @@ function toEmptyCoverLetterValues(selectedJdId: string | null): CoverLetterInput
     job_description_id: selectedJdId ? Number(selectedJdId) : undefined,
     name: '',
     skill: [],
+    education_level_text: '',
+    experience: [],
     question: '',
     answer: '',
+    certification: [],
+    language: [],
+    award: [],
+    training: [],
+    other_activity: [],
   };
 }
 
@@ -119,12 +148,19 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     const payload = {
       name: values.name,
       skill: values.skill ?? [],
+      education_level: values.education_level_text ? { summary: values.education_level_text } : {},
+      experience: values.experience ?? [],
       self_intoduction: [
         {
           question: values.question,
           answer: values.answer,
         },
       ],
+      certification: values.certification ?? [],
+      language: values.language ?? [],
+      award: values.award ?? [],
+      training: values.training ?? [],
+      other_activity: values.other_activity ?? [],
     };
 
     if (editingResume) {

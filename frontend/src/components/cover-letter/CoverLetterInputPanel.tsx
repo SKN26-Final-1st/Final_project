@@ -1,4 +1,4 @@
-import { Form, Input, Select, Tag, type FormInstance } from 'antd';
+import { Collapse, Form, Input, Select, Tag, type FormInstance } from 'antd';
 import type { JdItem } from '../../api/adapters';
 
 const { TextArea } = Input;
@@ -7,8 +7,15 @@ export type CoverLetterInputFormValues = {
   job_description_id?: number;
   name: string;
   skill: string[];
+  education_level_text: string;
+  experience: string[];
   question: string;
   answer: string;
+  certification: string[];
+  language: string[];
+  award: string[];
+  training: string[];
+  other_activity: string[];
 };
 
 type CoverLetterInputPanelProps = {
@@ -55,6 +62,41 @@ export function CoverLetterInputPanel({
       <Form.Item label="기술 스택" name="skill">
         <Select mode="tags" tokenSeparators={[',']} placeholder="기술 스택을 입력하세요" />
       </Form.Item>
+      <Collapse
+        className="resume-extra-collapse"
+        ghost
+        items={[
+          {
+            key: 'resume-extra',
+            label: '추가 이력 정보',
+            children: (
+              <>
+                <Form.Item label="학력 요약" name="education_level_text">
+                  <Input placeholder="예: 컴퓨터공학 학사, 2024년 졸업" />
+                </Form.Item>
+                <Form.Item label="경력" name="experience">
+                  <Select mode="tags" tokenSeparators={[',']} placeholder="예: 데이터 분석 인턴 6개월" />
+                </Form.Item>
+                <Form.Item label="자격/인증" name="certification">
+                  <Select mode="tags" tokenSeparators={[',']} placeholder="예: 정보처리기사, SQLD" />
+                </Form.Item>
+                <Form.Item label="언어" name="language">
+                  <Select mode="tags" tokenSeparators={[',']} placeholder="예: 영어 OPIC IH" />
+                </Form.Item>
+                <Form.Item label="수상" name="award">
+                  <Select mode="tags" tokenSeparators={[',']} placeholder="예: 해커톤 우수상" />
+                </Form.Item>
+                <Form.Item label="교육/훈련" name="training">
+                  <Select mode="tags" tokenSeparators={[',']} placeholder="예: AI 부트캠프 수료" />
+                </Form.Item>
+                <Form.Item label="기타 활동" name="other_activity">
+                  <Select mode="tags" tokenSeparators={[',']} placeholder="예: 오픈소스 기여, 동아리 운영" />
+                </Form.Item>
+              </>
+            ),
+          },
+        ]}
+      />
       <Form.Item
         label="자기소개 문항"
         name="question"
