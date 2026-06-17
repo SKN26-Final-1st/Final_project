@@ -100,7 +100,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   }
 
   return (
-    <div className="admin-page startup-admin-page">
+    <div className="admin-page startup-admin-page viewport-page">
       <PageTitle
         eyebrow="Company Admin"
         title="관리자"
@@ -124,6 +124,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
 
       <div className="admin-workspace-grid">
         <SectionCard
+          className="scroll-card-body"
           title="공유 API key"
           extra={
             <Tag color="blue" icon={<KeyOutlined />}>
