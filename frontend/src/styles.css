@@ -2446,6 +2446,25 @@ button,
   align-items: center;
 }
 
+.jd-card-summary {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.jd-card-tags,
+.cover-letter-list-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .jd-empty-state {
   display: grid;
   gap: var(--section-tight-gap);
