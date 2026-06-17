@@ -2603,6 +2603,22 @@ button,
   line-height: 1.55;
 }
 
+.list-panel-hint {
+  margin: 0 0 calc(var(--section-inner-gap) / 1.5);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.cover-letter-save-hint .list-panel-hint {
+  margin-bottom: 10px;
+}
+
 .split-editor-layout-row > .ant-col {
   min-width: 0;
 }
