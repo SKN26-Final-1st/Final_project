@@ -2677,6 +2677,29 @@ button,
   font-size: 14px;
 }
 
+.cover-letter-list-updated {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resume-extra-collapse {
+  margin: 0 0 var(--section-tight-gap);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.resume-extra-collapse .ant-collapse-header {
+  padding: 10px 12px !important;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.resume-extra-collapse .ant-collapse-content-box {
+  padding: 0 12px 12px !important;
+}
+
 .analysis-report-list {
   display: grid;
   gap: calc(var(--layout-gap) / 2);
