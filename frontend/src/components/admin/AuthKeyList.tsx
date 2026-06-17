@@ -2,6 +2,7 @@ import { Button, List, Select, Tag, type SelectProps } from 'antd';
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
 import type { AuthKey } from '../../data/backendTypes';
+import { maskAuthKeyValue } from './authKeyUtils';
 
 type AuthKeyListProps = {
   authKeys: AuthKey[];
@@ -15,21 +16,6 @@ type AuthKeyListProps = {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('ko-KR').format(Math.round(value));
-}
-
-function maskAuthKeyValue(value: string) {
-  if (!value) {
-    return '****';
-  }
-
-  if (value.includes('****')) {
-    return value;
-  }
-
-  const suffix = value.slice(-4);
-  const prefix = value.startsWith('sk_') ? value.split('_').slice(0, 2).join('_') : '';
-
-  return prefix ? `${prefix}_****${suffix}` : `****${suffix}`;
 }
 
 export function AuthKeyList({
