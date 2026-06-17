@@ -146,7 +146,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   };
 
   return (
-    <>
+    <div className="cover-letter-page viewport-page">
       <PageTitle
         eyebrow="Resume"
         title="자소서 관리"
@@ -170,6 +170,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard
+            className="scroll-card-body"
             title="자소서 목록"
             extra={
               <Button size="small" icon={<PlusOutlined />} onClick={startCreateCoverLetter}>
@@ -186,7 +187,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard title="자소서 작성/수정">
+          <SectionCard className="scroll-card-body" title="자소서 작성/수정">
             <CoverLetterInputPanel
               jdList={jdList}
               form={form}
@@ -197,6 +198,6 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
           </SectionCard>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }
