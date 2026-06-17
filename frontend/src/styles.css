@@ -5092,6 +5092,32 @@ button,
   white-space: pre-line;
 }
 
+.shared-report-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.shared-report-list li + li {
+  margin-top: 6px;
+}
+
+.shared-report-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.shared-report-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
 .shared-jd-summary {
   display: grid;
   gap: 10px;
