@@ -6,7 +6,7 @@
 
 | 라우트 | 페이지 파일 | nav 표시 | 역할 |
 | --- | --- | --- | --- |
-| `/dashboard` | `frontend/src/pages/DashboardPage.tsx` | O | 채용/JD/지원자/분석 현황 요약 |
+| `/dashboard` | `frontend/src/pages/DashboardPage.tsx` | O | 채용/JD/지원자/분석 현황 요약 (`useAppDataQuery`로 캐시 직접 조회) |
 | `/admin` | `frontend/src/pages/AdminPage.tsx` | O | AuthKey 관리, 운영 지표 표시 |
 | `/company` | `frontend/src/pages/CompanyPage.tsx` | O | 회사 프로필과 분석 기준 입력 |
 | `/jd` | `frontend/src/pages/JdPage.tsx` | O | JD 목록, JD 상세, 분석 요청 시작 |
