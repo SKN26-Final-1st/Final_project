@@ -233,8 +233,11 @@ async function inspectRoute(page, route, viewport, browserErrors) {
     const contentFrameRect = contentFrame?.getBoundingClientRect();
     const layoutRowRect = layoutRow?.getBoundingClientRect();
     const layoutRowStyle = layoutRow ? window.getComputedStyle(layoutRow) : null;
+    const dashboardBodyScroll = document.querySelector('.dashboard-body-scroll');
+    const dashboardBodyScrollRect = dashboardBodyScroll?.getBoundingClientRect();
+    const dashboardBodyScrollStyle = dashboardBodyScroll ? window.getComputedStyle(dashboardBodyScroll) : null;
     const cards = Array.from(document.querySelectorAll('.viewport-page .section-card'))
-      .filter((card) => !card.closest('.viewport-column-scroll'))
+      .filter((card) => !card.closest('.viewport-column-scroll') && !card.closest('.dashboard-body-scroll'))
       .map((card) => {
       const rect = card.getBoundingClientRect();
       const body = card.querySelector('.ant-card-body');
@@ -269,6 +272,10 @@ async function inspectRoute(page, route, viewport, browserErrors) {
       bodyOverflowY: window.getComputedStyle(document.body).overflowY,
       contentOverflowY: window.getComputedStyle(document.querySelector('.content')).overflowY,
       contentFrameHeight: contentFrameRect ? Math.round(contentFrameRect.height) : null,
+      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      bodyClientWidth: document.body.clientWidth,
+      bodyScrollWidth: document.body.scrollWidth,
       documentScrollHeight: document.documentElement.scrollHeight,
       hasViewportPage: Boolean(viewportPage),
       layoutRowFlex: layoutRowStyle?.flex ?? null,
@@ -279,6 +286,18 @@ async function inspectRoute(page, route, viewport, browserErrors) {
       clippedCards: cards.filter((card) => card.clipped),
       scrollableCards: cards.filter((card) => card.hasInternalScroll).length,
       clippedScrollColumns: scrollColumns.filter((column) => column.clipped),
+      dashboardBodyScroll: dashboardBodyScroll
+        ? {
+            bottom: dashboardBodyScrollRect ? Math.round(dashboardBodyScrollRect.bottom) : null,
+            clipped: dashboardBodyScrollRect ? dashboardBodyScrollRect.bottom > viewportHeight + 1 : false,
+            clientWidth: Math.round(dashboardBodyScroll.clientWidth),
+            clientHeight: Math.round(dashboardBodyScroll.clientHeight),
+            overflowY: dashboardBodyScrollStyle?.overflowY ?? null,
+            overflowX: dashboardBodyScrollStyle?.overflowX ?? null,
+            scrollWidth: Math.round(dashboardBodyScroll.scrollWidth),
+            scrollHeight: Math.round(dashboardBodyScroll.scrollHeight),
+          }
+        : null,
       scrollColumns,
       chatInputBottom: chatInputRect ? Math.round(chatInputRect.bottom) : null,
       chatInputVisible: chatInputRect ? chatInputRect.bottom <= viewportHeight + 1 : true,
@@ -305,10 +324,11 @@ try {
   });
   await mockBackend(page);
 
-  const desktopRoutes = ['/jd', '/cover-letter', '/analysis-report', '/chat', '/admin', '/company', '/mypage'];
+  const desktopRoutes = ['/dashboard', '/jd', '/cover-letter', '/analysis-report', '/chat', '/admin', '/company', '/mypage'];
   const desktopViewports = [
     { width: 1366, height: 768 },
     { width: 1440, height: 900 },
+    { width: 1920, height: 1080 },
   ];
   const failures = [];
   const summaries = [];
@@ -325,6 +345,14 @@ try {
         layoutRowHeight: result.layoutRowHeight,
         scrollableCards: result.scrollableCards,
         viewportPageHeight: result.viewportPageHeight,
+        dashboardBodyScroll: result.dashboardBodyScroll,
+        horizontalOverflow: {
+          document: result.documentScrollWidth - result.documentClientWidth,
+          body: result.bodyScrollWidth - result.bodyClientWidth,
+          dashboardBody: result.dashboardBodyScroll
+            ? result.dashboardBodyScroll.scrollWidth - result.dashboardBodyScroll.clientWidth
+            : null,
+        },
       });
 
       if (!result.hasViewportPage) {
@@ -343,6 +371,33 @@ try {
         );
       }
 
+      if (result.dashboardBodyScroll?.clipped) {
+        failures.push(
+          `${route} dashboard body scroll container is clipped at ${viewport.width}x${viewport.height}: ${JSON.stringify(
+            result.dashboardBodyScroll,
+          )}`,
+        );
+      }
+
+      if (route === '/dashboard') {
+        const documentOverflow = result.documentScrollWidth - result.documentClientWidth;
+        const bodyOverflow = result.bodyScrollWidth - result.bodyClientWidth;
+        const dashboardBodyOverflow = result.dashboardBodyScroll
+          ? result.dashboardBodyScroll.scrollWidth - result.dashboardBodyScroll.clientWidth
+          : 0;
+
+        if (documentOverflow > 1 || bodyOverflow > 1 || dashboardBodyOverflow > 1) {
+          failures.push(
+            `/dashboard has horizontal overflow at ${viewport.width}x${viewport.height}: ${JSON.stringify({
+              documentOverflow,
+              bodyOverflow,
+              dashboardBodyOverflow,
+              dashboardBodyScroll: result.dashboardBodyScroll,
+            })}`,
+          );
+        }
+      }
+
       if (route === '/chat' && !result.chatInputVisible) {
         failures.push(`/chat input is clipped at ${viewport.width}x${viewport.height}: bottom=${result.chatInputBottom}`);
       }
@@ -352,6 +407,11 @@ try {
   const mobileResult = await inspectRoute(page, '/jd', { width: 390, height: 844 }, browserErrors);
   if (mobileResult.contentOverflowY === 'hidden') {
     failures.push('Mobile /jd content still has overflow hidden.');
+  }
+
+  const mobileDashboardResult = await inspectRoute(page, '/dashboard', { width: 390, height: 844 }, browserErrors);
+  if (mobileDashboardResult.contentOverflowY === 'hidden') {
+    failures.push('Mobile /dashboard content still has overflow hidden.');
   }
 
   await browser.close();
