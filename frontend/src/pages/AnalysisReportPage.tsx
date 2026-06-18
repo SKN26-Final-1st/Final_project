@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Col, Row, Tabs, Tag } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
+import { CompactTextList } from '../components/common/CompactTextList';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { AnalysisReport } from '../data/backendTypes';
+import type { AnalysisReport, InterviewQuestion } from '../data/backendTypes';
 import { useAnalysisReportPageData } from '../hooks/useAnalysisReportPageData';
 import type { Navigate } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
@@ -43,17 +44,73 @@ function checklistItems(report: AnalysisReport) {
     : [];
 }
 
-function ReportTextList({ items, emptyText }: { items: string[]; emptyText: string }) {
-  if (!items.length) {
-    return <p className="muted">{emptyText}</p>;
+function questionKey(question: InterviewQuestion, index: number) {
+  return String(question.id ?? `${question.question}-${index}`);
+}
+
+function CompactQuestionList({ questions }: { questions: InterviewQuestion[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedKey, setSelectedKey] = useState(() => (questions[0] ? questionKey(questions[0], 0) : ''));
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  if (!questions.length) {
+    return <p className="muted">추천 면접 질문이 없습니다.</p>;
   }
 
+  const visibleQuestions = isExpanded ? questions : questions.slice(0, 3);
+  const hiddenCount = Math.max(questions.length - visibleQuestions.length, 0);
+  const selectedVisibleIndex = visibleQuestions.findIndex((question, index) => questionKey(question, index) === selectedKey);
+  const effectiveSelectedIndex = selectedVisibleIndex >= 0 ? selectedVisibleIndex : 0;
+  const selectedQuestion = visibleQuestions[effectiveSelectedIndex];
+
   return (
-    <ul className="analysis-report-text-list">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
+    <div className="analysis-report-question-compact">
+      <div className="analysis-report-question-list">
+        {visibleQuestions.map((item, index) => {
+          const key = questionKey(item, index);
+          const active = index === effectiveSelectedIndex;
+
+          return (
+            <button
+              className={`analysis-report-question ${active ? 'active' : ''}`}
+              key={key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                setSelectedKey(key);
+                setIsDetailOpen(false);
+              }}
+            >
+              <span>질문</span>
+              <strong>{item.question}</strong>
+            </button>
+          );
+        })}
+      </div>
+      {questions.length > 3 ? (
+        <Button
+          className="compact-text-list-toggle"
+          size="small"
+          type="link"
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          {isExpanded ? '접기' : `전체 보기 (+${hiddenCount})`}
+        </Button>
+      ) : null}
+      <div className="analysis-report-question-detail">
+        <Button size="small" onClick={() => setIsDetailOpen((current) => !current)}>
+          {isDetailOpen ? '상세 닫기' : '상세 보기'}
+        </Button>
+        {isDetailOpen ? (
+          <div className="analysis-report-question-detail-body">
+            <span>예상 / 모범 답변</span>
+            <p>{selectedQuestion.answer || '답변이 없습니다.'}</p>
+            <span>질문 의도</span>
+            <p>{selectedQuestion.purpose || '질문 의도가 없습니다.'}</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -158,29 +215,29 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                           </section>
                           <section className="analysis-report-section">
                             <h3>역량 분석</h3>
-                            <ReportTextList
+                            <CompactTextList
                               items={toList(selectedItem.report.competency_analysis)}
                               emptyText="역량 분석이 없습니다."
                             />
                           </section>
                           <section className="analysis-report-section">
                             <h3>적합도 분석</h3>
-                            <ReportTextList
+                            <CompactTextList
                               items={toList(selectedItem.report.fit_analysis)}
                               emptyText="적합도 분석이 없습니다."
                             />
                           </section>
                           <section className="analysis-report-section">
                             <h3>강점</h3>
-                            <ReportTextList items={toList(selectedItem.report.strength)} emptyText="강점 정보가 없습니다." />
+                            <CompactTextList items={toList(selectedItem.report.strength)} emptyText="강점 정보가 없습니다." />
                           </section>
                           <section className="analysis-report-section">
                             <h3>우려 / 검증 필요</h3>
-                            <ReportTextList items={toList(selectedItem.report.concern)} emptyText="우려 사항이 없습니다." />
+                            <CompactTextList items={toList(selectedItem.report.concern)} emptyText="우려 사항이 없습니다." />
                           </section>
                           <section className="analysis-report-section">
                             <h3>확인 포인트</h3>
-                            <ReportTextList
+                            <CompactTextList
                               items={toList(selectedItem.report.check_point)}
                               emptyText="확인 포인트가 없습니다."
                             />
@@ -195,21 +252,11 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                     {
                       key: 'questions',
                       label: '질문 추천',
-                      children: selectedItem.questions.length ? (
-                        <div className="analysis-report-question-list">
-                          {selectedItem.questions.map((item, index) => (
-                            <article className="analysis-report-question" key={item.id ?? `${item.question}-${index}`}>
-                              <span>질문</span>
-                              <strong>{item.question}</strong>
-                              <span>예상 / 모범 답변</span>
-                              <p>{item.answer}</p>
-                              <span>질문 의도</span>
-                              <p>{item.purpose}</p>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="muted">추천 면접 질문이 없습니다.</p>
+                      children: (
+                        <CompactQuestionList
+                          key={selectedItem.report.id}
+                          questions={selectedItem.questions}
+                        />
                       ),
                     },
                   ]}

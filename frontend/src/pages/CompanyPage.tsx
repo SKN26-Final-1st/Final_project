@@ -14,6 +14,7 @@ import { queryKeys } from '../api/queryKeys';
 import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { RunApiAction, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
+import { toTrimmedStringList } from '../utils/stringList';
 
 type CompanyPageProps = {
   loadingKey: string | null;
@@ -29,10 +30,6 @@ function toCompanyFormValues(company: CompanyProfile): CompanyProfileFormValues 
     company_description: company.description,
     employ_style: company.employStyle,
   };
-}
-
-function toTrimmedStringList(value: string[]) {
-  return value.map((item) => item.trim()).filter(Boolean);
 }
 
 function normalizeCompanyFormValues(values: CompanyProfileFormValues): CompanyProfileFormValues {
