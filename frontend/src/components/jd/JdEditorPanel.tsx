@@ -1,5 +1,6 @@
 import { Col, Form, Input, Progress, Row, Select, Tag, type FormInstance } from 'antd';
 import type { JdItem } from '../../api/adapters';
+import { CollapsibleEditableStringListField } from '../common/CollapsibleEditableStringListField';
 
 const { TextArea } = Input;
 
@@ -61,12 +62,25 @@ export function JdEditorPanel({ form, selectedJd, initialValues, mode = 'edit' }
       <Form.Item label="주요 업무" name="main_task">
         <TextArea rows={4} />
       </Form.Item>
-      <Form.Item label="필수 기술" name="required_skill" rules={[{ required: true, message: '필수 기술을 입력하세요.' }]}>
-        <Select mode="tags" tokenSeparators={[',']} placeholder="필수 기술을 입력하세요." />
-      </Form.Item>
-      <Form.Item label="우대 기술" name="preferred_skill">
-        <Select mode="tags" tokenSeparators={[',']} placeholder="우대 기술을 입력하세요." />
-      </Form.Item>
+      <CollapsibleEditableStringListField
+        form={form}
+        name="required_skill"
+        label="필수 기술"
+        itemLabel="필수 기술"
+        placeholder="필수 기술을 입력하세요."
+        addLabel="필수 기술 추가"
+        emptyText="아직 입력된 필수 기술이 없습니다."
+        required
+      />
+      <CollapsibleEditableStringListField
+        form={form}
+        name="preferred_skill"
+        label="우대 기술"
+        itemLabel="우대 기술"
+        placeholder="우대 기술을 입력하세요."
+        addLabel="우대 기술 추가"
+        emptyText="아직 입력된 우대 기술이 없습니다."
+      />
       <Form.Item label="채용 배경" name="hiring_reason">
         <TextArea rows={3} />
       </Form.Item>
