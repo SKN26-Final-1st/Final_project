@@ -22,10 +22,20 @@
 backend/
 ├── api/
 │   ├── models.py
-│   ├── views.py
 │   ├── urls.py
-│   ├── columns.py
-│   ├── error_code.py
+│   ├── views/
+│   │   ├── __init__.py
+│   │   ├── account_endpoints.py
+│   │   ├── analysis_report_endpoints.py
+│   │   ├── auth_key_endpoints.py
+│   │   ├── chat_endpoints.py
+│   │   ├── checklist_endpoints.py
+│   │   ├── company_info_endpoints.py
+│   │   ├── job_description_endpoints.py
+│   │   ├── resume_endpoints.py
+│   │   ├── columns.py
+│   │   ├── error_code.py
+│   │   └── utils.py
 │   └── migrations/
 ├── common/
 │   ├── chat_agent.py

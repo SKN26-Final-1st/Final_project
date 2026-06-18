@@ -67,7 +67,7 @@ flowchart TD
 - POST 전에 CSRF 쿠키가 없으면 `/api/csrf/`를 호출합니다.
 - `X-API-Key`는 `requestBackend()` / `requestAction()` 호출 시 `{ apiKey }` 옵션을 넘긴 경우에만 붙습니다. `VITE_API_KEY` 환경 변수는 현재 `httpClient.ts`에서 읽지 않습니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`
 - Django 응답이 `{ error, data, message }` 형태가 아니어도 `normalizePayload()`로 감쌉니다.
-- `getDashboard()`는 account/company/JD/resume/report/question API를 조합합니다.
+- `getDashboard()`는 account/company/JD/resume/report API를 조합합니다. 면접 질문은 백엔드에서 `report.interview_question`으로 제공되지만, 현재는 제거된 `question/get`도 함께 호출합니다.
 - backend API가 없는 후순위 기능은 `unsupportedBackendFeature()`로 명시적 오류를 던집니다.
 - 주요 엔티티 응답은 `frontend/src/api/backendSchemas.ts`의 Zod 스키마(`parseAccount`, `parseResumes` 등)로 런타임 검증합니다.
 
@@ -94,7 +94,7 @@ flowchart TD
 
 ## 실제 API 연동 시 주의점
 
-- `apiClient.requestJobAnalysis()`와 `requestCoverLetterAnalysis()`는 선택 JD의 첫 번째 이력서를 분석 대상으로 삼습니다.
+- `apiClient.requestResumeAnalysisById()`는 resume id로 분석을 요청합니다. 백엔드 경로는 `resume/analyze/`이지만 프론트는 아직 `resume/analize/`를 호출합니다.
 - 프론트 `assistant` role은 `/api/chat/` 요청 전 `agent`로 변환합니다.
 - `account/modify` payload에서 `id`, `username`, `account_hash`는 제거합니다.
 

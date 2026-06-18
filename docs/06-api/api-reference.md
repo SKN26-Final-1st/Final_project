@@ -2,7 +2,7 @@
 
 기본 prefix는 `/api/`입니다. 대부분의 엔드포인트는 POST만 허용합니다. 응답은 대체로 `{ "error": boolean, "data": ..., "message": ... }` 형태입니다.
 
-근거: `backend/api/urls.py`, `backend/api/views.py`
+근거: `backend/api/urls.py`, `backend/api/views/`
 
 ## 공통 인증
 
@@ -51,11 +51,24 @@
 
 | 경로 | 메서드 | 인증 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
-| `/api/jd/add/` | POST | 세션 | `job_name`, `career_level`, `required_skill` 등 | `{error:false,data:JobDescription}` |
+| `/api/jd/add/` | POST | 세션 | `job_name`, 선택 `career_level`, `required_skill` 등 | `{error:false,data:JobDescription}` |
 | `/api/jd/get/` | POST | 세션 또는 API 키 | 없음 | `{error:false,data:JobDescription[]}` |
 | `/api/jd/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:JobDescription}` |
+| `/api/jd/analyze/` | POST | 세션 | 없음 | `{error:false,data:{}}` (현재 스텁) |
 
 상태값은 `prepare`, `on_going`, `closed`만 허용합니다.
+
+## 체크리스트
+
+JD별 수동 체크리스트 항목입니다. 모델: `Checklist` in `backend/api/models.py`
+
+| 경로 | 메서드 | 인증 | 요청 | 응답 |
+| --- | --- | --- | --- | --- |
+| `/api/checklist/add/` | POST | 세션 | `job_description_id`, `content` | `{error:false,data:Checklist}` |
+| `/api/checklist/get/` | POST | 세션 또는 API 키 | `job_description_id` | `{error:false,data:Checklist[]}` |
+| `/api/checklist/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:Checklist}` |
+
+JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반환합니다.
 
 ## 지원서
 
@@ -64,30 +77,30 @@
 | `/api/resume/add/` | POST | 세션 | `job_description_id`, 지원서 필드 | `{error:false,data:Resume}` |
 | `/api/resume/get/` | POST | 세션 또는 API 키 | 선택 `job_description_id`, `id` | `{error:false,data:Resume[]}` |
 | `/api/resume/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:Resume}` |
-| `/api/resume/analize/` | POST | 세션 또는 API 키 | `id` | `{error:false,data:{report,questions}}` |
+| `/api/resume/analyze/` | POST | 세션 또는 API 키 | `id` | `{error:false,data:AnalysisReport}` |
 
 주의:
 
-- 분석 경로는 실제 코드상 `analize/`입니다.
+- 백엔드 분석 경로는 `analyze/`입니다. 프론트 `backendClient.ts`는 아직 `analize/`를 호출합니다.
 - `resume/add`는 `status`, `reviewed`, `reviewed_at`, 생성/수정일을 직접 설정할 수 없습니다.
+- 분석 응답은 `AnalysisReport.to_dict()`이며, 면접 질문은 `interview_question` 필드에 포함됩니다.
 
 ## 분석 리포트
 
 | 경로 | 메서드 | 인증 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
-| `/api/report/get/` | POST | 세션 또는 API 키 | `resume_id` | `{error:false,data:AnalysisReport[]}` |
+| `/api/report/get/` | POST | 세션 또는 API 키 | `resume_id` 또는 `id` | `{error:false,data:AnalysisReport[]}` |
 | `/api/report/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 | `{error:false,data:AnalysisReport}` |
 
-`report_modify`는 삭제를 허용하지 않습니다.
+`report_get`은 `id`가 있으면 단건, `resume_id`가 있으면 해당 지원서의 리포트 목록을 반환합니다. `report_modify`는 삭제를 허용하지 않습니다.
 
-## 면접 질문
+`AnalysisReport` 응답 필드에는 `interview_question` (`question`, `answer`, `purpose` 객체 배열), `motive`, `collaboration` 등이 포함됩니다.
 
-| 경로 | 메서드 | 인증 | 요청 | 응답 |
-| --- | --- | --- | --- | --- |
-| `/api/question/get/` | POST | 세션 또는 API 키 | `resume_id` | `{error:false,data:InterviewQuestion[]}` |
-| `/api/question/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 | `{error:false,data:InterviewQuestion}` |
+## 제거된 엔드포인트 (프론트 미반영)
 
-`question_modify`는 삭제를 허용하지 않습니다.
+이전 버전의 `/api/question/get/`, `/api/question/modify/`는 제거되었습니다. 면접 질문은 `AnalysisReport.interview_question`으로 조회합니다.
+
+프론트 `backendClient.ts`는 아직 `question/get`, `question/modify`를 호출합니다. `getQuestionsForResume()`는 실패 시 빈 배열을 반환하므로 화면은 부분적으로 동작할 수 있지만, 질문 표시는 `report/interview_question` 연동이 필요합니다.
 
 ## 채팅
 
@@ -106,7 +119,7 @@
 
 ## 에러 메시지
 
-`backend/api/error_code.py`가 숫자 코드별 표준 메시지를 제공합니다.
+`backend/api/views/error_code.py`가 숫자 코드별 표준 메시지를 제공합니다.
 
 - 400: No matching data found
 - 401: Required field is missing

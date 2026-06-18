@@ -9,9 +9,9 @@ erDiagram
   Account ||--|| CompanyInfo : owns
   Account ||--o{ AuthKey : owns
   Account ||--o{ JobDescription : owns
+  JobDescription ||--o{ Checklist : has
   JobDescription ||--o{ Resume : has
-  Resume ||--|| AnalysisReport : has
-  Resume ||--o{ InterviewQuestion : has
+  Resume ||--o{ AnalysisReport : has
 
   Account {
     int id
@@ -62,6 +62,12 @@ erDiagram
     datetime updated_at
   }
 
+  Checklist {
+    bigint id
+    bigint job_description_id
+    text content
+  }
+
   Resume {
     bigint id
     bigint job_description_id
@@ -90,19 +96,14 @@ erDiagram
     text candidate_summary
     json checklist
     json competency_analysis
-    json fit_analysis
+    text fit_analysis
+    text motive
+    text collaboration
     json strength
     json concern
     json check_point
+    json interview_question
     text final_comment
-  }
-
-  InterviewQuestion {
-    bigint id
-    bigint resume_id
-    text question
-    text answer
-    text purpose
   }
 ```
 
@@ -114,9 +115,15 @@ erDiagram
 | `CompanyInfo` | `company_info` |
 | `AuthKey` | `auth_keys` |
 | `JobDescription` | `job_descriptions` |
+| `Checklist` | `checklists` |
 | `Resume` | `resumes` |
 | `AnalysisReport` | `analysis_reports` |
-| `InterviewQuestion` | `interview_questions` |
+
+## 면접 질문 저장 방식
+
+면접 질문은 별도 `InterviewQuestion` 테이블이 아니라 `AnalysisReport.interview_question` JSON 필드에 `{question, answer, purpose}` 객체 배열로 저장됩니다. `to_dict()`는 `get_interview_question()`으로 정규화된 배열을 반환합니다.
+
+마이그레이션 이력에 `interview_questions` 테이블 생성·삭제 기록이 남아 있을 수 있습니다. 현재 모델 코드에는 `InterviewQuestion` 클래스가 없습니다.
 
 ## 상태값
 

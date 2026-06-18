@@ -54,8 +54,8 @@
 
 - 회사: `CompanyProfileForm`, `CompanyCompletionPanel`
 - JD: `JdListPanel`, `JdEditorPanel`, `JdDeleteModal`, `JdListEmptyState`
-- 관리자: `AdminSummaryCards`, `AdminCreditPanel`, `AuthKeyCreateForm`, `AuthKeyList`, `CreatedAuthKeyPanel`, `UnsupportedBackendPanel`
-- 지원서: `CoverLetterInputPanel`, `CoverLetterUploadPanel`
+- 관리자: `AdminSummaryCards`, `AdminCreditPanel`, `AuthKeyCreateForm`, `AuthKeyList`, `AuthKeyDeleteModal`, `CreatedAuthKeyPanel`, `UnsupportedBackendPanel`, `authKeyUtils.ts`
+- 지원서: `CoverLetterInputPanel`, `CoverLetterUploadPanel`, `CoverLetterDeleteModal`
 - 마이페이지: `ProfileSummaryCard`, `AccountSettingsForm`, `SecuritySettingsForm`, `CompanySummaryPanel`
 - 모집 공고: `JdSelectionPanel`, `SelectedJdSummary`, `RecruitmentPreviewPanel`
 

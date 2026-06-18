@@ -9,6 +9,7 @@
 - `frontend/src/pages/CoverLetterPage.tsx`
 - `frontend/src/components/cover-letter/CoverLetterInputPanel.tsx`
 - `frontend/src/components/cover-letter/CoverLetterUploadPanel.tsx`
+- `frontend/src/components/cover-letter/CoverLetterDeleteModal.tsx`
 
 역할:
 
@@ -22,14 +23,20 @@
 
 프론트:
 
-- `apiClient.requestJobAnalysis(jdId)`
-- `apiClient.requestCoverLetterAnalysis(jdId)`
+- `apiClient.requestResumeAnalysisById(resumeId)` (및 deprecated JD 기반 helper)
 
-두 함수 모두 선택 JD에 연결된 첫 번째 resume를 찾아 `/api/resume/analize/`를 호출합니다. 근거: `frontend/src/api/backendClient.ts`
+백엔드 계약:
 
-백엔드:
+- `POST /api/resume/analyze/` with `{ id: resumeId }`
+- 응답 `data`는 `AnalysisReport.to_dict()` (면접 질문은 `interview_question` 필드)
 
-- `resume_analize` in `backend/api/views.py`
+프론트 미반영:
+
+- `backendClient.ts`는 아직 `resume/analize/`를 호출하고 `{report, questions}` shape를 파싱합니다. 근거: `frontend/src/api/backendClient.ts`, `backend/api/urls.py`
+
+백엔드 구현:
+
+- `resume_analyze` in `backend/api/views/resume_endpoints.py`
 - `_get_analysis_inputs()`
 - `report_service.invoke()`
 - `_save_analysis_result()`
@@ -45,7 +52,7 @@
 
 역할:
 
-- 저장된 `AnalysisReport`와 연결 resume·JD·면접 질문을 목록으로 표시
+- 저장된 `AnalysisReport`와 연결 resume·JD를 목록으로 표시
 - `?resumeId=` 쿼리로 선택 항목 유지 (`useSearchParams`)
 - 리포트 탭 내용과 추천 질문 패널 표시
 
@@ -53,16 +60,16 @@
 
 저장 모델:
 
-- `AnalysisReport`
-- `InterviewQuestion`
+- `AnalysisReport` (`interview_question` JSON 필드에 면접 질문 포함)
 - `Resume.status = done`
 
 프론트 표시:
 
 - `mapAnalysisReport()`가 리포트 탭을 생성합니다.
+- `exampleQuestions`는 아직 별도 `InterviewQuestion[]` 배열에서 `resume_id`로 필터링합니다. 백엔드가 `report.interview_question`만 제공하므로, 프론트 어댑터 연동 수정이 필요합니다.
 - `mapTemplateQuestions()`가 면접 질문을 문항/가이드로 변환합니다.
 
-근거: `frontend/src/api/adapters.ts`
+근거: `frontend/src/api/adapters.ts`, `backend/api/models.py`
 
 ## 자기소개서 포맷 작성 (후순위 MVP)
 

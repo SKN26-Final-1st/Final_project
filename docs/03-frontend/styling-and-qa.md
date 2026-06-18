@@ -41,7 +41,8 @@
 - `verify-document-chat-widget.mjs` — 문서 검색 위젯 시각/동작 QA
 - `verify-auth-flow.mjs`, `verify-auth-text-links.mjs` — 인증 UI 흐름·텍스트 링크 QA
 - `verify-admin-layout.mjs`, `verify-admin-authkey-panel.mjs` — 관리자 화면 QA
-- `verify-jd-create-flow.mjs`, `verify-cover-letter-save-flow.mjs` — JD·자소서 저장 UI QA
+- `verify-jd-create-flow.mjs`, `verify-cover-letter-save-flow.mjs`, `verify-cover-letter-selection-flow.mjs` — JD·자소서 저장·선택 UI QA
+- `verify-viewport-layout.mjs` — 뷰포트 기반 페이지 레이아웃 QA
 - `verify-shared-route.mjs` — `/shared` 공유 리포트 라우트 검증
 - `verify-state-management-refactor.mjs` — `App.tsx`와 페이지 훅 분리 정적 검증
 - `verify-analysis-report-page.mjs` — 분석 리포트 화면 QA
@@ -66,6 +67,7 @@
 | `frontend/src/api/backendSchemas.test.ts` | Zod 스키마 파싱 검증 |
 | `frontend/src/api/httpClient.test.ts` | 세션 요청에 `VITE_API_KEY` 미부착, 명시 `apiKey` 옵션만 `X-API-Key` 전달 |
 | `frontend/src/components/admin/AuthKeyList.test.tsx` | AuthKey 목록 렌더링 |
+| `frontend/src/components/admin/AuthKeyDeleteModal.test.tsx` | AuthKey 삭제 모달 |
 | `frontend/src/hooks/useApiAction.test.tsx` | 동일 `loadingKey` 중복 액션 차단 |
 | `frontend/src/hooks/useDocumentChatState.test.tsx` | 문서 채팅 상태 훅 |
 | `frontend/src/pages/auth/SignupPage.test.tsx` | 회원가입 폼 검증 |
