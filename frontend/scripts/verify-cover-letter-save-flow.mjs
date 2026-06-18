@@ -149,6 +149,7 @@ try {
     concern: [],
     check_point: [],
     final_comment: 'Done',
+    interview_question: [],
   };
 
   await page.route('**/api/**', async (route) => {
@@ -166,7 +167,6 @@ try {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: resumeStored ? [savedResume] : [] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: analysisCalls ? [generatedReport] : [] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'resume/add') {
       addCalls += 1;
@@ -179,17 +179,12 @@ try {
       modifyPayload = route.request().postDataJSON();
       return fulfillJson(route, { error: false, data: { ...savedResume, name: modifyPayload.name } });
     }
-    if (path === 'resume/analize') {
+    if (path === 'resume/analyze') {
       analysisCalls += 1;
       analysisPayload = route.request().postDataJSON();
       return fulfillJson(route, {
         error: false,
-        data: {
-          report: {
-            ...generatedReport,
-          },
-          questions: [],
-        },
+        data: generatedReport,
       });
     }
 

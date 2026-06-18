@@ -131,7 +131,6 @@ try {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: added ? [createdJd] : [] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'jd/add') {
       addCalls += 1;

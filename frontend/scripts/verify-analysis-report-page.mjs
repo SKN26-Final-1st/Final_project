@@ -133,13 +133,13 @@ const report = {
   concern: ['Needs backend collaboration check'],
   check_point: ['Ask about API integration'],
   final_comment: 'Proceed to interview.',
-};
-const question = {
-  id: 701,
-  resume_id: 501,
-  question: 'How did you optimize React rendering?',
-  answer: 'Use memoization and component boundaries.',
-  purpose: 'Validate frontend performance experience.',
+  interview_question: [
+    {
+      question: 'How did you optimize React rendering?',
+      answer: 'Use memoization and component boundaries.',
+      purpose: 'Validate frontend performance experience.',
+    },
+  ],
 };
 
 const server = startDevServer();
@@ -161,7 +161,6 @@ try {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: [resume] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [report] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [question] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
     return fulfillJson(route, { error: false, data: [] });
   });
@@ -174,8 +173,9 @@ try {
   if ((await reportList.getByText('Excellent frontend fit.').count()) > 0) {
     throw new Error('Report list should show only applicant name and JD title, not summaries.');
   }
-  await reportList.getByText('A 등급').waitFor({ timeout: 10000 });
-  await reportList.getByText('1개 질문').waitFor({ timeout: 10000 });
+  if ((await reportList.getByText('A 등급').count()) > 0 || (await reportList.getByText('1개 질문').count()) > 0) {
+    throw new Error('Report list should remain limited to applicant name and JD title.');
+  }
 
   await page.getByRole('tab', { name: '분석 리포트' }).waitFor({ timeout: 10000 });
   await page.getByRole('tab', { name: '질문 추천' }).waitFor({ timeout: 10000 });

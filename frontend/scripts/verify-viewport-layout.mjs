@@ -165,6 +165,7 @@ async function mockBackend(page) {
     answer: '렌더링 원인을 측정하고 memoization, query cache, 컴포넌트 분리로 해결합니다.',
     purpose: '실제 문제 해결 과정과 판단 기준을 확인합니다.',
   }));
+  report.interview_question = questions;
   const authKeys = Array.from({ length: 8 }, (_, index) => ({
     id: index + 1,
     name: `외부 면접관 공유 ${index + 1}`,
@@ -189,12 +190,11 @@ async function mockBackend(page) {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: jds });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: resumes });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: report.resume_id === 10 ? [report] : [] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: questions });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: authKeys });
     if (path === 'chat') {
       return fulfillJson(route, { error: false, response: { role: 'agent', message: 'JD 기준으로 답변합니다.' } });
     }
-    if (path.endsWith('/modify') || path.endsWith('/add') || path === 'resume/analize') {
+    if (path.endsWith('/modify') || path.endsWith('/add') || path === 'resume/analyze') {
       return fulfillJson(route, { error: false, data: report });
     }
 

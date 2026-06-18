@@ -107,6 +107,7 @@ const question = {
   answer: 'Use memoization and component boundaries.',
   purpose: 'Validate frontend performance experience.',
 };
+report.interview_question = [question];
 
 async function mockBackend(page) {
   await page.route('**/api/**', async (route) => {
@@ -120,7 +121,6 @@ async function mockBackend(page) {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: [resume] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [report] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [question] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'chat') return fulfillJson(route, { error: false, response: { role: 'agent', message: 'Checked.' } });
     return fulfillJson(route, { error: false, data: [] });
