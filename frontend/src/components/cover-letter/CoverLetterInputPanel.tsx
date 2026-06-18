@@ -1,5 +1,8 @@
-import { Collapse, Form, Input, Select, Tag, type FormInstance } from 'antd';
+import { useState } from 'react';
+import { Button, Collapse, Form, Input, Select, Space, Tag, type FormInstance } from 'antd';
+import { EditOutlined } from '@ant-design/icons';
 import type { JdItem } from '../../api/adapters';
+import { EditableStringList } from '../common/EditableStringList';
 
 const { TextArea } = Input;
 
@@ -26,6 +29,16 @@ type CoverLetterInputPanelProps = {
   setSelectedJdId: (id: string) => void;
 };
 
+function toSkillSummary(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : String(item).trim()))
+    .filter(Boolean);
+}
+
 export function CoverLetterInputPanel({
   jdList,
   form,
@@ -34,6 +47,11 @@ export function CoverLetterInputPanel({
   setSelectedJdId,
 }: CoverLetterInputPanelProps) {
   const isCreateMode = mode === 'create';
+  const [isSkillEditorOpen, setIsSkillEditorOpen] = useState(false);
+  const watchedSkills = Form.useWatch('skill', form);
+  const skillSummary = toSkillSummary(watchedSkills ?? initialValues.skill);
+  const visibleSkillSummary = skillSummary.slice(0, 3);
+  const hiddenSkillCount = Math.max(skillSummary.length - visibleSkillSummary.length, 0);
 
   return (
     <Form form={form} layout="vertical" initialValues={initialValues}>
@@ -61,8 +79,45 @@ export function CoverLetterInputPanel({
       <Form.Item label="지원자명" name="name" rules={[{ required: true, message: '지원자명을 입력해 주세요.' }]}>
         <Input placeholder="지원자명을 입력하세요" />
       </Form.Item>
-      <Form.Item label="기술 스택" name="skill">
-        <Select mode="tags" tokenSeparators={[',']} placeholder="기술 스택을 입력하세요" />
+      <Form.Item label="기술 스택">
+        <div className="skill-stack-field">
+          <div className="skill-stack-summary">
+            <div className="skill-stack-tags">
+              {visibleSkillSummary.length ? (
+                <>
+                  {visibleSkillSummary.map((skill) => (
+                    <Tag key={skill}>{skill}</Tag>
+                  ))}
+                  {hiddenSkillCount ? <Tag>+{hiddenSkillCount}</Tag> : null}
+                </>
+              ) : (
+                <span className="muted">아직 입력된 기술 스택이 없습니다.</span>
+              )}
+            </div>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              aria-expanded={isSkillEditorOpen}
+              onClick={() => setIsSkillEditorOpen((current) => !current)}
+            >
+              {isSkillEditorOpen ? '편집 닫기' : '기술 스택 편집'}
+            </Button>
+          </div>
+          <Space
+            orientation="vertical"
+            size={8}
+            className="skill-stack-editor"
+            hidden={!isSkillEditorOpen}
+            aria-hidden={!isSkillEditorOpen}
+          >
+            <EditableStringList
+              name="skill"
+              itemLabel="기술 스택"
+              placeholder="기술 스택을 입력하세요"
+              addLabel="기술 추가"
+            />
+          </Space>
+        </div>
       </Form.Item>
       <Collapse
         className="resume-extra-collapse"

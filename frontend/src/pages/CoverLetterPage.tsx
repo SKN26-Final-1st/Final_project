@@ -48,6 +48,10 @@ function toStringArray(value: unknown[] | undefined) {
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function toTrimmedStringList(value: string[]) {
+  return value.map((item) => item.trim()).filter(Boolean);
+}
+
 function toEducationSummary(value: Record<string, unknown> | undefined) {
   if (!value || !Object.keys(value).length) {
     return '';
@@ -205,7 +209,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
 
     const payload = {
       name: values.name,
-      skill: values.skill ?? [],
+      skill: toTrimmedStringList(values.skill ?? []),
       education_level: values.education_level_text ? { summary: values.education_level_text } : {},
       experience: values.experience ?? [],
       self_intoduction: [
