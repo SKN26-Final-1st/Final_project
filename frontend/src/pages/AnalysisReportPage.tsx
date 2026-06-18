@@ -82,7 +82,9 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard className="scroll-card-body" title="리포트 목록">
-            <p className="list-panel-hint">리포트를 선택하면 오른쪽에서 분석 결과와 추천 질문을 확인할 수 있습니다.</p>
+            <p className="list-panel-hint">
+              리포트를 선택하면 오른쪽에서 분석 결과와 추천 질문을 확인할 수 있습니다.
+            </p>
             {reportItems.length ? (
               <div className="analysis-report-list" aria-label="Analysis report list">
                 {reportItems.map((item) => {
@@ -98,10 +100,6 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                     >
                       <strong>{item.resume?.name || '지원자 정보 없음'}</strong>
                       <span>{item.jd?.title || '연결 JD 없음'}</span>
-                      <div className="analysis-report-list-tags">
-                        <Tag color="blue">{item.report.overall_grade || 'N/A'} 등급</Tag>
-                        <Tag>{item.questions.length}개 질문</Tag>
-                      </div>
                     </button>
                   );
                 })}
@@ -177,7 +175,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                             <ReportTextList items={toList(selectedItem.report.strength)} emptyText="강점 정보가 없습니다." />
                           </section>
                           <section className="analysis-report-section">
-                            <h3>우려/검증 필요</h3>
+                            <h3>우려 / 검증 필요</h3>
                             <ReportTextList items={toList(selectedItem.report.concern)} emptyText="우려 사항이 없습니다." />
                           </section>
                           <section className="analysis-report-section">
@@ -199,11 +197,11 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                       label: '질문 추천',
                       children: selectedItem.questions.length ? (
                         <div className="analysis-report-question-list">
-                          {selectedItem.questions.map((item) => (
-                            <article className="analysis-report-question" key={item.id}>
+                          {selectedItem.questions.map((item, index) => (
+                            <article className="analysis-report-question" key={item.id ?? `${item.question}-${index}`}>
                               <span>질문</span>
                               <strong>{item.question}</strong>
-                              <span>예상/모범 답변</span>
+                              <span>예상 / 모범 답변</span>
                               <p>{item.answer}</p>
                               <span>질문 의도</span>
                               <p>{item.purpose}</p>
@@ -218,7 +216,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                 />
               </div>
             ) : (
-              <EmptyState description="분석 요청이 완료되면 리포트와 질문 추천이 표시됩니다." />
+              <EmptyState description="분석 요청을 완료하면 리포트와 질문 추천이 표시됩니다." />
             )}
           </SectionCard>
         </Col>
