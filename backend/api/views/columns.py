@@ -4,8 +4,8 @@ ACCOUNT_BLOCKED_FIELDS = {"id", "username", "account_hash"}
 COMPANY_INFO_BLOCKED_FIELDS = {"id", "account", "account_id"}
 
 AUTH_KEY_BLOCKED_FIELDS = {"id", "account", "account_id", "value"}
-AUTH_KEY_ADD_BLOCKED_FIELDS = AUTH_KEY_BLOCKED_FIELDS | {"authorized_resume"}
-AUTH_KEY_ADD_ALLOWED_FIELDS = {"name", "description", "credit_limit"}
+AUTH_KEY_ADD_BLOCKED_FIELDS = AUTH_KEY_BLOCKED_FIELDS
+AUTH_KEY_ADD_ALLOWED_FIELDS = {"name", "description", "credit_limit", "authorized_resume"}
 AUTH_KEY_MODIFY_CONTROL_FIELDS = {"delete"}
 AUTH_KEY_MODIFY_BLOCKED_FIELDS = AUTH_KEY_BLOCKED_FIELDS - {"id"}
 

@@ -14,6 +14,50 @@ from .error_code import error_code
 from .utils import editable_model_fields
 
 
+def _validate_authorized_resume(account, authorized_resume):
+    if not isinstance(authorized_resume, list):
+        return JsonResponse(
+            {"error": True, "message": error_code("Authorized resume must be a list.", 400)},
+            status=400,
+        )
+
+    if not authorized_resume:
+        return None
+
+    try:
+        unique_resume_ids = set(authorized_resume)
+    except TypeError:
+        return JsonResponse(
+            {"error": True, "message": error_code("Authorized resume contains invalid resume id.", 402)},
+            status=400,
+        )
+
+    if len(authorized_resume) != len(unique_resume_ids):
+        return JsonResponse(
+            {"error": True, "message": error_code("Authorized resume contains duplicated resume id.", 406)},
+            status=400,
+        )
+
+    try:
+        resume_count = Resume.objects.filter(
+            id__in=unique_resume_ids,
+            job_description__account=account,
+        ).count()
+    except (TypeError, ValueError):
+        return JsonResponse(
+            {"error": True, "message": error_code("Authorized resume contains invalid resume id.", 402)},
+            status=400,
+        )
+
+    if resume_count != len(unique_resume_ids):
+        return JsonResponse(
+            {"error": True, "message": error_code("Authorized resume contains invalid resume id.", 402)},
+            status=400,
+        )
+
+    return None
+
+
 def authkey_add(request):
     try:
         if request.method != "POST":
@@ -26,6 +70,7 @@ def authkey_add(request):
         description = data.get("description", "")
         name = data.get("name", "")
         credit_limit = data.get("credit_limit", 0)
+        authorized_resume = data.get("authorized_resume", [])
 
         for key in AUTH_KEY_ADD_BLOCKED_FIELDS:
             if key in data:
@@ -38,12 +83,17 @@ def authkey_add(request):
         if not name:
             return JsonResponse({"error": True, "message": error_code("Name is required.", 401)}, status=400)
 
+        validation_error = _validate_authorized_resume(request.user, authorized_resume)
+
+        if validation_error is not None:
+            return validation_error
+
         auth_key = AuthKey.objects.create(
             account=request.user,
             name=name,
             description=description,
             credit_limit=credit_limit,
-            authorized_resume=[],
+            authorized_resume=authorized_resume,
         )
 
         return JsonResponse({"error": False, "data": auth_key.to_dict()})
@@ -113,19 +163,10 @@ def authkey_modify(request):
                 return JsonResponse({"error": True, "message": error_code(f"Invalid auth key field: {key}", 402)}, status=400)
 
             if key == "authorized_resume":
-                if not isinstance(value, list):
-                    return JsonResponse({"error": True, "message": error_code("Authorized resume must be a list.", 400)}, status=400)
+                validation_error = _validate_authorized_resume(request.user, value)
 
-                if len(value) != len(set(value)):
-                    return JsonResponse({"error": True, "message": error_code("Authorized resume contains duplicated resume id.", 406)}, status=400)
-
-                resume_count = Resume.objects.filter(
-                    id__in=value,
-                    job_description__account=request.user,
-                ).count()
-
-                if resume_count != len(set(value)):
-                    return JsonResponse({"error": True, "message": error_code("Authorized resume contains invalid resume id.", 402)}, status=400)
+                if validation_error is not None:
+                    return validation_error
 
             setattr(auth_key, key, value)
 
