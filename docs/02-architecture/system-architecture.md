@@ -32,7 +32,7 @@ flowchart LR
 - `backend/config/settings.py`: Django 설정, DB 선택, CORS/CSRF, 커스텀 유저 모델
 - `backend/config/urls.py`: `/admin/`, `/api/` 루트 연결
 - `backend/api/models.py`: 도메인 모델과 `to_dict()` 직렬화
-- `backend/api/views.py`: POST 기반 API 핸들러
+- `backend/api/views/`: 도메인별 POST 기반 API 핸들러 (`account_endpoints.py`, `resume_endpoints.py` 등)
 - `backend/common/report.py`: 지원서 분석 리포트/질문 생성(운영)
 - `backend/common/report2.py`, `backend/common/report3.py`: 프롬프트 실험 버전(API 미연결)
 - `backend/common/chat_graph.py`: 채팅 그래프 오케스트레이션
