@@ -66,11 +66,9 @@ const requiredBackendCalls = [
   'resume/add',
   'resume/get',
   'resume/modify',
-  'resume/analize',
+  'resume/analyze',
   'report/get',
   'report/modify',
-  'question/get',
-  'question/modify',
   'chat',
 ];
 
@@ -114,10 +112,18 @@ assert(
 );
 
 assert(
-  /requestBackend<\{\s*report:\s*AnalysisReport;\s*questions:\s*InterviewQuestion\[\];\s*\}>\(['"]resume\/analize['"],\s*\{\s*id:\s*resume\.id\s*\}\)/.test(
+  /requestBackend<AnalysisReport>\(['"]resume\/analyze['"],\s*\{\s*id:\s*resume\.id\s*\}\)/.test(
     backendClient,
   ),
-  'resume/analize must send resume.id and consume the returned report/questions payload',
+  'resume/analyze must send resume.id and consume the returned AnalysisReport payload',
+);
+
+assert(
+  /interview_question:\s*InterviewQuestion\[\]/.test(backendTypes) &&
+    /getReportQuestions\(report\)/.test(backendClient) &&
+    !containsEndpoint(backendClient, 'question/get') &&
+    !containsEndpoint(backendClient, 'question/modify'),
+  'Interview questions must be read from AnalysisReport.interview_question; question/get and question/modify are not current backend routes',
 );
 
 const realApiMethodNames = [
