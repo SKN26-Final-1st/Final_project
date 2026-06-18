@@ -46,7 +46,7 @@ FAB의 검색 범위 칩은 `chatScopeOptions` 기준이며 라벨은 `전체`, 
 
 엔드포인트: `/api/chat/`
 
-`backend/api/views.py`:
+`backend/api/views/chat_endpoints.py`:
 
 - `chat` 배열 형식 검증
 - 사용자 또는 API 키로 접근 가능한 JD 목록 조회
