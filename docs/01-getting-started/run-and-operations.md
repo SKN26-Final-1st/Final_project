@@ -30,13 +30,7 @@ npm run dev
 
 `dev` 스크립트는 `vite --host 127.0.0.1`이며, 기본 포트는 `5173`입니다. `/api` 요청은 Vite 프록시를 통해 백엔드로 전달됩니다. 근거: `frontend/vite.config.ts`
 
-선택 환경 변수:
-
-```env
-VITE_API_KEY=your-api-key
-```
-
-`VITE_API_KEY`는 `X-API-Key` 헤더로 전달되어 API 키 기반 접근 테스트에 사용됩니다.
+API 키 기반 접근(`/shared` 등)은 화면에서 사용자가 입력한 키를 `apiClient` 호출 시 `{ apiKey }` 옵션으로 넘깁니다. 세션 API에는 자동으로 `X-API-Key`가 붙지 않습니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`
 
 ## 검사 명령
 
@@ -46,6 +40,8 @@ VITE_API_KEY=your-api-key
 cd frontend
 npm run lint
 npm run build
+npm run test          # Vitest 단위·통합 테스트
+npm run test:e2e      # Playwright E2E (로그인 접근성)
 ```
 
 백엔드:
@@ -74,8 +70,12 @@ GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/w
 | `verify-cover-letter-save-flow.mjs` | 자기소개서 저장 UI 흐름 검증 |
 | `verify-document-chat-widget.mjs` | 문서 검색 FAB/위젯 데스크톱·모바일 검증 |
 | `verify-shared-route.mjs` | `/shared` 공유 리포트 라우트 검증 |
+| `verify-state-management-refactor.mjs` | `App.tsx`와 페이지 훅·mutation 분리 정적 검증 |
+| `verify-analysis-report-page.mjs` | 분석 리포트 화면 QA |
+| `verify-chat-context-real-data.mjs` | 채팅 컨텍스트 실데이터 연결 검증 |
+| `verify-qa-stability-fixes.mjs` | UI 안정성 회귀 검증 |
 
-`package.json`에는 npm script로 등록되어 있지 않으므로, 프론트 루트에서 직접 실행합니다.
+`verify-*.mjs` 스크립트는 npm script로 등록되어 있지 않으므로, 프론트 루트에서 직접 실행합니다. Vitest(`npm run test`)와 Playwright E2E(`npm run test:e2e`)는 `package.json`에 등록되어 있습니다.
 
 ```bash
 cd frontend

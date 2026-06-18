@@ -10,9 +10,8 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
-import type { JdItem } from '../../api/adapters';
-import type { ChatMessage } from '../../data/appConfig';
-import type { AnalysisReport, InterviewQuestion, Resume } from '../../data/backendTypes';
+import { useChatPageData } from '../../hooks/useChatPageData';
+import { useDocumentChatState } from '../../hooks/useDocumentChatState';
 import type { Navigate } from '../../types/app';
 import {
   buildChatContextData,
@@ -22,30 +21,12 @@ import {
 } from './chatContextData';
 
 type DocumentChatFabProps = {
-  chatMessages: ChatMessage[];
-  chatInput: string;
-  loadingKey: string | null;
-  jdList: JdItem[];
-  resumes: Resume[];
-  analysisReports: AnalysisReport[];
-  interviewQuestions: InterviewQuestion[];
-  setChatInput: (value: string) => void;
-  sendChatMessage: () => void;
   navigate: Navigate;
 };
 
-export function DocumentChatFab({
-  chatMessages,
-  chatInput,
-  loadingKey,
-  jdList,
-  resumes,
-  analysisReports,
-  interviewQuestions,
-  setChatInput,
-  sendChatMessage,
-  navigate,
-}: DocumentChatFabProps) {
+export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
+  const { analysisReports, interviewQuestions, jdList, resumes } = useChatPageData();
+  const { chatInput, chatMessages, loadingKey, sendChatMessage, setChatInput } = useDocumentChatState();
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<ChatContextScope>('all');
   const [recommendationsOpen, setRecommendationsOpen] = useState(false);
@@ -96,7 +77,7 @@ export function DocumentChatFab({
     {
       key: 'document-intro',
       role: 'ai',
-      content: '현재 계정의 JD, 분석 리포트, 면접 질문과 사용 가이드를 바탕으로 답변을 도와드릴게요.',
+      content: '현재 계정의 JD와 사용 가이드를 중심으로 답변을 도와드릴게요. 리포트와 면접 질문은 추천 자료에서만 확인할 수 있습니다.',
       header: 'HumouR AI',
     },
     ...chatMessages.map((message, index) => ({
@@ -211,7 +192,7 @@ export function DocumentChatFab({
               </span>
               <div className="document-chat-widget-title">
                 <strong id="document-chat-widget-title">AI 채팅</strong>
-                <span>JD와 분석 데이터 기반 질의응답</span>
+                <span>JD와 사용 가이드 기반 질의응답</span>
               </div>
               <div className="document-chat-widget-actions">
                 <Button aria-label="전체 화면에서 열기" shape="circle" icon={<FullscreenOutlined />} onClick={openWorkspace} />
@@ -266,7 +247,7 @@ export function DocumentChatFab({
                 loading={loadingKey === 'chat'}
                 onChange={setChatInput}
                 onSubmit={handleSubmit}
-                placeholder="JD, 분석 리포트, 면접 질문에 대해 질문하기"
+                placeholder="JD와 사용 가이드에 대해 질문하기"
                 submitType="enter"
                 value={chatInput}
               />

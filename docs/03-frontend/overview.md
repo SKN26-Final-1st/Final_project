@@ -13,13 +13,20 @@
 - Axios
 - ECharts
 - React Router 7
+- Zod 4 (API 응답 런타임 검증)
+
+개발·검증 도구:
+
+- Vitest, Testing Library, MSW (단위·통합 테스트)
+- Playwright, axe-core (E2E·접근성 테스트)
 
 ## 앱 진입점
 
 - `frontend/src/main.tsx`: React root 생성, `AppQueryProvider`, `BrowserRouter`, `App` 연결
 - `frontend/src/providers/AppQueryProvider.tsx`: TanStack Query `QueryClientProvider`
 - `frontend/src/api/queryClient.ts`: query 기본 옵션 설정
-- `frontend/src/App.tsx`: 라우트별 페이지 렌더링, 테마, 알림, 로딩 상태, 채팅 상태, 선택 JD 상태, 인증 가드
+- `frontend/src/App.tsx`: 라우트별 페이지 렌더링, 테마, 전역 알림·로딩, 인증 가드, `DocumentChatProvider` 래핑
+- `frontend/src/hooks/`: 페이지별 데이터 slice·로컬 UI 상태, mutation 훅 (`mutations/`)
 
 ## 테마와 UI 시스템
 
@@ -41,6 +48,7 @@
 프론트는 Django API를 직접 호출합니다. mock API 모드는 제거되었습니다.
 
 - API 클라이언트: `frontend/src/api/backendClient.ts` — Django API 메서드, `httpClient.ts` — Axios/CSRF
+- 응답 검증: `frontend/src/api/backendSchemas.ts` — Zod 스키마와 `parse*` 헬퍼
 - 타입 정의: `frontend/src/data/backendTypes.ts` — Django `to_dict()` 응답 shape
 - 라우트/메뉴/팔레트: `frontend/src/data/appConfig.tsx`
 - 화면 표시 모델 변환: `frontend/src/api/adapters.ts`

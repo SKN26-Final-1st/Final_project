@@ -1,29 +1,16 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Button, Col, Row, Tabs, Tag } from 'antd';
 import { MessageOutlined } from '@ant-design/icons';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { JdItem } from '../api/adapters';
-import type { AnalysisReport, InterviewQuestion, Resume } from '../data/backendTypes';
+import type { AnalysisReport } from '../data/backendTypes';
+import { useAnalysisReportPageData } from '../hooks/useAnalysisReportPageData';
 import type { Navigate } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type AnalysisReportPageProps = {
-  reports: AnalysisReport[];
-  questions: InterviewQuestion[];
-  resumes: Resume[];
-  jdList: JdItem[];
-  selectedReportResumeId: string | null;
-  setSelectedReportResumeId: (id: string) => void;
   navigate: Navigate;
-};
-
-type ReportItem = {
-  report: AnalysisReport;
-  resume: Resume | null;
-  jd: JdItem | null;
-  questions: InterviewQuestion[];
 };
 
 function toDisplayText(value: unknown) {
@@ -70,32 +57,8 @@ function ReportTextList({ items, emptyText }: { items: string[]; emptyText: stri
   );
 }
 
-export function AnalysisReportPage({
-  reports,
-  questions,
-  resumes,
-  jdList,
-  selectedReportResumeId,
-  setSelectedReportResumeId,
-  navigate,
-}: AnalysisReportPageProps) {
-  const reportItems = useMemo<ReportItem[]>(
-    () =>
-      reports.map((report) => {
-        const resume = resumes.find((item) => item.id === report.resume_id) ?? null;
-        const jd = resume ? jdList.find((item) => Number(item.id) === resume.job_description_id) ?? null : null;
-
-        return {
-          report,
-          resume,
-          jd,
-          questions: questions.filter((item) => item.resume_id === report.resume_id),
-        };
-      }),
-    [jdList, questions, reports, resumes],
-  );
-  const selectedItem =
-    reportItems.find((item) => String(item.report.resume_id) === selectedReportResumeId) ?? reportItems[0] ?? null;
+export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
+  const { reportItems, selectedItem, selectedReportResumeId, setSelectedReportResumeId } = useAnalysisReportPageData();
   const selectedChecklist = selectedItem ? checklistItems(selectedItem.report) : [];
 
   useEffect(() => {
@@ -105,7 +68,7 @@ export function AnalysisReportPage({
   }, [selectedItem, selectedReportResumeId, setSelectedReportResumeId]);
 
   return (
-    <>
+    <div className="analysis-report-page viewport-page">
       <PageTitle
         eyebrow="Analysis Report"
         title="분석 리포트 / 질문 추천"
@@ -118,7 +81,8 @@ export function AnalysisReportPage({
       />
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
-          <SectionCard title="리포트 목록">
+          <SectionCard className="scroll-card-body" title="리포트 목록">
+            <p className="list-panel-hint">리포트를 선택하면 오른쪽에서 분석 결과와 추천 질문을 확인할 수 있습니다.</p>
             {reportItems.length ? (
               <div className="analysis-report-list" aria-label="Analysis report list">
                 {reportItems.map((item) => {
@@ -129,10 +93,15 @@ export function AnalysisReportPage({
                       className={`analysis-report-list-card ${active ? 'active' : ''}`}
                       key={item.report.id}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setSelectedReportResumeId(String(item.report.resume_id))}
                     >
                       <strong>{item.resume?.name || '지원자 정보 없음'}</strong>
                       <span>{item.jd?.title || '연결 JD 없음'}</span>
+                      <div className="analysis-report-list-tags">
+                        <Tag color="blue">{item.report.overall_grade || 'N/A'} 등급</Tag>
+                        <Tag>{item.questions.length}개 질문</Tag>
+                      </div>
                     </button>
                   );
                 })}
@@ -143,7 +112,7 @@ export function AnalysisReportPage({
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard title="리포트 / 질문 상세">
+          <SectionCard className="scroll-card-body" title="리포트 / 질문 상세">
             {selectedItem ? (
               <div className="analysis-report-detail">
                 <div className="analysis-report-selected-summary">
@@ -249,11 +218,11 @@ export function AnalysisReportPage({
                 />
               </div>
             ) : (
-              <EmptyState description="분석 요청을 완료하면 리포트와 질문 추천이 표시됩니다." />
+              <EmptyState description="분석 요청이 완료되면 리포트와 질문 추천이 표시됩니다." />
             )}
           </SectionCard>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

@@ -164,6 +164,7 @@ try {
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [report] });
     if (path === 'question/get') return fulfillJson(route, { error: false, data: [question] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
+    if (path === 'chat') return fulfillJson(route, { error: false, response: { role: 'agent', message: 'Checked.' } });
     return fulfillJson(route, { error: false, data: [] });
   });
 
@@ -176,6 +177,23 @@ try {
   }
   if ((await page.getByText('undefined 참고해서 알려줘').count()) > 0) {
     throw new Error('Undefined source prompt should never be rendered.');
+  }
+
+  await page.getByText('추천 질문으로 대화를 시작해보세요.').waitFor({ timeout: 10000 });
+  if ((await page.locator('.chat-window .ant-bubble').count()) > 0) {
+    throw new Error('Initial empty chat state must not render conversation bubbles.');
+  }
+
+  const suggestedQuestion = 'Frontend Engineer JD에서 핵심 조건을 정리해줘';
+  await page.getByRole('button', { name: suggestedQuestion }).click();
+  const chatTextarea = page.locator('.chat-input-row textarea');
+  if ((await chatTextarea.inputValue()) !== suggestedQuestion) {
+    throw new Error('Suggested question should fill the chat input without immediate send.');
+  }
+  await chatTextarea.press('Enter');
+  await page.getByText('Checked.').waitFor({ timeout: 10000 });
+  if ((await page.getByText('추천 질문으로 대화를 시작해보세요.').count()) > 0) {
+    throw new Error('Empty state should disappear after the first real message.');
   }
 
   for (const text of forbiddenTexts) {

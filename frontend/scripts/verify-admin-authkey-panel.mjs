@@ -199,7 +199,7 @@ try {
 
   await mockBackend(page);
   await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1000);
+  await page.locator('input').first().waitFor({ timeout: 10000 }).catch(() => undefined);
 
   if ((await page.locator('input').count()) === 0) {
     throw new Error(
@@ -225,6 +225,46 @@ try {
 
   if (!(await page.getByText('외부 면접관 공유 테스트 긴 이름').isVisible())) {
     throw new Error('Long API key name row was not visible.');
+  }
+
+  await page.locator('.authkey-list .ant-btn-dangerous').first().click();
+  await page.locator('.authkey-delete-modal').waitFor({ timeout: 10000 });
+
+  const deleteButtonStyles = await page
+    .locator('.authkey-delete-modal-footer .ant-btn-primary.ant-btn-dangerous')
+    .evaluate((element) => {
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderColor,
+        color: style.color,
+        text: element.textContent?.trim(),
+      };
+    });
+
+  if (!deleteButtonStyles.text) {
+    throw new Error(`Delete confirmation button text was not visible: ${JSON.stringify(deleteButtonStyles)}`);
+  }
+
+  if (deleteButtonStyles.color !== 'rgb(255, 255, 255)') {
+    throw new Error(`Delete confirmation button text color is not white: ${JSON.stringify(deleteButtonStyles)}`);
+  }
+
+  if (deleteButtonStyles.backgroundColor === 'rgba(0, 0, 0, 0)' || deleteButtonStyles.backgroundColor === 'transparent') {
+    throw new Error(`Delete confirmation button background is transparent: ${JSON.stringify(deleteButtonStyles)}`);
+  }
+
+  const closeButtonStyles = await page.locator('.authkey-delete-modal .ant-modal-close').evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      borderStyle: style.borderStyle,
+      height: style.height,
+      width: style.width,
+    };
+  });
+
+  if (closeButtonStyles.borderStyle !== 'none') {
+    throw new Error(`Modal close button still looks like a bordered button: ${JSON.stringify(closeButtonStyles)}`);
   }
 
   await browser.close();

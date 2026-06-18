@@ -93,9 +93,9 @@ gunicorn은 Django WSGI 앱을 `127.0.0.1:8000`에서 실행합니다.
 
 프론트 빌드:
 
-- `VITE_API_KEY` — API 키 기반 접근(공유 리포트 등). 선택 사항.
+- 현재 필수 Vite 환경 변수는 없습니다. API 키는 빌드 시 주입하지 않고, `/shared` 화면에서 사용자 입력값을 요청마다 `{ apiKey }`로 전달합니다.
 
-주의: `frontend/.env.example`의 `VITE_USE_MOCK_API`는 현재 코드에서 참조하지 않습니다. Vite 환경 변수는 빌드 시점에 주입됩니다.
+주의: `frontend/.env.example`의 `VITE_USE_MOCK_API`는 현재 코드에서 참조하지 않습니다.
 
 ## 패키지 제외
 

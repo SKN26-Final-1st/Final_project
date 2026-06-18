@@ -5,29 +5,21 @@ import {
   CoverLetterInputPanel,
   type CoverLetterInputFormValues,
 } from '../components/cover-letter/CoverLetterInputPanel';
+import { CoverLetterDeleteModal } from '../components/cover-letter/CoverLetterDeleteModal';
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
 import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { CoverLetterRow, JdItem } from '../api/adapters';
-import { apiClient } from '../api/backendClient';
 import type { Resume } from '../data/backendTypes';
-import type { Navigate, RunApiAction } from '../types/app';
+import type { CoverLetterRow } from '../api/adapters';
+import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
+import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
+import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type CoverLetterPageProps = {
-  jdList: JdItem[];
-  selectedJdId: string | null;
-  resumes: Resume[];
-  coverRows: CoverLetterRow[];
-  analysisDone: boolean;
-  loadingKey: string | null;
-  setSelectedJdId: (id: string) => void;
-  setSelectedReportResumeId: (id: string) => void;
-  setAnalysisDone: (value: boolean) => void;
-  runApiAction: RunApiAction;
   navigate: Navigate;
-  reloadData: () => Promise<void>;
+  showAlert: ShowAlert;
 };
 
 function getSelfIntroduction(resume: Resume | null) {
@@ -56,6 +48,21 @@ function toStringArray(value: unknown[] | undefined) {
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function toEducationSummary(value: Record<string, unknown> | undefined) {
+  if (!value || !Object.keys(value).length) {
+    return '';
+  }
+
+  const summary = value.summary;
+  if (typeof summary === 'string') {
+    return summary;
+  }
+
+  return Object.entries(value)
+    .map(([key, nextValue]) => `${key}: ${String(nextValue)}`)
+    .join(', ');
+}
+
 function toCoverLetterInitialValues(
   selectedJdId: string | null,
   currentResume: Resume | null,
@@ -63,11 +70,18 @@ function toCoverLetterInitialValues(
   const intro = getSelfIntroduction(currentResume);
 
   return {
-    job_description_id: selectedJdId ? Number(selectedJdId) : currentResume?.job_description_id,
+    job_description_id: currentResume?.job_description_id ?? (selectedJdId ? Number(selectedJdId) : undefined),
     name: currentResume?.name ?? '',
     skill: toStringArray(currentResume?.skill),
+    education_level_text: toEducationSummary(currentResume?.education_level),
+    experience: toStringArray(currentResume?.experience),
     question: intro.question,
     answer: intro.answer,
+    certification: toStringArray(currentResume?.certification),
+    language: toStringArray(currentResume?.language),
+    award: toStringArray(currentResume?.award),
+    training: toStringArray(currentResume?.training),
+    other_activity: toStringArray(currentResume?.other_activity),
   };
 }
 
@@ -76,30 +90,28 @@ function toEmptyCoverLetterValues(selectedJdId: string | null): CoverLetterInput
     job_description_id: selectedJdId ? Number(selectedJdId) : undefined,
     name: '',
     skill: [],
+    education_level_text: '',
+    experience: [],
     question: '',
     answer: '',
+    certification: [],
+    language: [],
+    award: [],
+    training: [],
+    other_activity: [],
   };
 }
 
-export function CoverLetterPage({
-  jdList,
-  selectedJdId,
-  resumes,
-  coverRows,
-  analysisDone,
-  loadingKey,
-  setSelectedJdId,
-  setSelectedReportResumeId,
-  setAnalysisDone,
-  runApiAction,
-  navigate,
-  reloadData,
-}: CoverLetterPageProps) {
+export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const [form] = Form.useForm<CoverLetterInputFormValues>();
   const [isCreatingCoverLetter, setIsCreatingCoverLetter] = useState(false);
+  const [deleteTargetResume, setDeleteTargetResume] = useState<CoverLetterRow | null>(null);
+  const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId } =
+    useCoverLetterPageData();
+  const { addResume, analyzeResume, deleteResume, saveResume } = useResumeMutations(showAlert);
   const currentResume = useMemo(
-    () => resumes.find((resume) => String(resume.job_description_id) === selectedJdId) ?? null,
-    [resumes, selectedJdId],
+    () => resumes.find((resume) => String(resume.id) === selectedResumeId) ?? null,
+    [resumes, selectedResumeId],
   );
   const editingResume = isCreatingCoverLetter ? null : currentResume;
   const initialValues = useMemo(
@@ -109,19 +121,72 @@ export function CoverLetterPage({
         : toCoverLetterInitialValues(selectedJdId, editingResume),
     [editingResume, isCreatingCoverLetter, selectedJdId],
   );
-  const isSaving = loadingKey === 'cover-save';
-  const isAnalyzing = loadingKey === 'cover-analysis';
-  const hasCurrentResume = Boolean(currentResume);
+  const hasCurrentResume = Boolean(editingResume);
   const isEditMode = Boolean(editingResume);
-  const canAnalyze = Boolean(selectedJdId && currentResume && !isCreatingCoverLetter);
+  const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter);
+  const analysisDone = editingResume?.status === 'done';
 
   useEffect(() => {
+    form.resetFields();
     form.setFieldsValue(initialValues);
   }, [form, initialValues]);
 
   const startCreateCoverLetter = () => {
     setIsCreatingCoverLetter(true);
     form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
+  };
+
+  const selectResume = (resumeId: string) => {
+    const nextResume = resumes.find((resume) => String(resume.id) === resumeId);
+
+    setIsCreatingCoverLetter(false);
+    setSelectedResumeId(resumeId);
+
+    if (nextResume) {
+      setSelectedJdId(String(nextResume.job_description_id));
+      form.resetFields();
+      form.setFieldsValue(toCoverLetterInitialValues(null, nextResume));
+    }
+  };
+
+  const requestDeleteResume = (resumeId: string) => {
+    const targetResume = coverRows.find((row) => row.key === resumeId);
+
+    if (!targetResume) {
+      showAlert({ type: 'warning', message: '삭제할 자소서를 찾을 수 없습니다.' });
+      return;
+    }
+
+    setDeleteTargetResume(targetResume);
+  };
+
+  const closeDeleteResumeModal = () => {
+    if (!deleteResume.isPending) {
+      setDeleteTargetResume(null);
+    }
+  };
+
+  const confirmDeleteResume = async () => {
+    if (!deleteTargetResume) {
+      return;
+    }
+
+    const targetId = deleteTargetResume.key;
+    await deleteResume.mutateAsync(Number(targetId));
+    setDeleteTargetResume(null);
+
+    if (selectedResumeId === targetId) {
+      const nextResume = resumes.find((resume) => String(resume.id) !== targetId);
+
+      if (nextResume) {
+        selectResume(String(nextResume.id));
+      } else {
+        setSelectedResumeId(null);
+        setIsCreatingCoverLetter(true);
+        form.resetFields();
+        form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
+      }
+    }
   };
 
   const saveCurrentResume = async () => {
@@ -141,61 +206,60 @@ export function CoverLetterPage({
     const payload = {
       name: values.name,
       skill: values.skill ?? [],
+      education_level: values.education_level_text ? { summary: values.education_level_text } : {},
+      experience: values.experience ?? [],
       self_intoduction: [
         {
           question: values.question,
           answer: values.answer,
         },
       ],
+      certification: values.certification ?? [],
+      language: values.language ?? [],
+      award: values.award ?? [],
+      training: values.training ?? [],
+      other_activity: values.other_activity ?? [],
     };
 
-    await runApiAction(
-      'cover-save',
-      () =>
-        editingResume
-          ? apiClient.saveResume({ id: editingResume.id, ...payload })
-          : apiClient.addResume({ job_description_id: jobDescriptionId, ...payload }),
-      () => {
-        setIsCreatingCoverLetter(false);
-        void reloadData();
-      },
-    );
+    if (editingResume) {
+      const response = await saveResume.mutateAsync({ id: editingResume.id, ...payload });
+      setSelectedResumeId(String(response.data.id));
+    } else {
+      const response = await addResume.mutateAsync({ job_description_id: jobDescriptionId, ...payload });
+      setSelectedResumeId(String(response.data.id));
+      setSelectedJdId(String(response.data.job_description_id));
+    }
+
+    setIsCreatingCoverLetter(false);
   };
 
-  const requestAnalysis = () => {
-    if (!selectedJdId || !currentResume) {
+  const requestAnalysis = async () => {
+    if (!editingResume) {
       return;
     }
 
-    void runApiAction(
-      'cover-analysis',
-      () => apiClient.requestCoverLetterAnalysis(selectedJdId),
-      (response) => {
-        setSelectedReportResumeId(String(response.data.report.resume_id || response.data.resume_id));
-        setAnalysisDone(true);
-        void reloadData().finally(() => navigate('/analysis-report'));
-      },
-    );
+    const response = await analyzeResume.mutateAsync(editingResume.id);
+    navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
   };
 
   return (
-    <>
+    <div className="cover-letter-page viewport-page">
       <PageTitle
         eyebrow="Resume"
         title="자소서 관리"
         description="저장된 자소서를 확인하고, 선택한 JD에 맞춰 작성/수정 후 분석 요청을 진행합니다."
         actions={
           <Space wrap>
-            <Button icon={<SaveOutlined />} loading={isSaving} onClick={() => void saveCurrentResume()}>
+            <Button icon={<SaveOutlined />} loading={saveResume.isPending || addResume.isPending} onClick={() => void saveCurrentResume()}>
               저장
             </Button>
             <Button
               type="primary"
               icon={<FileSearchOutlined />}
-              disabled={!canAnalyze || isAnalyzing}
-              onClick={requestAnalysis}
+              disabled={!canAnalyze || analyzeResume.isPending}
+              onClick={() => void requestAnalysis()}
             >
-              {isAnalyzing ? <InlineLoading label="분석 중" /> : '분석 요청'}
+              {analyzeResume.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}
             </Button>
           </Space>
         }
@@ -203,6 +267,7 @@ export function CoverLetterPage({
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard
+            className="scroll-card-body"
             title="자소서 목록"
             extra={
               <Button size="small" icon={<PlusOutlined />} onClick={startCreateCoverLetter}>
@@ -215,11 +280,14 @@ export function CoverLetterPage({
               hasSavedResume={hasCurrentResume}
               analysisDone={analysisDone}
               navigate={navigate}
+              selectedResumeId={isCreatingCoverLetter ? null : selectedResumeId}
+              onSelectResume={selectResume}
+              onDeleteResume={requestDeleteResume}
             />
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard title="자소서 작성/수정">
+          <SectionCard className="scroll-card-body" title="자소서 작성/수정">
             <CoverLetterInputPanel
               jdList={jdList}
               form={form}
@@ -230,6 +298,12 @@ export function CoverLetterPage({
           </SectionCard>
         </Col>
       </Row>
-    </>
+      <CoverLetterDeleteModal
+        targetResume={deleteTargetResume}
+        deleting={deleteResume.isPending}
+        onCancel={closeDeleteResumeModal}
+        onConfirm={() => void confirmDeleteResume()}
+      />
+    </div>
   );
 }

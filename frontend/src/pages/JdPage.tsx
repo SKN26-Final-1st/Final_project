@@ -10,23 +10,14 @@ import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem } from '../api/adapters';
-import { apiClient } from '../api/backendClient';
-import type { Resume } from '../data/backendTypes';
-import type { Navigate, RunApiAction, ShowAlert } from '../types/app';
+import { useJdPageData } from '../hooks/useJdPageData';
+import { useJdMutations } from '../hooks/mutations/useJdMutations';
+import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type JdPageProps = {
-  jdList: JdItem[];
-  resumes: Resume[];
-  selectedJdId: string | null;
-  selectedJd: JdItem | null;
-  loadingKey: string | null;
-  setSelectedJdId: (id: string) => void;
-  setSelectedReportResumeId: (id: string) => void;
-  runApiAction: RunApiAction;
   navigate: Navigate;
   showAlert: ShowAlert;
-  reloadData: () => Promise<void>;
 };
 
 function toJdEditorValues(selectedJd: JdItem): JdEditorFormValues {
@@ -61,22 +52,12 @@ const EMPTY_JD_EDITOR_VALUES: JdEditorFormValues = {
   status: 'prepare',
 };
 
-export function JdPage({
-  jdList,
-  resumes,
-  selectedJdId,
-  selectedJd,
-  loadingKey,
-  setSelectedJdId,
-  setSelectedReportResumeId,
-  runApiAction,
-  navigate,
-  showAlert,
-  reloadData,
-}: JdPageProps) {
+export function JdPage({ navigate, showAlert }: JdPageProps) {
   const [form] = Form.useForm<JdEditorFormValues>();
   const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [deleteTargetJd, setDeleteTargetJd] = useState<JdItem | null>(null);
+  const { jdList, resumes, selectedJdId, selectedJd, setSelectedJdId } = useJdPageData();
+  const { addJd, analyzeJd, deleteJd, saveJd } = useJdMutations(showAlert);
   const isEmptyJdList = jdList.length === 0;
   const isCreateMode = isCreatingJd || isEmptyJdList;
   const editorInitialValues = useMemo(
@@ -84,11 +65,17 @@ export function JdPage({
     [isCreateMode, selectedJd],
   );
   const showEditor = isCreateMode || Boolean(selectedJd && editorInitialValues);
-  const deleteLoadingKey = deleteTargetJd ? `jd-delete-${deleteTargetJd.id}` : null;
-  const isDeletingJd = Boolean(deleteLoadingKey && loadingKey === deleteLoadingKey);
-  const selectedJdResume = selectedJd
-    ? resumes.find((resume) => String(resume.job_description_id) === selectedJd.id) ?? null
-    : null;
+  const selectedJdResumes = useMemo(
+    () => (selectedJd ? resumes.filter((resume) => String(resume.job_description_id) === selectedJd.id) : []),
+    [resumes, selectedJd],
+  );
+  const analysisTargetResume = selectedJdResumes.length === 1 ? selectedJdResumes[0] : null;
+  const analysisDisabledReason =
+    selectedJd && selectedJdResumes.length > 1
+      ? '연결된 자소서가 여러 개입니다. 자소서 페이지에서 분석할 지원자를 선택해 주세요.'
+      : selectedJd && selectedJdResumes.length === 0
+        ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.'
+        : undefined;
 
   useEffect(() => {
     if (isCreateMode) {
@@ -119,15 +106,9 @@ export function JdPage({
     const values = await form.validateFields();
 
     if (isCreateMode) {
-      await runApiAction(
-        'jd-add',
-        () => apiClient.addJobDescription(values),
-        (response) => {
-          setIsCreatingJd(false);
-          setSelectedJdId(String(response.data.id));
-          void reloadData();
-        },
-      );
+      const response = await addJd.mutateAsync(values);
+      setIsCreatingJd(false);
+      setSelectedJdId(String(response.data.id));
       return;
     }
 
@@ -135,11 +116,7 @@ export function JdPage({
       return;
     }
 
-    await runApiAction(
-      'jd-save',
-      () => apiClient.saveJobDescription({ id: Number(selectedJd.id), ...values }),
-      () => void reloadData(),
-    );
+    await saveJd.mutateAsync({ id: Number(selectedJd.id), ...values });
   };
 
   const requestDeleteJd = (id: string) => {
@@ -154,7 +131,7 @@ export function JdPage({
   };
 
   const closeDeleteModal = () => {
-    if (!isDeletingJd) {
+    if (!deleteJd.isPending) {
       setDeleteTargetJd(null);
     }
   };
@@ -165,30 +142,35 @@ export function JdPage({
     }
 
     const targetId = deleteTargetJd.id;
+    await deleteJd.mutateAsync(Number(targetId));
+    setDeleteTargetJd(null);
 
-    await runApiAction(
-      `jd-delete-${targetId}`,
-      () => apiClient.deleteJobDescription(Number(targetId)),
-      () => {
-        setDeleteTargetJd(null);
+    if (selectedJdId === targetId) {
+      const nextJd = jdList.find((item) => item.id !== targetId);
 
-        if (selectedJdId === targetId) {
-          const nextJd = jdList.find((item) => item.id !== targetId);
+      if (nextJd) {
+        setSelectedJdId(nextJd.id);
+      } else {
+        startCreateJd();
+      }
+    }
+  };
 
-          if (nextJd) {
-            setSelectedJdId(nextJd.id);
-          } else {
-            startCreateJd();
-          }
-        }
+  const requestAnalysis = async () => {
+    if (!analysisTargetResume) {
+      showAlert({
+        type: 'warning',
+        message: analysisDisabledReason ?? '분석할 지원자를 찾을 수 없습니다.',
+      });
+      return;
+    }
 
-        void reloadData();
-      },
-    );
+    const response = await analyzeJd.mutateAsync(analysisTargetResume.id);
+    navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
   };
 
   return (
-    <div className="jd-page">
+    <div className="jd-page viewport-page">
       <PageTitle
         eyebrow="JD Management"
         title="JD 관리"
@@ -196,11 +178,11 @@ export function JdPage({
         actions={
           <Space wrap>
             <Button
-              icon={loadingKey === 'jd-save' || loadingKey === 'jd-add' ? undefined : <SaveOutlined />}
-              disabled={!showEditor || loadingKey === 'jd-save' || loadingKey === 'jd-add'}
+              icon={saveJd.isPending || addJd.isPending ? undefined : <SaveOutlined />}
+              disabled={!showEditor || saveJd.isPending || addJd.isPending}
               onClick={() => void saveSelectedJd()}
             >
-              {loadingKey === 'jd-save' || loadingKey === 'jd-add' ? (
+              {saveJd.isPending || addJd.isPending ? (
                 <InlineLoading label={isCreateMode ? '등록 중' : '저장 중'} />
               ) : isCreateMode ? (
                 'JD 등록'
@@ -211,21 +193,11 @@ export function JdPage({
             <Button
               type="primary"
               icon={<FileSearchOutlined />}
-              disabled={isCreateMode || !selectedJd || !selectedJdResume || loadingKey === 'jd-analysis'}
-              title={!selectedJdResume && selectedJd ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.' : undefined}
-              onClick={() =>
-                selectedJd &&
-                void runApiAction(
-                  'jd-analysis',
-                  () => apiClient.requestJobAnalysis(selectedJd.id),
-                  (response) => {
-                    setSelectedReportResumeId(String(response.data.report.resume_id || response.data.resume_id));
-                    void reloadData().finally(() => navigate('/analysis-report'));
-                  },
-                )
-              }
+              disabled={isCreateMode || !selectedJd || !analysisTargetResume || analyzeJd.isPending}
+              title={analysisDisabledReason}
+              onClick={() => void requestAnalysis()}
             >
-              {loadingKey === 'jd-analysis' ? <InlineLoading label="분석 중" /> : '분석 요청'}
+              {analyzeJd.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}
             </Button>
           </Space>
         }
@@ -233,6 +205,7 @@ export function JdPage({
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
           <SectionCard
+            className="scroll-card-body"
             title="JD 목록"
             extra={
               <Button size="small" icon={<PlusOutlined />} onClick={startCreateJd}>
@@ -240,6 +213,7 @@ export function JdPage({
               </Button>
             }
           >
+            <p className="list-panel-hint">JD를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
             {jdList.length ? (
               <JdListPanel
                 jdList={jdList}
@@ -253,13 +227,12 @@ export function JdPage({
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard title="JD 작성/수정">
+          <SectionCard className="scroll-card-body" title="JD 작성/수정">
             {showEditor && editorInitialValues ? (
               <JdEditorPanel
                 form={form}
                 selectedJd={isCreateMode ? null : selectedJd}
                 initialValues={editorInitialValues}
-                navigate={navigate}
                 mode={isCreateMode ? 'create' : 'edit'}
               />
             ) : (
@@ -270,7 +243,7 @@ export function JdPage({
       </Row>
       <JdDeleteModal
         targetJd={deleteTargetJd}
-        deleting={isDeletingJd}
+        deleting={deleteJd.isPending}
         onCancel={closeDeleteModal}
         onConfirm={() => void confirmDeleteJd()}
       />

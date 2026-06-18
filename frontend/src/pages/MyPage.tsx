@@ -1,25 +1,26 @@
 import { useEffect } from 'react';
 import { Button, Col, Form, Row } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import { SaveOutlined } from '@ant-design/icons';
 import { AccountSettingsForm, type AccountSettingsFormValues } from '../components/mypage/AccountSettingsForm';
 import { CompanySummaryPanel } from '../components/mypage/CompanySummaryPanel';
 import { ProfileSummaryCard } from '../components/mypage/ProfileSummaryCard';
 import { SecuritySettingsForm, type SecuritySettingsFormValues } from '../components/mypage/SecuritySettingsForm';
 import { InlineLoading } from '../components/common/InlineLoading';
+import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
-import type { CompanyProfile, UserProfile } from '../api/adapters';
+import type { UserProfile } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
+import { queryKeys } from '../api/queryKeys';
+import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { Navigate, RunApiAction } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
 
 type MyPageProps = {
-  profile: UserProfile;
-  company: CompanyProfile;
   loadingKey: string | null;
   navigate: Navigate;
   runApiAction: RunApiAction;
-  reloadData: () => Promise<void>;
 };
 
 function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
@@ -33,21 +34,36 @@ function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
 }
 
 export function MyPage({
-  profile,
-  company,
   loadingKey,
   navigate,
   runApiAction,
-  reloadData,
 }: MyPageProps) {
   const [accountForm] = Form.useForm<AccountSettingsFormValues>();
   const [securityForm] = Form.useForm<SecuritySettingsFormValues>();
-  const accountInitialValues = toAccountFormValues(profile);
+  const queryClient = useQueryClient();
+  const { data } = useAppDataQuery();
+  const profile = data?.userProfile;
+  const company = data?.company;
+  const accountInitialValues = profile
+    ? toAccountFormValues(profile)
+    : {
+        username: '',
+        name: '',
+        credit: 0,
+        subscribe: false,
+        verification_question: '',
+      };
 
   useEffect(() => {
-    accountForm.setFieldsValue(toAccountFormValues(profile));
-    securityForm.resetFields();
+    if (profile) {
+      accountForm.setFieldsValue(toAccountFormValues(profile));
+      securityForm.resetFields();
+    }
   }, [accountForm, profile, securityForm]);
+
+  if (!profile || !company) {
+    return <EmptyState description="마이페이지 정보를 불러오지 못했습니다." />;
+  }
 
   const saveProfile = () => {
     let passwordChanged = false;
@@ -93,17 +109,17 @@ export function MyPage({
       () => {
         if (passwordChanged) {
           securityForm.resetFields();
-          void reloadData();
+          void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
           return;
         }
 
-        void reloadData();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
       },
     );
   };
 
   return (
-    <>
+    <div className="mypage-page viewport-page">
       <PageTitle
         eyebrow="My Page"
         title="마이페이지"
@@ -119,13 +135,13 @@ export function MyPage({
           </Button>
         }
       />
-      <Row className="section-row" gutter={pageSectionGutter}>
+      <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={8}>
-          <SectionCard title="프로필">
+          <SectionCard className="scroll-card-body" title="프로필">
             <ProfileSummaryCard profile={profile} />
           </SectionCard>
         </Col>
-        <Col xs={24} xl={16}>
+        <Col className="viewport-column-scroll" xs={24} xl={16}>
           <Row className="section-row" gutter={pageSectionGutter}>
             <Col xs={24} lg={12}>
               <SectionCard title="계정 정보">
@@ -145,6 +161,6 @@ export function MyPage({
           </Row>
         </Col>
       </Row>
-    </>
+    </div>
   );
 }

@@ -44,6 +44,40 @@ function toSharedTextList(value: unknown) {
     .filter(Boolean);
 }
 
+function SharedTextList({ items, emptyText }: { items: string[]; emptyText: string }) {
+  if (!items.length) {
+    return <p className="muted">{emptyText}</p>;
+  }
+
+  return (
+    <ul className="shared-report-list">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function getSharedChecklist(report: AnalysisReport) {
+  return Array.isArray(report.checklist)
+    ? report.checklist
+        .map((item) => {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) {
+            return null;
+          }
+
+          const record = item as Record<string, unknown>;
+          const content = typeof record.content === 'string' ? record.content : '';
+          if (!content) {
+            return null;
+          }
+
+          return { content, result: Boolean(record.result) };
+        })
+        .filter((item): item is { content: string; result: boolean } => Boolean(item))
+    : [];
+}
+
 function formatReportContext(bundle: SharedBundle) {
   const report = bundle.reports[0];
   const questions = bundle.questions.map((item) => item.question).join(' / ');
@@ -66,7 +100,8 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
   const location = useLocation();
   const [form] = Form.useForm<SharedLookupForm>();
   const [bundle, setBundle] = useState<SharedBundle | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [bundleLoading, setBundleLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -78,7 +113,7 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
   const initialResumeId = useMemo(() => getInitialResumeId(location.search), [location.search]);
 
   const loadSharedBundle = async (values: SharedLookupForm) => {
-    setLoading(true);
+    setBundleLoading(true);
     setError(null);
 
     try {
@@ -88,12 +123,12 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
       setBundle(null);
       setError(nextError instanceof Error ? nextError.message : '공유 결과를 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      setBundleLoading(false);
     }
   };
 
   const sendSharedChat = async () => {
-    if (!bundle || loading) {
+    if (!bundle || chatLoading) {
       return;
     }
 
@@ -114,16 +149,18 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
 
     setChatMessages(nextVisibleMessages);
     setChatInput('');
-    setLoading(true);
+    setChatLoading(true);
     setError(null);
 
     try {
       const response = await apiClient.sendChatMessage(trimmed, [...chatMessages, contextMessage], apiKey);
       setChatMessages((current) => [...current, response.data]);
     } catch (nextError) {
+      setChatMessages(chatMessages);
+      setChatInput(trimmed);
       setError(nextError instanceof Error ? nextError.message : '채팅 응답을 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -170,7 +207,7 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
               </Col>
             </Row>
             <Space wrap>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={loading}>
+              <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={bundleLoading}>
                 결과 조회
               </Button>
               <Alert
@@ -229,12 +266,37 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                           <Typography.Title level={4}>{report.overall_grade} 등급</Typography.Title>
                           <p>{report.overall_summary}</p>
                           <p>{report.candidate_summary}</p>
+                          <Typography.Title level={5}>체크리스트</Typography.Title>
+                          <div className="shared-report-checklist">
+                            {getSharedChecklist(report).length ? (
+                              getSharedChecklist(report).map((item) => (
+                                <div className="shared-report-check-row" key={item.content}>
+                                  <Tag color={item.result ? 'success' : 'warning'}>
+                                    {item.result ? '충족' : '미충족'}
+                                  </Tag>
+                                  <span>{item.content}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="muted">체크리스트가 없습니다.</p>
+                            )}
+                          </div>
+                          <Typography.Title level={5}>역량 분석</Typography.Title>
+                          <SharedTextList items={toSharedTextList(report.competency_analysis)} emptyText="역량 분석이 없습니다." />
+                          <Typography.Title level={5}>적합도 분석</Typography.Title>
+                          <SharedTextList items={toSharedTextList(report.fit_analysis)} emptyText="적합도 분석이 없습니다." />
+                          <Typography.Title level={5}>강점</Typography.Title>
+                          <SharedTextList items={toSharedTextList(report.strength)} emptyText="강점 정보가 없습니다." />
+                          <Typography.Title level={5}>우려/검증 필요</Typography.Title>
+                          <SharedTextList items={toSharedTextList(report.concern)} emptyText="우려 사항이 없습니다." />
                           <Typography.Title level={5}>확인 포인트</Typography.Title>
                           <ul>
                             {report.check_point.map((item) => (
                               <li key={item}>{item}</li>
                             ))}
                           </ul>
+                          <Typography.Title level={5}>최종 코멘트</Typography.Title>
+                          <p>{report.final_comment || '최종 코멘트가 없습니다.'}</p>
                         </div>
                       ) : (
                         <Alert showIcon type="warning" title="아직 분석 리포트가 없습니다." />
@@ -253,7 +315,15 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                       locale={{ emptyText: '생성된 면접 질문이 없습니다.' }}
                       renderItem={(question: InterviewQuestion) => (
                         <List.Item>
-                          <List.Item.Meta title={question.question} description={question.purpose} />
+                          <List.Item.Meta
+                            title={question.question}
+                            description={
+                              <Space direction="vertical" size={6}>
+                                <span>{question.purpose || '질문 의도 없음'}</span>
+                                {question.answer && <span>예상 답변: {question.answer}</span>}
+                              </Space>
+                            }
+                          />
                         </List.Item>
                       )}
                     />
@@ -278,11 +348,12 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                         placeholder="리포트나 질문지에 대해 물어보세요."
                         onChange={(event) => setChatInput(event.target.value)}
                         onPressEnter={() => void sendSharedChat()}
+                        disabled={chatLoading}
                       />
                       <Button
                         type="primary"
                         icon={<SendOutlined />}
-                        loading={loading}
+                        loading={chatLoading}
                         disabled={!bundle || !chatInput.trim()}
                         onClick={() => void sendSharedChat()}
                       >

@@ -256,7 +256,7 @@ try {
   }
 
   await analysisButton.click();
-  await page.waitForURL('**/analysis-report', { timeout: 10000 });
+  await page.waitForURL((url) => url.pathname === '/analysis-report', { timeout: 10000 });
   await page.locator('.analysis-report-detail').getByText('Good').waitFor({ timeout: 10000 });
 
   if (analysisCalls !== 1 || analysisPayload?.id !== 501) {

@@ -10,16 +10,21 @@
 - OpenAI 리포트/면접질문 생성 파이프라인(운영): `backend/common/report.py` — API는 이 모듈만 사용
 - 리포트 프롬프트 실험·평가: `backend/common/report2.py`, `report3.py`, `backend/common/eval/middle_report*_eval.ipynb`
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
-- React 화면, 라우팅, 전역 알림/로딩/채팅 상태: `frontend/src/App.tsx`
+- React 화면, 라우팅, 전역 알림/로딩: `frontend/src/App.tsx`
+- 페이지별 데이터·mutation 훅: `frontend/src/hooks/` (`useJdPageData`, `useCoverLetterPageData`, `useAnalysisReportPageData`, `useChatPageData`, `useAdminPageData`, `useDocumentChatState`, `hooks/mutations/*`)
 - 전역 알림 토스트: `frontend/src/components/common/FloatingAlert.tsx`
 - 인증 페이지 분리: `frontend/src/pages/auth/`, barrel `frontend/src/pages/AuthPages.tsx`
 - 데스크톱 사이드바 핀 고정: `frontend/src/components/layout/SidebarNav.tsx`
-- 프론트 Django API 클라이언트(CSRF, credentials, `X-API-Key`): `frontend/src/api/backendClient.ts`
+- 프론트 Django API 클라이언트(CSRF, credentials, 명시 `apiKey` 시 `X-API-Key`): `frontend/src/api/httpClient.ts`, `frontend/src/api/backendClient.ts`
+- 문서 채팅 참조 데이터 조합: `frontend/src/components/chat/chatContextData.tsx`
 - 대시보드 데이터 조합과 화면 어댑터: `frontend/src/api/appDataService.ts`, `frontend/src/api/adapters.ts`
 - Vite dev server `/api` 프록시: `frontend/vite.config.ts` → `http://127.0.0.1:8000`
 - 공유 리포트 화면(API 키 + resume id): `frontend/src/pages/SharedReportPage.tsx`
 - 관리자 AuthKey CRUD: `frontend/src/pages/AdminPage.tsx` → `/api/authkey/*`
 - Elastic Beanstalk 배포 워크플로: `.github/workflows/deploy-eb.yml`
+- 프론트 Vitest 단위·통합 테스트: `frontend/src/**/*.test.{ts,tsx}`, MSW 설정 `frontend/src/test/`
+- 프론트 Playwright E2E·접근성: `frontend/tests/e2e/auth-accessibility.spec.ts`
+- API 응답 Zod 검증: `frontend/src/api/backendSchemas.ts` → `backendClient.ts`
 
 ## UI 보존·백엔드 미연동 영역
 

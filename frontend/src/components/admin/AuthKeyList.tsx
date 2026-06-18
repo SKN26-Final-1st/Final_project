@@ -2,6 +2,7 @@ import { Button, List, Select, Tag, type SelectProps } from 'antd';
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
 import type { AuthKey } from '../../data/backendTypes';
+import { maskAuthKeyValue } from './authKeyUtils';
 
 type AuthKeyListProps = {
   authKeys: AuthKey[];
@@ -62,8 +63,11 @@ export function AuthKeyList({
                 <div className="authkey-meta">
                   <strong className="authkey-name">{authKey.name}</strong>
                   <div className="authkey-tags">
-                    <Tag className="authkey-value-tag">{authKey.value}</Tag>
+                    <Tag className="authkey-value-tag">{maskAuthKeyValue(authKey.value)}</Tag>
                     <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                    <Tag color={authKey.authorized_resume.length ? 'green' : 'default'}>
+                      허용 지원서 {authKey.authorized_resume.length}건
+                    </Tag>
                   </div>
                 </div>
               }

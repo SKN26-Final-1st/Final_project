@@ -1,6 +1,5 @@
-import { Button, Col, Form, Input, Progress, Row, Select, Tag, type FormInstance } from 'antd';
+import { Col, Form, Input, Progress, Row, Select, Tag, type FormInstance } from 'antd';
 import type { JdItem } from '../../api/adapters';
-import type { Navigate } from '../../types/app';
 
 const { TextArea } = Input;
 
@@ -21,18 +20,19 @@ type JdEditorPanelProps = {
   form: FormInstance<JdEditorFormValues>;
   selectedJd: JdItem | null;
   initialValues: JdEditorFormValues;
-  navigate: Navigate;
   mode?: 'create' | 'edit';
 };
 
-export function JdEditorPanel({ form, selectedJd, initialValues, navigate, mode = 'edit' }: JdEditorPanelProps) {
+export function JdEditorPanel({ form, selectedJd, initialValues, mode = 'edit' }: JdEditorPanelProps) {
   const isCreateMode = mode === 'create';
 
   return (
     <Form className="jd-editor-form" form={form} layout="vertical" initialValues={initialValues}>
       <div className="jd-editor-mode-row">
         <Tag color={isCreateMode ? 'processing' : 'blue'}>{isCreateMode ? '신규 작성' : '수정 모드'}</Tag>
-        <span>{isCreateMode ? '필수 항목을 입력해 JD를 등록합니다.' : '선택한 JD 정보를 수정합니다.'}</span>
+        <span>
+          {isCreateMode ? '필수 항목을 입력해 JD를 등록합니다.' : '선택한 JD 정보를 수정합니다.'}
+        </span>
       </div>
       <Row gutter={16}>
         <Col xs={24} md={12}>
@@ -62,10 +62,10 @@ export function JdEditorPanel({ form, selectedJd, initialValues, navigate, mode 
         <TextArea rows={4} />
       </Form.Item>
       <Form.Item label="필수 기술" name="required_skill" rules={[{ required: true, message: '필수 기술을 입력하세요.' }]}>
-        <Select mode="tags" tokenSeparators={[',']} placeholder="필수 기술을 입력하세요" />
+        <Select mode="tags" tokenSeparators={[',']} placeholder="필수 기술을 입력하세요." />
       </Form.Item>
       <Form.Item label="우대 기술" name="preferred_skill">
-        <Select mode="tags" tokenSeparators={[',']} placeholder="우대 기술을 입력하세요" />
+        <Select mode="tags" tokenSeparators={[',']} placeholder="우대 기술을 입력하세요." />
       </Form.Item>
       <Form.Item label="채용 배경" name="hiring_reason">
         <TextArea rows={3} />
@@ -103,16 +103,6 @@ export function JdEditorPanel({ form, selectedJd, initialValues, navigate, mode 
             )}
           </div>
         </Col>
-        {!isCreateMode && (
-          <Col span={24}>
-            <div className="inline-action-box">
-              <span>모집 공고 작성 화면으로 연결</span>
-              <Button onClick={() => navigate('/recruitment-post')} type="primary" ghost>
-                공고 작성
-              </Button>
-            </div>
-          </Col>
-        )}
       </Row>
     </Form>
   );

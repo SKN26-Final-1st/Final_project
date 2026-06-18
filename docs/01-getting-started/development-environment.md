@@ -33,6 +33,14 @@
 - TanStack Query
 - Axios
 - ECharts
+- Zod
+
+주요 개발·테스트 패키지:
+
+- Vitest, `@vitest/coverage-v8`, jsdom
+- `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`
+- MSW
+- `@playwright/test`, `@axe-core/playwright`, `playwright-core`
 
 ## 환경 변수
 
@@ -42,14 +50,12 @@
 
 ```env
 VITE_USE_MOCK_API=true
-VITE_API_KEY=
 ```
 
-주의: `VITE_USE_MOCK_API`는 현재 `backendClient.ts`에서 참조하지 않습니다. mock API 모드는 제거되었고, 프론트는 항상 Django API를 호출합니다.
+주의:
 
-실제로 사용되는 변수:
-
-- `VITE_API_KEY`: 설정 시 Axios 요청에 `X-API-Key` 헤더를 붙입니다. 공유 리포트·비로그인 API 접근 테스트에 사용합니다. 근거: `frontend/src/api/backendClient.ts`
+- `VITE_USE_MOCK_API`는 현재 `backendClient.ts`에서 참조하지 않습니다. mock API 모드는 제거되었고, 프론트는 항상 Django API를 호출합니다.
+- `frontend/.env.example`에 `VITE_API_KEY`가 없으며, `httpClient.ts`도 `VITE_API_KEY`를 읽지 않습니다. `X-API-Key`는 공유 리포트처럼 호출부가 `{ apiKey }`를 명시할 때만 전달됩니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/pages/SharedReportPage.tsx`
 
 로컬 개발 시 Vite dev server가 `/api`를 `http://127.0.0.1:8000`으로 프록시하므로 별도 API base URL 설정은 필요 없습니다. 근거: `frontend/vite.config.ts`
 

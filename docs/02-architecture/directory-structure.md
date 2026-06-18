@@ -65,6 +65,8 @@ frontend/
 │   │   ├── adapters.ts
 │   │   ├── appDataService.ts
 │   │   ├── backendClient.ts
+│   │   ├── backendSchemas.ts
+│   │   ├── backendSchemas.test.ts
 │   │   ├── httpClient.ts
 │   │   ├── queryClient.ts
 │   │   ├── queryKeys.ts
@@ -83,6 +85,22 @@ frontend/
 │   │   └── recruitment/
 │   ├── data/
 │   ├── hooks/
+│   │   ├── mutations/
+│   │   │   ├── useAdminMutations.ts
+│   │   │   ├── useJdMutations.ts
+│   │   │   ├── useResumeMutations.ts
+│   │   │   └── useMutationHelpers.ts
+│   │   ├── useAppData.ts
+│   │   ├── useAppDataQuery.ts
+│   │   ├── useJdPageData.ts
+│   │   ├── useCoverLetterPageData.ts
+│   │   ├── useAnalysisReportPageData.ts
+│   │   ├── useChatPageData.ts
+│   │   ├── useAdminPageData.ts
+│   │   ├── useDocumentChatState.ts
+│   │   ├── useApiAction.ts
+│   │   ├── useAuthSession.ts
+│   │   └── useLogoutAction.ts
 │   ├── pages/
 │   │   └── auth/
 │   │       ├── LoginPage.tsx
@@ -90,19 +108,26 @@ frontend/
 │   │       ├── PasswordResetPage.tsx
 │   │       └── types.ts
 │   ├── providers/
+│   ├── test/
+│   │   ├── setup.ts
+│   │   └── server.ts
 │   ├── types/
 │   ├── utils/
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── styles.css
+├── tests/
+│   └── e2e/
+│       └── auth-accessibility.spec.ts
 ├── package.json
 ├── package-lock.json
+├── playwright.config.ts
 ├── tsconfig.json
 ├── eslint.config.js
 └── vite.config.ts
 ```
 
-`src/api`는 호출/어댑터 계층, `src/pages`는 화면 조립, `src/components`는 재사용 UI와 도메인 패널입니다.
+`src/api`는 호출/어댑터 계층, `src/hooks`는 Query 캐시·페이지 상태·mutation, `src/pages`는 화면 조립, `src/components`는 재사용 UI와 도메인 패널입니다.
 
 ## 데이터
 

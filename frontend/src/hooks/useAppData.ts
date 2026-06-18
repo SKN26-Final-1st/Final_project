@@ -19,7 +19,8 @@ export function useAppData(enabled = true) {
 
   return {
     data: data ?? null,
-    loading: enabled && (isPending || isFetching),
+    loading: enabled && isPending,
+    refreshing: enabled && isFetching && !isPending,
     error,
     reload,
   };

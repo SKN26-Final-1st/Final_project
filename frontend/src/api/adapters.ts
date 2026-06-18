@@ -124,6 +124,10 @@ export type CoverLetterRow = {
   status: string;
   statusCode: StatusCode;
   score: number;
+  skills: string[];
+  experienceCount: number;
+  updatedAt: string;
+  reviewed: boolean;
 };
 
 export type AnalysisReportData = {
@@ -516,6 +520,10 @@ export function mapCoverLetterRows(
       status: status.label,
       statusCode: status.code,
       score: gradeToScore(report?.overall_grade),
+      skills: toStringList(resume.skill).slice(0, 4),
+      experienceCount: Array.isArray(resume.experience) ? resume.experience.length : 0,
+      updatedAt: formatDateTime(resume.updated_at),
+      reviewed: resume.reviewed,
     };
   });
 }
@@ -601,7 +609,7 @@ export function mapAnalysisReport(
     chatMessages: [
       {
         role: 'assistant',
-        text: '지원서, JD, 분석 리포트, 면접 질문 데이터를 기준으로 답변할 수 있습니다.',
+        text: 'JD와 사용 가이드를 중심으로 답변할 수 있습니다. 리포트와 면접 질문은 화면에서 확인 가능한 참고 자료입니다.',
       },
       {
         role: 'user',

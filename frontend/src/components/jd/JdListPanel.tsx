@@ -19,6 +19,8 @@ export function JdListPanel({ jdList, selectedJdId, setSelectedJdId, onDeleteJd 
           tabIndex={0}
           className={`jd-card ${selectedJdId === item.id ? 'active' : ''}`}
           key={item.id}
+          aria-label={`${item.title} JD 선택`}
+          aria-pressed={selectedJdId === item.id}
           onClick={() => setSelectedJdId(item.id)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -45,7 +47,17 @@ export function JdListPanel({ jdList, selectedJdId, setSelectedJdId, onDeleteJd 
           <div className="jd-card-meta">
             {statusTag(item.status, item.statusCode)}
             <Tag color="blue">평균 {item.fit}점</Tag>
+            {item.employmentType && <Tag>{item.employmentType}</Tag>}
           </div>
+          {item.summary && <p className="jd-card-summary">{item.summary}</p>}
+          {item.stack.length > 0 && (
+            <div className="jd-card-tags" aria-label={`${item.title} 필수 기술`}>
+              {item.stack.slice(0, 3).map((skill) => (
+                <Tag key={skill}>{skill}</Tag>
+              ))}
+              {item.stack.length > 3 && <Tag>+{item.stack.length - 3}</Tag>}
+            </div>
+          )}
         </div>
       ))}
     </div>

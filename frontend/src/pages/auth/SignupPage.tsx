@@ -21,20 +21,27 @@ type SignupValues = {
 export function SignupPage({ mode, navigate, themeSwitch, loadingKey, runApiAction, showAlert }: SignupPageProps) {
   const [signupForm] = Form.useForm<SignupValues>();
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
+  const usernameValue = Form.useWatch('username', signupForm);
+  const currentUsername = typeof usernameValue === 'string' ? usernameValue.trim() : '';
+  const isUsernameVerified = Boolean(currentUsername && checkedUsername === currentUsername);
 
   const checkUsername = async () => {
     const { username } = await signupForm.validateFields(['username']);
+    const trimmedUsername = username.trim();
 
     setCheckingUsername(true);
 
     try {
-      const response = await apiClient.checkSignupId(username);
+      const response = await apiClient.checkSignupId(trimmedUsername);
+      setCheckedUsername(response.data.available === true ? trimmedUsername : null);
 
       showAlert({
         type: response.data.available ? 'success' : 'warning',
-        message: response.message ?? '아이디 중복 확인을 완료했습니다.',
+        message: response.message ?? '아이디 중복 확인이 완료되었습니다.',
       });
     } catch (error) {
+      setCheckedUsername(null);
       showAlert({
         type: 'error',
         message: error instanceof Error ? error.message : '아이디 중복 확인에 실패했습니다.',
@@ -42,6 +49,27 @@ export function SignupPage({ mode, navigate, themeSwitch, loadingKey, runApiActi
     } finally {
       setCheckingUsername(false);
     }
+  };
+
+  const completeSignup = (values: SignupValues) => {
+    const trimmedUsername = values.username.trim();
+
+    if (checkedUsername !== values.username.trim()) {
+      signupForm.setFields([
+        {
+          name: 'username',
+          errors: ['아이디 중복 확인을 완료하세요.'],
+        },
+      ]);
+      showAlert({ type: 'warning', message: '아이디 중복 확인을 완료하세요.' });
+      return;
+    }
+
+    void runApiAction(
+      'signup-complete',
+      () => apiClient.completeSignup({ ...values, username: trimmedUsername }),
+      () => navigate('/login'),
+    );
   };
 
   return (
@@ -60,9 +88,12 @@ export function SignupPage({ mode, navigate, themeSwitch, loadingKey, runApiActi
         <Form<SignupValues>
           form={signupForm}
           layout="vertical"
-          onFinish={(values) =>
-            void runApiAction('signup-complete', () => apiClient.completeSignup(values), () => navigate('/login'))
-          }
+          onFinish={completeSignup}
+          onValuesChange={(changedValues) => {
+            if (Object.prototype.hasOwnProperty.call(changedValues, 'username')) {
+              setCheckedUsername(null);
+            }
+          }}
         >
           <Row gutter={12}>
             <Col span={16}>
@@ -102,7 +133,7 @@ export function SignupPage({ mode, navigate, themeSwitch, loadingKey, runApiActi
           >
             <Input />
           </Form.Item>
-          <Button type="primary" block htmlType="submit" disabled={loadingKey === 'signup-complete'}>
+          <Button type="primary" block htmlType="submit" disabled={loadingKey === 'signup-complete' || !isUsernameVerified}>
             {loadingKey === 'signup-complete' ? <InlineLoading label="가입 중" /> : '가입 완료'}
           </Button>
         </Form>
