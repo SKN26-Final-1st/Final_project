@@ -31,6 +31,18 @@ function toCompanyFormValues(company: CompanyProfile): CompanyProfileFormValues 
   };
 }
 
+function toTrimmedStringList(value: string[]) {
+  return value.map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeCompanyFormValues(values: CompanyProfileFormValues): CompanyProfileFormValues {
+  return {
+    ...values,
+    team_composition: toTrimmedStringList(values.team_composition ?? []),
+    employ_style: toTrimmedStringList(values.employ_style ?? []),
+  };
+}
+
 export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPageProps) {
   const [form] = Form.useForm<CompanyProfileFormValues>();
   const queryClient = useQueryClient();
@@ -58,7 +70,7 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
 
   const saveCompany = async () => {
     const values = await form.validateFields();
-    await runApiAction('company-save', () => apiClient.saveCompanyProfile(values), () => {
+    await runApiAction('company-save', () => apiClient.saveCompanyProfile(normalizeCompanyFormValues(values)), () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
     });
   };
@@ -99,7 +111,7 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
         </Col>
         <Col xs={24} xl={9}>
           <SectionCard className="scroll-card-body" title="입력 완성도">
-            <CompanyCompletionPanel company={company} showAlert={showAlert} />
+            <CompanyCompletionPanel company={company} />
           </SectionCard>
         </Col>
       </Row>

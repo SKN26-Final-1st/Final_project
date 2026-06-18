@@ -1,4 +1,5 @@
-import { Col, Form, Input, InputNumber, Row, Select, type FormInstance } from 'antd';
+import { Col, Form, Input, InputNumber, Row, type FormInstance } from 'antd';
+import { EditableStringList } from '../common/EditableStringList';
 
 const { TextArea } = Input;
 
@@ -33,11 +34,21 @@ export function CompanyProfileForm({ form, initialValues }: CompanyProfileFormPr
       <Form.Item label="회사 소개" name="company_description">
         <TextArea rows={5} />
       </Form.Item>
-      <Form.Item label="팀 구성" name="team_composition">
-        <Select mode="tags" tokenSeparators={[',']} placeholder="팀을 입력하세요" />
+      <Form.Item label="팀 구성">
+        <EditableStringList
+          name="team_composition"
+          itemLabel="팀 구성"
+          placeholder="팀을 입력하세요"
+          addLabel="팀 추가"
+        />
       </Form.Item>
-      <Form.Item label="선호 인재상" name="employ_style">
-        <Select mode="tags" tokenSeparators={[',']} placeholder="선호 인재상을 입력하세요" />
+      <Form.Item label="선호 인재상">
+        <EditableStringList
+          name="employ_style"
+          itemLabel="선호 인재상"
+          placeholder="선호 인재상을 입력하세요"
+          addLabel="인재상 추가"
+        />
       </Form.Item>
     </Form>
   );

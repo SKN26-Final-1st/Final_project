@@ -5273,6 +5273,54 @@ button,
   width: 100%;
 }
 
+.editable-string-list {
+  width: 100%;
+}
+
+.editable-string-list-row {
+  width: 100%;
+}
+
+.editable-string-list-row .ant-input {
+  min-width: 0;
+}
+
+.editable-string-list-row .ant-btn {
+  flex: 0 0 40px;
+}
+
+.skill-stack-field {
+  display: grid;
+  gap: 10px;
+}
+
+.skill-stack-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.skill-stack-tags {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.skill-stack-tags .ant-tag {
+  margin: 0;
+}
+
+.skill-stack-summary .ant-btn {
+  flex: 0 0 auto;
+}
+
+.skill-stack-editor {
+  width: 100%;
+}
+
 .shared-inline-alert {
   padding-block: 6px;
 }
