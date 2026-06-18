@@ -2,13 +2,15 @@
 
 ## 지원서 분석 API
 
-프론트는 `apiClient.requestJobAnalysis()` 또는 `apiClient.requestCoverLetterAnalysis()`에서 `/api/resume/analize/`를 호출합니다. 라우트명은 코드상 `analize`입니다.
+백엔드 엔드포인트: `POST /api/resume/analyze/` (`resume_analyze` in `backend/api/views/resume_endpoints.py`)
+
+프론트는 `requestResumeAnalysisById()` 등에서 아직 `/api/resume/analize/`를 호출하고 `{report, questions}` 응답 shape를 기대합니다. 백엔드 계약과 불일치하므로 연동 수정이 필요합니다.
 
 근거:
 
 - `frontend/src/api/backendClient.ts`
 - `backend/api/urls.py`
-- `backend/api/views.py`
+- `backend/api/views/resume_endpoints.py`
 
 ## 입력 조회
 
@@ -40,7 +42,7 @@
 - 리포트 파이프라인(운영): `gpt-4o-mini` — `backend/common/report.py`
 - 임베딩 노트북: `text-embedding-3-small`
 
-운영 API(`resume_analize`)는 `report.py`만 사용합니다. 프롬프트 수정 실험용 `report2.py`, `report3.py`와 평가 노트북은 API에 연결되지 않습니다. 근거: `backend/api/views.py`, `backend/common/eval/middle_report*_eval.ipynb`
+운영 API(`resume_analyze`)는 `report.py`만 사용합니다. 프롬프트 수정 실험용 `report2.py`, `report3.py`와 평가 노트북은 API에 연결되지 않습니다. 근거: `backend/api/views/resume_endpoints.py`, `backend/common/eval/middle_report*_eval.ipynb`
 
 ## 구조화 응답
 
@@ -57,13 +59,18 @@ OpenAI SDK의 `client.beta.chat.completions.parse`가 있으면 parse를 사용�
 
 `_save_analysis_result(resume_id, analysis_result)`:
 
-1. `AnalysisReport.objects.update_or_create()`로 리포트를 upsert합니다.
-2. 기존 `InterviewQuestion`을 모두 삭제합니다.
-3. 새 질문을 `bulk_create()`합니다.
-4. `Resume.status`를 `done`으로 변경합니다.
-5. 저장된 report/questions dict를 반환합니다.
+1. LLM 결과에서 리포트 필드와 면접 질문 목록을 추출합니다.
+2. `AnalysisReport.objects.create()`로 새 리포트를 저장합니다. 면접 질문은 `interview_question` JSON 필드에 넣습니다.
+3. `Resume.status`를 `done`으로 변경합니다.
+4. 저장된 `AnalysisReport.to_dict()`를 반환합니다.
 
-근거: `backend/api/views.py`
+이전 버전의 `InterviewQuestion` 별도 테이블 upsert/bulk_create 흐름은 제거되었습니다.
+
+근거: `backend/api/views/resume_endpoints.py`, `backend/api/models.py`
+
+## JD 분석 스텁
+
+`POST /api/jd/analyze/`는 현재 빈 `{data:{}}`만 반환합니다. 근거: `backend/api/views/job_description_endpoints.py`
 
 ## 실패와 예외
 
