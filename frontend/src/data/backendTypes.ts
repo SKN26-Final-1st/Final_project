@@ -110,11 +110,12 @@ export type AnalysisReport = {
   concern: string[];
   check_point: string[];
   final_comment: string;
+  interview_question: InterviewQuestion[];
 };
 
 export type InterviewQuestion = {
-  id: number;
-  resume_id: number;
+  id?: number;
+  resume_id?: number;
   question: string;
   answer: string;
   purpose: string;

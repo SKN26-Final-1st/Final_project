@@ -78,6 +78,14 @@ export const resumeSchema = z.object({
   updated_at: z.string(),
 }) satisfies z.ZodType<Resume>;
 
+export const interviewQuestionSchema = z.object({
+  id: z.number().optional(),
+  resume_id: z.number().optional(),
+  question: z.string(),
+  answer: z.string(),
+  purpose: z.string(),
+}) satisfies z.ZodType<InterviewQuestion>;
+
 export const analysisReportSchema = z.object({
   id: z.number(),
   resume_id: z.number(),
@@ -91,15 +99,8 @@ export const analysisReportSchema = z.object({
   concern: stringArraySchema,
   check_point: stringArraySchema,
   final_comment: z.string(),
+  interview_question: z.array(interviewQuestionSchema).default([]),
 }) satisfies z.ZodType<AnalysisReport>;
-
-export const interviewQuestionSchema = z.object({
-  id: z.number(),
-  resume_id: z.number(),
-  question: z.string(),
-  answer: z.string(),
-  purpose: z.string(),
-}) satisfies z.ZodType<InterviewQuestion>;
 
 export const parseAccount = (value: unknown) => accountSchema.parse(value);
 export const parseCompanyInfo = (value: unknown) => companyInfoSchema.parse(value);
