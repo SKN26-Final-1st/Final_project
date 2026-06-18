@@ -153,6 +153,18 @@ function toApiResponse<T>(message: string, data: T): ApiResponse<T> {
   };
 }
 
+const INVALID_LOGIN_MESSAGE = '아이디 또는 비밀번호가 올바르지 않습니다.';
+
+function getLoginErrorMessage(error: unknown) {
+  const message = getRequestErrorMessage(error, '로그인에 실패했습니다.');
+
+  if (/invalid credentials/i.test(message)) {
+    return INVALID_LOGIN_MESSAGE;
+  }
+
+  return message;
+}
+
 function getReportQuestions(report: AnalysisReport): InterviewQuestion[] {
   return parseInterviewQuestions(
     report.interview_question.map((question, index) => ({
@@ -178,7 +190,7 @@ async function loginRequest(username: string, password: string) {
 
     return payload;
   } catch (error) {
-    throw new Error(getRequestErrorMessage(error, '로그인에 실패했습니다.'));
+    throw new Error(getLoginErrorMessage(error));
   }
 }
 
