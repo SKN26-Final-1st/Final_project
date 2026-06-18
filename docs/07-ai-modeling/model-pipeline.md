@@ -65,11 +65,11 @@ Pydantic 모델:
 
 ## 실험 버전과 평가
 
-운영 API는 `report.py`만 import합니다. 근거: `backend/api/views.py`
+운영 API는 `report.py`만 import합니다. 근거: `backend/api/views/resume_endpoints.py`
 
 | 모듈 | 용도 | 모델 | 비고 |
 | --- | --- | --- | --- |
-| `report.py` | 운영 파이프라인 | `gpt-4o-mini` | `resume_analize`가 호출 |
+| `report.py` | 운영 파이프라인 | `gpt-4o-mini` | `resume_analyze`가 호출 |
 | `report2.py` | 프롬프트 수정 실험 | `gpt-4o-mini` | 환각 방지·면접 질문 구조 등 프롬프트 강화 |
 | `report3.py` | `report2` 후속 실험 | `gpt-4o-mini` | `make_report()`에서 체크리스트 T/F 기반 등급을 코드로 확정하고 LLM 출력과 동기화 |
 
