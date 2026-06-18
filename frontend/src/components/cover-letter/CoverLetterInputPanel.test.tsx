@@ -10,14 +10,14 @@ const defaultInitialValues: CoverLetterInputFormValues = {
   name: '홍길동',
   skill: ['React'],
   education_level_text: '',
-  experience: [],
+  experience: ['인턴 6개월'],
   question: '지원 동기',
   answer: '답변',
-  certification: [],
-  language: [],
-  award: [],
-  training: [],
-  other_activity: [],
+  certification: ['SQLD'],
+  language: ['영어 OPIC IH'],
+  award: ['해커톤 우수상'],
+  training: ['AI 부트캠프'],
+  other_activity: ['오픈소스 기여'],
 };
 
 const jdItem: JdItem = {
@@ -110,5 +110,28 @@ describe('CoverLetterInputPanel', () => {
     await user.click(screen.getByRole('button', { name: /기술 스택 편집/ }));
 
     expect(screen.getByRole('button', { name: /기술 추가/ })).toBeInTheDocument();
+  });
+
+  it('추가 이력 정보 배열 항목도 요약과 접힌 편집 리스트로 수정한다', async () => {
+    const user = userEvent.setup();
+    const onRead = vi.fn();
+
+    render(<CoverLetterInputPanelHarness onRead={onRead} />);
+
+    await user.click(screen.getByRole('button', { name: /추가 이력 정보/ }));
+
+    expect(screen.getByText('인턴 6개월')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('인턴 6개월')).not.toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: /경력 편집/ }));
+    await user.clear(screen.getByDisplayValue('인턴 6개월'));
+    await user.type(screen.getByLabelText('경력 1'), '데이터 분석 인턴');
+    await user.click(screen.getByRole('button', { name: '값 확인' }));
+
+    expect(onRead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        experience: ['데이터 분석 인턴'],
+      }),
+    );
   });
 });

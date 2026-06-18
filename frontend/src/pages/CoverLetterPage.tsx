@@ -16,6 +16,7 @@ import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
+import { toTrimmedStringList } from '../utils/stringList';
 
 type CoverLetterPageProps = {
   navigate: Navigate;
@@ -46,10 +47,6 @@ function getSelfIntroduction(resume: Resume | null) {
 
 function toStringArray(value: unknown[] | undefined) {
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
-}
-
-function toTrimmedStringList(value: string[]) {
-  return value.map((item) => item.trim()).filter(Boolean);
 }
 
 function toEducationSummary(value: Record<string, unknown> | undefined) {
@@ -195,6 +192,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
 
   const saveCurrentResume = async () => {
     const values = await form.validateFields();
+    const allValues = form.getFieldsValue(true) as CoverLetterInputFormValues;
     const jobDescriptionId = values.job_description_id;
 
     if (!jobDescriptionId) {
@@ -209,20 +207,20 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
 
     const payload = {
       name: values.name,
-      skill: toTrimmedStringList(values.skill ?? []),
+      skill: toTrimmedStringList(allValues.skill ?? values.skill ?? []),
       education_level: values.education_level_text ? { summary: values.education_level_text } : {},
-      experience: values.experience ?? [],
+      experience: toTrimmedStringList(allValues.experience ?? values.experience ?? []),
       self_intoduction: [
         {
           question: values.question,
           answer: values.answer,
         },
       ],
-      certification: values.certification ?? [],
-      language: values.language ?? [],
-      award: values.award ?? [],
-      training: values.training ?? [],
-      other_activity: values.other_activity ?? [],
+      certification: toTrimmedStringList(allValues.certification ?? values.certification ?? []),
+      language: toTrimmedStringList(allValues.language ?? values.language ?? []),
+      award: toTrimmedStringList(allValues.award ?? values.award ?? []),
+      training: toTrimmedStringList(allValues.training ?? values.training ?? []),
+      other_activity: toTrimmedStringList(allValues.other_activity ?? values.other_activity ?? []),
     };
 
     if (editingResume) {
