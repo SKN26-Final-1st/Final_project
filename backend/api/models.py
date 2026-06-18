@@ -23,6 +23,16 @@ def _value_or_empty_dict(value):
     return value if value is not None else {}
 
 
+def _value_or_empty_text(value):
+    if value is None:
+        return ""
+
+    if isinstance(value, list):
+        return "\n".join(str(item) for item in value if item)
+
+    return str(value)
+
+
 def _value_or_zero(value):
     return value if value is not None else 0
 
@@ -220,6 +230,32 @@ class JobDescription(models.Model):
         }
 
 
+class Checklist(models.Model):
+    id = models.BigAutoField(primary_key=True)
+
+    job_description = models.ForeignKey(
+        JobDescription,
+        on_delete=models.CASCADE,
+        db_column="job_description_id",
+        related_name="checklists",
+    )
+
+    content = models.TextField()
+
+    class Meta:
+        db_table = "checklists"
+
+    def __str__(self):
+        return self.content[:50]
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "job_description_id": self.job_description_id,
+            "content": _value_or_empty_string(self.content),
+        }
+
+
 class Resume(models.Model):
     STATUS_ONQUEUE = "onqueue"
     STATUS_PROCESSING = "processing"
@@ -294,11 +330,11 @@ class Resume(models.Model):
 class AnalysisReport(models.Model):
     id = models.BigAutoField(primary_key=True)
 
-    resume = models.OneToOneField(
+    resume = models.ForeignKey(
         Resume,
         on_delete=models.CASCADE,
         db_column="resume_id",
-        related_name="analysis_report",
+        related_name="analysis_reports",
     )
 
     overall_grade = models.CharField(max_length=10)
@@ -307,10 +343,13 @@ class AnalysisReport(models.Model):
 
     checklist = models.JSONField(null=True, blank=True)
     competency_analysis = models.JSONField(null=True, blank=True)
-    fit_analysis = models.JSONField(null=True, blank=True)
+    fit_analysis = models.TextField(default="", blank=True)
+    motive = models.TextField(default="", blank=True)
+    collaboration = models.TextField(default="", blank=True)
     strength = models.JSONField(null=True, blank=True)
     concern = models.JSONField(null=True, blank=True)
     check_point = models.JSONField(null=True, blank=True)
+    interview_question = models.JSONField(default=list, blank=True)
 
     final_comment = models.TextField(null=True, blank=True)
 
@@ -329,39 +368,24 @@ class AnalysisReport(models.Model):
             "candidate_summary": _value_or_empty_string(self.candidate_summary),
             "checklist": _value_or_empty_list(self.checklist),
             "competency_analysis": _value_or_empty_list(self.competency_analysis),
-            "fit_analysis": _value_or_empty_list(self.fit_analysis),
+            "fit_analysis": _value_or_empty_text(self.fit_analysis),
+            "motive": _value_or_empty_text(self.motive),
+            "collaboration": _value_or_empty_text(self.collaboration),
             "strength": _value_or_empty_list(self.strength),
             "concern": _value_or_empty_list(self.concern),
             "check_point": _value_or_empty_list(self.check_point),
+            "interview_question": self.get_interview_question(),
             "final_comment": _value_or_empty_string(self.final_comment),
         }
 
-
-class InterviewQuestion(models.Model):
-    id = models.BigAutoField(primary_key=True)
-
-    resume = models.ForeignKey(
-        Resume,
-        on_delete=models.CASCADE,
-        db_column="resume_id",
-        related_name="interview_questions",
-    )
-
-    question = models.TextField()
-    answer = models.TextField(null=True, blank=True)
-    purpose = models.TextField(null=True, blank=True)
-
-    class Meta:
-        db_table = "interview_questions"
-
-    def __str__(self):
-        return self.question[:50]
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "resume_id": self.resume_id,
-            "question": _value_or_empty_string(self.question),
-            "answer": _value_or_empty_string(self.answer),
-            "purpose": _value_or_empty_string(self.purpose),
-        }
+    def get_interview_question(self):
+        questions = self.interview_question or []
+        return [
+            {
+                "question": _value_or_empty_string(item.get("question")),
+                "answer": _value_or_empty_string(item.get("answer")),
+                "purpose": _value_or_empty_string(item.get("purpose")),
+            }
+            for item in questions
+            if isinstance(item, dict)
+        ]

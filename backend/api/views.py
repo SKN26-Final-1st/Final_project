@@ -18,10 +18,11 @@ from .columns import (
     AUTH_KEY_ADD_BLOCKED_FIELDS,
     AUTH_KEY_MODIFY_BLOCKED_FIELDS,
     AUTH_KEY_MODIFY_CONTROL_FIELDS,
+    CHECKLIST_ADD_ALLOWED_FIELDS,
+    CHECKLIST_BLOCKED_FIELDS,
     COMPANY_INFO_BLOCKED_FIELDS,
     JOB_DESCRIPTION_ADD_BLOCKED_FIELDS,
     JOB_DESCRIPTION_BLOCKED_FIELDS,
-    QUESTION_BLOCKED_FIELDS,
     REPORT_BLOCKED_FIELDS,
     RESUME_ADD_ALLOWED_FIELDS,
     RESUME_ADD_BLOCKED_FIELDS,
@@ -32,8 +33,8 @@ from .models import (
     Account,
     AnalysisReport,
     AuthKey,
+    Checklist,
     CompanyInfo,
-    InterviewQuestion,
     JobDescription,
     Resume,
 )
@@ -82,68 +83,73 @@ def _get_analysis_inputs(request, resume_id):
 def _save_analysis_result(resume_id, analysis_result):
     report_data = analysis_result.get("report") or {}
     question_items = analysis_result.get("questions") or []
+    interview_question = [
+        {
+            "question": item.get("question", ""),
+            "answer": item.get("answer", ""),
+            "purpose": item.get("purpose", ""),
+        }
+        for item in question_items
+        if item.get("question")
+    ]
+
+    def report_text(key):
+        value = report_data.get(key, "")
+
+        if isinstance(value, list):
+            return "\n".join(str(item) for item in value if item)
+
+        return value or ""
 
     with transaction.atomic():
-        report, _ = AnalysisReport.objects.update_or_create(
+        report = AnalysisReport.objects.create(
             resume_id=resume_id,
-            defaults={
-                "overall_grade": report_data.get("overall_grade", ""),
-                "overall_summary": report_data.get("overall_summary", ""),
-                "candidate_summary": report_data.get("candidate_summary", ""),
-                "checklist": report_data.get("checklist", []),
-                "competency_analysis": report_data.get("competency_analysis", []),
-                "fit_analysis": report_data.get("fit_analysis", []),
-                "strength": report_data.get("strength", []),
-                "concern": report_data.get("concern", []),
-                "check_point": report_data.get("check_point", []),
-                "final_comment": report_data.get("final_comment", ""),
-            },
+            overall_grade=report_data.get("overall_grade", ""),
+            overall_summary=report_data.get("overall_summary", ""),
+            candidate_summary=report_data.get("candidate_summary", ""),
+            checklist=report_data.get("checklist", []),
+            competency_analysis=report_data.get("competency_analysis", []),
+            fit_analysis=report_text("fit_analysis"),
+            motive=report_text("motive"),
+            collaboration=report_text("collaboration"),
+            strength=report_data.get("strength", []),
+            concern=report_data.get("concern", []),
+            check_point=report_data.get("check_point", []),
+            interview_question=interview_question,
+            final_comment=report_data.get("final_comment", ""),
         )
-
-        InterviewQuestion.objects.filter(resume_id=resume_id).delete()
-        questions = InterviewQuestion.objects.bulk_create([
-            InterviewQuestion(
-                resume_id=resume_id,
-                question=item.get("question", ""),
-                answer=item.get("answer", ""),
-                purpose=item.get("purpose", ""),
-            )
-            for item in question_items
-            if item.get("question")
-        ])
 
         Resume.objects.filter(id=resume_id).update(status=Resume.STATUS_DONE)
 
-    return {
-        "report": report.to_dict(),
-        "questions": [question.to_dict() for question in questions],
-    }
+    return report.to_dict()
 
 
 def _get_job_description_dicts(request):
+    return [job_description.to_dict() for job_description in _get_accessible_job_descriptions(request).order_by("id")]
+
+
+def _get_accessible_job_descriptions(request):
     if request.user.is_authenticated:
-        job_descriptions = request.user.job_descriptions.order_by("id")
-    else:
-        api_key = request.headers.get("X-API-Key")
+        return JobDescription.objects.filter(account=request.user)
 
-        if not api_key:
-            raise PermissionError("User is not authenticated.")
+    api_key = request.headers.get("X-API-Key")
 
-        try:
-            auth_key = AuthKey.objects.select_related("account").get(value=api_key)
-        except AuthKey.DoesNotExist as exc:
-            raise PermissionError("User is not authenticated.") from exc
+    if not api_key:
+        raise PermissionError("User is not authenticated.")
 
-        authorized_resume = auth_key.authorized_resume or []
-        job_descriptions = JobDescription.objects.filter(
-            account=auth_key.account,
-            resumes__id__in=authorized_resume,
-        ).distinct().order_by("id")
+    try:
+        auth_key = AuthKey.objects.select_related("account").get(value=api_key)
+    except AuthKey.DoesNotExist as exc:
+        raise PermissionError("User is not authenticated.") from exc
 
-    return [job_description.to_dict() for job_description in job_descriptions]
+    authorized_resume = auth_key.authorized_resume or []
+    return JobDescription.objects.filter(
+        account=auth_key.account,
+        resumes__id__in=authorized_resume,
+    ).distinct()
 
 
-async def _resume_analize_async(request):
+async def _resume_analyze_async(request):
     if request.method != "POST":
         return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
@@ -672,24 +678,10 @@ def jd_modify(request):
         if not job_description_id:
             return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
 
-        if request.user.is_authenticated:
-            job_description_queryset = JobDescription.objects.filter(account=request.user)
-        else:
-            api_key = request.headers.get("X-API-Key")
-
-            if not api_key:
-                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-            try:
-                auth_key = AuthKey.objects.select_related("account").get(value=api_key)
-            except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-            authorized_resume = auth_key.authorized_resume or []
-            job_description_queryset = JobDescription.objects.filter(
-                account=auth_key.account,
-                resumes__id__in=authorized_resume,
-            ).distinct()
+        try:
+            job_description_queryset = _get_accessible_job_descriptions(request)
+        except PermissionError:
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
         try:
             job_description = job_description_queryset.get(id=job_description_id)
@@ -731,6 +723,134 @@ def jd_modify(request):
         job_description.save()
 
         return JsonResponse({"error": False, "data": job_description.to_dict()})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
+
+
+def jd_analyze(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+
+        return JsonResponse({"error": False, "data": {}})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
+
+
+def checklist_get(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+
+        data = json.loads(request.body or "{}")
+        job_description_id = data.get("job_description_id")
+
+        if not job_description_id:
+            return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
+
+        try:
+            job_description_queryset = _get_accessible_job_descriptions(request)
+        except PermissionError:
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
+
+        if not job_description_queryset.filter(id=job_description_id).exists():
+            return JsonResponse({"error": False, "data": []})
+
+        checklists = Checklist.objects.filter(job_description_id=job_description_id).order_by("id")
+        return JsonResponse({"error": False, "data": [checklist.to_dict() for checklist in checklists]})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
+
+
+def checklist_add(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
+
+        data = json.loads(request.body or "{}")
+        job_description_id = data.get("job_description_id")
+        content = data.get("content")
+
+        if not job_description_id:
+            return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
+
+        if not content:
+            return JsonResponse({"error": True, "message": error_code("Need to fill in required fields.", 401)}, status=400)
+
+        for key in data:
+            if key not in CHECKLIST_ADD_ALLOWED_FIELDS:
+                return JsonResponse({"error": True, "message": error_code(f"Invalid checklist field: {key}", 402)}, status=400)
+
+        try:
+            job_description = JobDescription.objects.get(id=job_description_id, account=request.user)
+        except JobDescription.DoesNotExist:
+            return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
+
+        checklist = Checklist.objects.create(
+            job_description=job_description,
+            content=content,
+        )
+
+        return JsonResponse({"error": False, "data": checklist.to_dict()})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
+
+
+def checklist_modify(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+
+        data = json.loads(request.body or "{}")
+        checklist_id = data.get("id")
+
+        if not checklist_id:
+            return JsonResponse({"error": True, "message": error_code("Checklist id is required.", 401)}, status=400)
+
+        try:
+            job_description_queryset = _get_accessible_job_descriptions(request)
+        except PermissionError:
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
+
+        try:
+            checklist = Checklist.objects.select_related("job_description").get(
+                id=checklist_id,
+                job_description__in=job_description_queryset,
+            )
+        except Checklist.DoesNotExist:
+            return JsonResponse({"error": True, "message": error_code("Checklist does not exist.", 400)}, status=400)
+
+        if data.get("delete") is True:
+            checklist_data = checklist.to_dict()
+            checklist.delete()
+            return JsonResponse({"error": False, "data": checklist_data})
+
+        checklist_fields = _editable_model_fields(checklist, CHECKLIST_BLOCKED_FIELDS)
+
+        for key, value in data.items():
+            if key == "delete":
+                continue
+
+            if key in CHECKLIST_BLOCKED_FIELDS:
+                if key == "id":
+                    continue
+
+                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
+
+            if key not in checklist_fields:
+                return JsonResponse({"error": True, "message": error_code(f"Invalid checklist field: {key}", 402)}, status=400)
+
+            if key == "content" and not value:
+                return JsonResponse({"error": True, "message": error_code("Need to fill in required fields.", 401)}, status=400)
+
+            setattr(checklist, key, value)
+
+        checklist.save()
+
+        return JsonResponse({"error": False, "data": checklist.to_dict()})
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
@@ -886,9 +1006,9 @@ def resume_modify(request):
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
-async def resume_analize(request):
+async def resume_analyze(request):
     try:
-        return await _resume_analize_async(request)
+        return await _resume_analyze_async(request)
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
@@ -899,13 +1019,11 @@ def report_get(request):
             return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
         data = json.loads(request.body or "{}")
+        report_id = data.get("id")
         resume_id = data.get("resume_id")
 
-        if not resume_id:
-            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
-
         if request.user.is_authenticated:
-            resume_filter = Resume.objects.filter(id=resume_id, job_description__account=request.user)
+            reports = AnalysisReport.objects.filter(resume__job_description__account=request.user)
         else:
             api_key = request.headers.get("X-API-Key")
 
@@ -917,16 +1035,27 @@ def report_get(request):
             except AuthKey.DoesNotExist:
                 return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
 
-            resume_filter = Resume.objects.filter(
-                id=resume_id,
-                id__in=auth_key.authorized_resume or [],
-                job_description__account=auth_key.account,
+            reports = AnalysisReport.objects.filter(
+                resume_id__in=auth_key.authorized_resume or [],
+                resume__job_description__account=auth_key.account,
             )
 
-        if not resume_filter.exists():
+        if report_id:
+            try:
+                report = reports.get(id=report_id)
+            except AnalysisReport.DoesNotExist:
+                return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
+
+            return JsonResponse({"error": False, "data": [report.to_dict()]})
+
+        if not resume_id:
+            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
+
+        reports = reports.filter(resume_id=resume_id).order_by("id")
+
+        if not reports.exists():
             return JsonResponse({"error": False, "data": []})
 
-        reports = AnalysisReport.objects.filter(resume_id=resume_id).order_by("id")
         return JsonResponse({"error": False, "data": [report.to_dict() for report in reports]})
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
@@ -986,102 +1115,5 @@ def report_modify(request):
         report.save()
 
         return JsonResponse({"error": False, "data": report.to_dict()})
-    except Exception as error:
-        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
-
-
-def question_get(request):
-    try:
-        if request.method != "POST":
-            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
-
-        data = json.loads(request.body or "{}")
-        resume_id = data.get("resume_id")
-
-        if not resume_id:
-            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
-
-        if request.user.is_authenticated:
-            resume_filter = Resume.objects.filter(id=resume_id, job_description__account=request.user)
-        else:
-            api_key = request.headers.get("X-API-Key")
-
-            if not api_key:
-                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-            try:
-                auth_key = AuthKey.objects.select_related("account").get(value=api_key)
-            except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-            resume_filter = Resume.objects.filter(
-                id=resume_id,
-                id__in=auth_key.authorized_resume or [],
-                job_description__account=auth_key.account,
-            )
-
-        if not resume_filter.exists():
-            return JsonResponse({"error": False, "data": []})
-
-        questions = InterviewQuestion.objects.filter(resume_id=resume_id).order_by("id")
-        return JsonResponse({"error": False, "data": [question.to_dict() for question in questions]})
-    except Exception as error:
-        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
-
-
-def question_modify(request):
-    try:
-        if request.method != "POST":
-            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
-
-        data = json.loads(request.body or "{}")
-        question_id = data.get("id")
-
-        if not question_id:
-            return JsonResponse({"error": True, "message": error_code("Question id is required.", 401)}, status=400)
-
-        if "delete" in data:
-            return JsonResponse({"error": True, "message": error_code("Delete is not allowed.", 407)}, status=400)
-
-        if request.user.is_authenticated:
-            questions = InterviewQuestion.objects.filter(resume__job_description__account=request.user)
-        else:
-            api_key = request.headers.get("X-API-Key")
-
-            if not api_key:
-                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-            try:
-                auth_key = AuthKey.objects.select_related("account").get(value=api_key)
-            except AuthKey.DoesNotExist:
-                return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
-
-            questions = InterviewQuestion.objects.filter(
-                resume_id__in=auth_key.authorized_resume or [],
-                resume__job_description__account=auth_key.account,
-            )
-
-        try:
-            question = questions.get(id=question_id)
-        except InterviewQuestion.DoesNotExist:
-            return JsonResponse({"error": True, "message": error_code("Question does not exist.", 400)}, status=400)
-
-        question_fields = _editable_model_fields(question, QUESTION_BLOCKED_FIELDS)
-
-        for key, value in data.items():
-            if key in QUESTION_BLOCKED_FIELDS:
-                if key == "id":
-                    continue
-
-                return JsonResponse({"error": True, "message": error_code(f"{key} cannot be modified.", 402)}, status=400)
-
-            if key not in question_fields:
-                return JsonResponse({"error": True, "message": error_code(f"Invalid question field: {key}", 402)}, status=400)
-
-            setattr(question, key, value)
-
-        question.save()
-
-        return JsonResponse({"error": False, "data": question.to_dict()})
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
