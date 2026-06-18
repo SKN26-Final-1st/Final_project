@@ -1258,6 +1258,15 @@ button,
   min-width: 0;
 }
 
+.dashboard-body-scroll {
+  display: grid;
+  gap: var(--layout-gap);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
 .ant-table {
   background: transparent !important;
 }
