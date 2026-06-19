@@ -49,12 +49,21 @@ def _get_analysis_inputs(request, resume_id):
     resume.status = Resume.STATUS_PROCESSING
     resume.save(update_fields=["status", "updated_at"])
 
-    return resume.id, resume.to_dict(), company_info.to_dict(), job_description.to_dict()
+    checklist = list(
+        job_description.checklists.order_by("id").values_list("content", flat=True)
+    )
+
+    return {
+        "resume_id": resume.id,
+        "resume": resume.to_dict(),
+        "company": company_info.to_dict(),
+        "jd": job_description.to_dict(),
+        "checklist": checklist,
+    }
 
 
-def _save_analysis_result(resume_id, analysis_result):
-    report_data = analysis_result.get("report") or {}
-    question_items = analysis_result.get("questions") or []
+def _save_analysis_result(resume_id, report_data):
+    question_items = report_data.get("question") or []
     interview_question = [
         {
             "question": item.get("question", ""),
@@ -65,14 +74,6 @@ def _save_analysis_result(resume_id, analysis_result):
         if item.get("question")
     ]
 
-    def report_text(key):
-        value = report_data.get(key, "")
-
-        if isinstance(value, list):
-            return "\n".join(str(item) for item in value if item)
-
-        return value or ""
-
     with transaction.atomic():
         report = AnalysisReport.objects.create(
             resume_id=resume_id,
@@ -81,9 +82,9 @@ def _save_analysis_result(resume_id, analysis_result):
             candidate_summary=report_data.get("candidate_summary", ""),
             checklist=report_data.get("checklist", []),
             competency_analysis=report_data.get("competency_analysis", []),
-            fit_analysis=report_text("fit_analysis"),
-            motive=report_text("motive"),
-            collaboration=report_text("collaboration"),
+            fit_analysis=report_data.get("fit_analysis", ""),
+            motive=report_data.get("motive", ""),
+            collaboration=report_data.get("collaboration", ""),
             strength=report_data.get("strength", []),
             concern=report_data.get("concern", []),
             check_point=report_data.get("check_point", []),
@@ -114,13 +115,16 @@ async def _resume_analyze_async(request):
     if inputs is None:
         return JsonResponse({"error": True, "message": error_code("Resume does not exist.", 400)}, status=400)
 
-    resume_id, resume_dict, company_dict, jd_dict = inputs
     analysis_result = await sync_to_async(report_service.invoke, thread_sensitive=False)(
-        resume_dict,
-        company_dict,
-        jd_dict,
+        company_dict=inputs["company"],
+        jd_dict=inputs["jd"],
+        checklist=inputs["checklist"],
+        resume_dict=inputs["resume"],
     )
-    saved_result = await sync_to_async(_save_analysis_result)(resume_id, analysis_result)
+    saved_result = await sync_to_async(_save_analysis_result)(
+        inputs["resume_id"],
+        analysis_result,
+    )
 
     return JsonResponse({"error": False, "data": saved_result})
 
