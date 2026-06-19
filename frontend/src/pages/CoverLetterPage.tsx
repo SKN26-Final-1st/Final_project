@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Form, Row, Space } from 'antd';
+import { Button, Col, Form, Input, Row, Space } from 'antd';
 import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import {
   CoverLetterInputPanel,
@@ -7,8 +7,10 @@ import {
 } from '../components/cover-letter/CoverLetterInputPanel';
 import { CoverLetterDeleteModal } from '../components/cover-letter/CoverLetterDeleteModal';
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
+import { ResumeStructuredSummary } from '../components/cover-letter/ResumeStructuredSummary';
 import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
+import { SearchSuggestions, type SearchSuggestion } from '../components/common/SearchSuggestions';
 import { SectionCard } from '../components/common/SectionCard';
 import type { Resume } from '../data/backendTypes';
 import type { CoverLetterRow } from '../api/adapters';
@@ -16,12 +18,49 @@ import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
+import {
+  getSearchTextWithoutSuggestions,
+  getSelectedSuggestionLabels,
+  getSuggestionQueryFragment,
+  toggleSuggestionInSearchText,
+} from '../utils/searchSuggestions';
 import { toTrimmedStringList } from '../utils/stringList';
 
 type CoverLetterPageProps = {
   navigate: Navigate;
   showAlert: ShowAlert;
 };
+
+const COVER_SEARCH_SUGGESTIONS = [
+  { label: '분석 대기', keywords: ['대기', 'onqueue'] },
+  { label: '분석 중', keywords: ['처리', 'processing'] },
+  { label: '분석 완료', keywords: ['완료', 'done'] },
+  { label: '미검토', keywords: ['검토 전', 'unreviewed'] },
+  { label: '검토 완료', keywords: ['검토됨', 'reviewed'] },
+] satisfies SearchSuggestion[];
+
+const COVER_ANALYSIS_STATUS_SUGGESTIONS = ['분석 대기', '분석 중', '분석 완료'];
+const COVER_REVIEW_STATUS_SUGGESTIONS = ['미검토', '검토 완료'];
+
+function normalizeSearchText(value: unknown) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function includesSearchText(values: unknown[], query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return values.some((value) => normalizeSearchText(value).includes(normalizedQuery));
+}
+
+function compareRecent(left?: string, right?: string) {
+  const leftTime = left ? new Date(left).getTime() : 0;
+  const rightTime = right ? new Date(right).getTime() : 0;
+  return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
+}
 
 function getSelfIntroduction(resume: Resume | null) {
   const [firstIntro] = Array.isArray(resume?.self_intoduction) ? resume.self_intoduction : [];
@@ -43,6 +82,67 @@ function getSelfIntroduction(resume: Resume | null) {
   }
 
   return { question: '', answer: '' };
+}
+
+function matchesCoverSuggestion(row: CoverLetterRow, suggestion: string) {
+  if (suggestion === '분석 대기') {
+    return row.resumeStatus === 'onqueue' || row.statusCode === 'onqueue' || normalizeSearchText(row.status) === suggestion;
+  }
+
+  if (suggestion === '분석 중') {
+    return row.resumeStatus === 'processing' || row.statusCode === 'processing' || normalizeSearchText(row.status) === suggestion;
+  }
+
+  if (suggestion === '분석 완료') {
+    return row.resumeStatus === 'done' || row.statusCode === 'done' || normalizeSearchText(row.status) === suggestion;
+  }
+
+  if (suggestion === '미검토') {
+    return !row.reviewed;
+  }
+
+  if (suggestion === '검토 완료') {
+    return row.reviewed;
+  }
+
+  return true;
+}
+
+function matchesCoverSuggestionFilters(row: CoverLetterRow, selectedSuggestions: string[]) {
+  const analysisSelections = selectedSuggestions.filter((suggestion) =>
+    COVER_ANALYSIS_STATUS_SUGGESTIONS.includes(suggestion),
+  );
+  const reviewSelections = selectedSuggestions.filter((suggestion) =>
+    COVER_REVIEW_STATUS_SUGGESTIONS.includes(suggestion),
+  );
+  const matchesAnalysis =
+    !analysisSelections.length || analysisSelections.some((suggestion) => matchesCoverSuggestion(row, suggestion));
+  const matchesReview =
+    !reviewSelections.length || reviewSelections.some((suggestion) => matchesCoverSuggestion(row, suggestion));
+
+  return matchesAnalysis && matchesReview;
+}
+
+function matchesCoverTextSearch(row: CoverLetterRow, query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return includesSearchText(
+    [
+      row.applicant,
+      row.jd,
+      row.skills.join(' '),
+      row.status,
+      row.statusCode,
+      row.resumeStatus,
+      row.reviewed ? '검토 완료' : '미검토',
+      row.score,
+    ],
+    query,
+  );
 }
 
 function toStringArray(value: unknown[] | undefined) {
@@ -107,6 +207,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const [form] = Form.useForm<CoverLetterInputFormValues>();
   const [isCreatingCoverLetter, setIsCreatingCoverLetter] = useState(false);
   const [deleteTargetResume, setDeleteTargetResume] = useState<CoverLetterRow | null>(null);
+  const [coverSearchText, setCoverSearchText] = useState('');
   const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId } =
     useCoverLetterPageData();
   const { addResume, analyzeResume, deleteResume, saveResume } = useResumeMutations(showAlert);
@@ -126,6 +227,23 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const isEditMode = Boolean(editingResume);
   const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter);
   const analysisDone = editingResume?.status === 'done';
+  const selectedCoverSuggestions = useMemo(
+    () => getSelectedSuggestionLabels(coverSearchText, COVER_SEARCH_SUGGESTIONS),
+    [coverSearchText],
+  );
+  const coverTextSearch = useMemo(
+    () => getSearchTextWithoutSuggestions(coverSearchText, COVER_SEARCH_SUGGESTIONS),
+    [coverSearchText],
+  );
+  const coverSuggestionQuery = useMemo(() => getSuggestionQueryFragment(coverSearchText), [coverSearchText]);
+  const filteredCoverRows = useMemo(() => {
+    const filtered = coverRows.filter(
+      (row) =>
+        matchesCoverSuggestionFilters(row, selectedCoverSuggestions) && matchesCoverTextSearch(row, coverTextSearch),
+    );
+
+    return [...filtered].sort((left, right) => compareRecent(left.updatedAtIso, right.updatedAtIso));
+  }, [coverRows, coverTextSearch, selectedCoverSuggestions]);
 
   useEffect(() => {
     form.resetFields();
@@ -135,6 +253,10 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const startCreateCoverLetter = () => {
     setIsCreatingCoverLetter(true);
     form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
+  };
+
+  const toggleCoverSuggestion = (suggestion: string) => {
+    setCoverSearchText((current) => toggleSuggestionInSearchText(current, COVER_SEARCH_SUGGESTIONS, suggestion));
   };
 
   const selectResume = (resumeId: string) => {
@@ -277,19 +399,42 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
               </Button>
             }
           >
+            {coverRows.length ? (
+              <div className="list-query-controls">
+                <Input
+                  allowClear
+                  className="list-query-input"
+                  placeholder="지원자, JD, 기술 검색"
+                  value={coverSearchText}
+                  onChange={(event) => setCoverSearchText(event.target.value)}
+                />
+                <span className="list-query-count">
+                  {filteredCoverRows.length} / {coverRows.length}건
+                </span>
+                <SearchSuggestions
+                  ariaLabel="자소서 추천검색어"
+                  query={coverSuggestionQuery}
+                  selectedValues={selectedCoverSuggestions}
+                  suggestions={COVER_SEARCH_SUGGESTIONS}
+                  onToggle={toggleCoverSuggestion}
+                />
+              </div>
+            ) : null}
             <CoverLetterUploadPanel
-              coverRows={coverRows}
+              coverRows={filteredCoverRows}
               hasSavedResume={hasCurrentResume}
               analysisDone={analysisDone}
               navigate={navigate}
               selectedResumeId={isCreatingCoverLetter ? null : selectedResumeId}
               onSelectResume={selectResume}
               onDeleteResume={requestDeleteResume}
+              emptyDescription={coverRows.length ? '조건에 맞는 자소서가 없습니다.' : undefined}
             />
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
           <SectionCard className="scroll-card-body" title="자소서 작성/수정">
+            <ResumeStructuredSummary resume={editingResume} />
             <CoverLetterInputPanel
               jdList={jdList}
               form={form}
