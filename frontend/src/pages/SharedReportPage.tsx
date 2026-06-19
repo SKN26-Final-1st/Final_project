@@ -35,13 +35,20 @@ function getInitialResumeId(search: string) {
 }
 
 function toSharedTextList(value: unknown) {
-  if (!Array.isArray(value)) {
-    return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item : item === null || item === undefined ? '' : String(item)))
+      .filter(Boolean);
   }
 
-  return value
-    .map((item) => (typeof item === 'string' ? item : item === null || item === undefined ? '' : String(item)))
-    .filter(Boolean);
+  if (typeof value === 'string') {
+    return value
+      .split(/\n+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 function SharedTextList({ items, emptyText }: { items: string[]; emptyText: string }) {
@@ -285,6 +292,21 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                           <SharedTextList items={toSharedTextList(report.competency_analysis)} emptyText="역량 분석이 없습니다." />
                           <Typography.Title level={5}>적합도 분석</Typography.Title>
                           <SharedTextList items={toSharedTextList(report.fit_analysis)} emptyText="적합도 분석이 없습니다." />
+                          {toSharedTextList(report.motive).length ? (
+                            <>
+                              <Typography.Title level={5}>지원 동기</Typography.Title>
+                              <SharedTextList items={toSharedTextList(report.motive)} emptyText="지원 동기 분석이 없습니다." />
+                            </>
+                          ) : null}
+                          {toSharedTextList(report.collaboration).length ? (
+                            <>
+                              <Typography.Title level={5}>협업 역량</Typography.Title>
+                              <SharedTextList
+                                items={toSharedTextList(report.collaboration)}
+                                emptyText="협업 분석이 없습니다."
+                              />
+                            </>
+                          ) : null}
                           <Typography.Title level={5}>강점</Typography.Title>
                           <SharedTextList items={toSharedTextList(report.strength)} emptyText="강점 정보가 없습니다." />
                           <Typography.Title level={5}>우려/검증 필요</Typography.Title>

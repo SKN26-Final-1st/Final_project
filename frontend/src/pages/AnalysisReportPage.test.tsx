@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AnalysisReportPage } from './AnalysisReportPage';
@@ -51,7 +51,9 @@ const report: AnalysisReport = {
   candidate_summary: '지원자 요약',
   checklist: [],
   competency_analysis: ['역량 1', '역량 2', '역량 3', '역량 4'],
-  fit_analysis: ['적합도 1', '적합도 2', '적합도 3'],
+  fit_analysis: '적합도 1\n적합도 2\n적합도 3',
+  motive: '지원 동기 분석',
+  collaboration: '협업 방식 분석',
   strength: ['강점 1', '강점 2', '강점 3'],
   concern: ['우려 1', '우려 2', '우려 3'],
   check_point: ['포인트 1', '포인트 2', '포인트 3'],
@@ -71,9 +73,102 @@ const selectedItem: AnalysisReportItem = {
   questions: report.interview_question,
 };
 
+const secondResume: Resume = {
+  ...resume,
+  id: 2,
+  job_description_id: 20,
+  name: '김백엔드',
+};
+
+const secondJd: JdItem = {
+  ...jd,
+  id: '20',
+  title: '백엔드 JD',
+};
+
+const secondReport: AnalysisReport = {
+  ...report,
+  id: 2,
+  resume_id: 2,
+  overall_grade: 'B',
+  overall_summary: '백엔드 요약',
+  concern: [],
+  check_point: [],
+  interview_question: [{ id: 5, resume_id: 2, question: 'Django 질문', answer: '답변', purpose: '의도' }],
+};
+
+const secondItem: AnalysisReportItem = {
+  report: secondReport,
+  resume: secondResume,
+  jd: secondJd,
+  questions: secondReport.interview_question,
+};
+
+const thirdResume: Resume = {
+  ...resume,
+  id: 3,
+  job_description_id: 30,
+  name: '박운영',
+};
+
+const thirdJd: JdItem = {
+  ...jd,
+  id: '30',
+  title: '운영 JD',
+};
+
+const thirdReport: AnalysisReport = {
+  ...report,
+  id: 3,
+  resume_id: 3,
+  overall_grade: 'C',
+  overall_summary: '운영 요약',
+  concern: ['운영 우려'],
+  check_point: ['운영 확인'],
+  interview_question: [],
+};
+
+const thirdItem: AnalysisReportItem = {
+  report: thirdReport,
+  resume: thirdResume,
+  jd: thirdJd,
+  questions: thirdReport.interview_question,
+};
+
+const fourthResume: Resume = {
+  ...resume,
+  id: 4,
+  job_description_id: 40,
+  name: '윤무질문',
+};
+
+const fourthJd: JdItem = {
+  ...jd,
+  id: '40',
+  title: '데이터 JD',
+};
+
+const fourthReport: AnalysisReport = {
+  ...report,
+  id: 4,
+  resume_id: 4,
+  overall_grade: 'A',
+  overall_summary: '데이터 요약',
+  concern: [],
+  check_point: [],
+  interview_question: [],
+};
+
+const fourthItem: AnalysisReportItem = {
+  report: fourthReport,
+  resume: fourthResume,
+  jd: fourthJd,
+  questions: fourthReport.interview_question,
+};
+
 vi.mock('../hooks/useAnalysisReportPageData', () => ({
   useAnalysisReportPageData: () => ({
-    reportItems: [selectedItem],
+    reportItems: [selectedItem, secondItem, thirdItem, fourthItem],
     selectedItem,
     selectedReportResumeId: '1',
     setSelectedReportResumeId: vi.fn(),
@@ -111,5 +206,65 @@ describe('AnalysisReportPage', () => {
 
     expect(screen.getByText('답변 1')).toBeInTheDocument();
     expect(screen.getByText('의도 1')).toBeInTheDocument();
+  });
+
+  it('리포트 목록을 검색하고 motive/collaboration 분석을 표시한다', async () => {
+    const user = userEvent.setup();
+
+    render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    expect(screen.getByText('지원 동기 분석')).toBeInTheDocument();
+    expect(screen.getByText('협업 방식 분석')).toBeInTheDocument();
+    expect(screen.queryByLabelText('리포트 등급 필터')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('리포트 JD 필터')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('리포트 정렬')).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText('지원자, JD, 질문 검색'), 'Django');
+
+    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /홍길동/ })).not.toBeInTheDocument();
+  });
+
+  it('입력 기반 추천검색어를 여러 개 선택해 리포트 목록을 좁히고 해제한다', () => {
+    render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    expect(screen.queryByLabelText('리포트 빠른 필터')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '질문 있음' })).not.toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText('지원자, JD, 질문 검색');
+
+    fireEvent.change(searchInput, { target: { value: '등' } });
+
+    expect(screen.getByRole('group', { name: '리포트 추천검색어' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'A/B 등급' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'C 이하' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'A/B 등급' }));
+
+    expect(searchInput).toHaveValue('A/B 등급');
+    expect(screen.queryByRole('group', { name: '선택된 리포트 추천검색어' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'A/B 등급' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /윤무질문/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /박운영/ })).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'A/B 등급, 질' } });
+    expect(screen.getByRole('button', { name: '질문 있음' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '질문 있음' }));
+
+    expect(searchInput).toHaveValue('A/B 등급, 질문 있음');
+    expect(screen.getByRole('button', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /윤무질문/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /박운영/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '질문 있음' }));
+
+    expect(searchInput).toHaveValue('A/B 등급');
+    expect(screen.getByRole('button', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /윤무질문/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /박운영/ })).not.toBeInTheDocument();
   });
 });
