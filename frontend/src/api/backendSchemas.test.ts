@@ -61,7 +61,31 @@ describe('backendSchemas', () => {
       ])[0].self_intoduction,
     ).toEqual([]);
 
-    expect(parseAnalysisReports([])).toEqual([]);
+    expect(
+      parseAnalysisReports([
+        {
+          id: 1,
+          resume_id: 1,
+          overall_grade: 'A',
+          overall_summary: '요약',
+          candidate_summary: '지원자 요약',
+          checklist: [],
+          competency_analysis: [],
+          fit_analysis: 'JD 적합도가 높습니다.',
+          motive: '지원 동기가 구체적입니다.',
+          collaboration: '협업 경험이 확인됩니다.',
+          strength: [],
+          concern: [],
+          check_point: [],
+          final_comment: '',
+          interview_question: [],
+        },
+      ])[0],
+    ).toMatchObject({
+      fit_analysis: 'JD 적합도가 높습니다.',
+      motive: '지원 동기가 구체적입니다.',
+      collaboration: '협업 경험이 확인됩니다.',
+    });
     expect(parseAuthKeys([])).toEqual([]);
   });
 

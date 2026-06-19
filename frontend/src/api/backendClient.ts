@@ -3,6 +3,7 @@ import {
   type AnalysisReport,
   type ApiResponse,
   type AuthKey,
+  type Checklist,
   type CompanyInfo,
   type InterviewQuestion,
   type JobDescription,
@@ -15,6 +16,7 @@ import {
   parseAnalysisReports,
   parseAuthKey,
   parseAuthKeys,
+  parseChecklists,
   parseCompanyInfo,
   parseInterviewQuestions,
   parseJobDescription,
@@ -69,6 +71,10 @@ type AuthKeyAddBody = {
 type AuthKeyModifyBody = Partial<Omit<AuthKey, 'value'>> & {
   id: number;
   delete?: boolean;
+};
+
+type ChecklistGetBody = {
+  job_description_id: number;
 };
 
 type CompanyInfoModifyBody = Partial<Omit<CompanyInfo, 'id'>>;
@@ -451,6 +457,13 @@ export const apiClient = {
 
   getJobDescriptions: async () =>
     toApiResponse('JD 목록을 불러왔습니다.', await getJobDescriptions()),
+
+  getChecklist: async (jobDescriptionId: number) => {
+    const body: ChecklistGetBody = { job_description_id: jobDescriptionId };
+    const data = parseChecklists(await requestBackend<Checklist[]>('checklist/get', body));
+
+    return toApiResponse('체크리스트를 불러왔습니다.', data);
+  },
 
   getCoverLetterDraft: async () => {
     const dashboard = await getDashboardSource();
