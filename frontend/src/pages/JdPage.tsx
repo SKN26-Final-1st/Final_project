@@ -14,6 +14,7 @@ import { useJdPageData } from '../hooks/useJdPageData';
 import { useJdMutations } from '../hooks/mutations/useJdMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
+import { toTrimmedStringList } from '../utils/stringList';
 
 type JdPageProps = {
   navigate: Navigate;
@@ -104,9 +105,21 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     }
 
     const values = await form.validateFields();
+    const normalizedValues = {
+      ...values,
+      required_skill: toTrimmedStringList(values.required_skill),
+      preferred_skill: toTrimmedStringList(values.preferred_skill),
+    };
+
+    if (!normalizedValues.required_skill.length) {
+      form.setFields([{ name: 'required_skill', errors: ['필수 기술을 입력하세요.'] }]);
+      return;
+    }
+
+    form.setFields([{ name: 'required_skill', errors: [] }]);
 
     if (isCreateMode) {
-      const response = await addJd.mutateAsync(values);
+      const response = await addJd.mutateAsync(normalizedValues);
       setIsCreatingJd(false);
       setSelectedJdId(String(response.data.id));
       return;
@@ -116,7 +129,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       return;
     }
 
-    await saveJd.mutateAsync({ id: Number(selectedJd.id), ...values });
+    await saveJd.mutateAsync({ id: Number(selectedJd.id), ...normalizedValues });
   };
 
   const requestDeleteJd = (id: string) => {

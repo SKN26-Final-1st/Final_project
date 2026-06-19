@@ -58,6 +58,20 @@ INTERVIEW_QUESTION_USER_PROMPT = (
     "각 항목은 question, answer, purpose를 포함해야 해.\n\n{context_json}"
 )
 
+FIT_CHECKLIST_SYSTEM_PROMPT = (
+    "너는 채용 적합도 평가 기준을 만드는 전문가야. "
+    "회사 요약, JD 요약, DB 데이터를 종합해서 지원자가 해당 회사와 포지션에 적합한지 "
+    "판단하기 위한 체크리스트를 만들어. "
+    "회사 요약 또는 JD 요약이 비어 있으면 제공된 나머지 정보와 DB 데이터만 근거로 사용해. "
+    "각 체크리스트는 나중에 지원서 요약과 비교할 수 있도록 관찰 가능하고 판단 가능한 기준이어야 해. "
+    "기술 스택, 직무 경험, 업무 이해도, 협업 방식, 서비스/도메인 적합성, 성장 가능성을 균형 있게 포함해. "
+    "반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
+)
+FIT_CHECKLIST_USER_PROMPT = (
+    "다음 정보를 바탕으로 적합도 판단 체크리스트를 정확히 {checklist_count}개 생성해줘. "
+    "각 항목은 하나의 구체적인 평가 기준 문장이어야 해.\n\n{context_json}"
+)
+
 CHECK_RESUME_FIT_SYSTEM_PROMPT = (
     "너는 지원서 요약과 채용 적합도 체크리스트를 비교하는 평가자야. "
     "각 체크리스트 항목을 지원서 요약이 충족하는지 true 또는 false로 판단해. "
@@ -75,11 +89,8 @@ REPORT_SYSTEM_PROMPT = (
     "checklist에서 result가 true인 항목은 충족한 기준, false인 항목은 부족하거나 추가 검증이 필요한 기준으로 판단해. "
     "리포트의 checklist 필드는 입력받은 checklist 배열을 content, result 키 이름 그대로 포함해. "
     "overall_grade는 A, B, C, D 중 하나로 작성해. "
-    "fit_analysis는 지원자의 경험과 역량이 지원 직무에 얼마나 적합한지 분석한 문단으로 작성해. "
-    "motive는 지원서에 드러난 지원 동기를 분석한 문단으로 작성해. "
-    "collaboration은 지원서에 드러난 협업 경험과 협업 능력을 분석한 문단으로 작성해. "
-    "fit_analysis, motive, collaboration은 각각 하나의 문자열로 작성해. "
-    "competency_analysis, strength, concern, check_point는 각각 문자열 리스트로 작성해. "
+    "JSON 컬럼에 해당하는 competency_analysis, fit_analysis, strength, concern, check_point는 "
+    "각각 문자열 리스트로 작성해. "
     "반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
 )
 REPORT_USER_PROMPT = "다음 정보를 바탕으로 채용 평가 리포트를 생성해줘.\n\n{context_json}"
@@ -104,6 +115,14 @@ class InterviewQuestionsStructure(BaseModel):
 
     questions: List[InterviewQuestionAnswer] = Field(
         description="면접 질문, 모범 답안, 질문 의도 목록"
+    )
+
+
+class FitChecklistStructure(BaseModel):
+    """회사/JD 기준으로 지원자 적합성을 판단할 체크리스트 목록 구조입니다."""
+
+    checklist: List[str] = Field(
+        description="지원자가 회사와 JD에 적합한지 판단하기 위한 체크리스트 목록"
     )
 
 
@@ -144,14 +163,8 @@ class ReportStructure(BaseModel):
     competency_analysis: List[str] = Field(
         description="지원자의 역량 분석 목록"
     )
-    fit_analysis: str = Field(
-        description="체크리스트 충족 여부를 바탕으로 한 지원자의 직무 적합성 분석"
-    )
-    motive: str = Field(
-        description="지원서 내용을 바탕으로 분석한 지원 동기"
-    )
-    collaboration: str = Field(
-        description="지원서의 협업 경험을 바탕으로 분석한 협업 능력"
+    fit_analysis: List[str] = Field(
+        description="체크리스트 충족 여부를 바탕으로 한 회사/직무 적합도 분석 목록"
     )
     strength: List[str] = Field(
         description="지원자의 강점 목록"
@@ -219,6 +232,8 @@ def _to_prompt_value(value):
 def _normalize_checklist(checklist):
     """Pydantic 객체, dict, list 등으로 들어온 체크리스트를 문자열 리스트로 표준화합니다."""
 
+    if isinstance(checklist, FitChecklistStructure):
+        return checklist.checklist
     if hasattr(checklist, "checklist") and isinstance(checklist.checklist, list):
         return checklist.checklist
     if hasattr(checklist, "model_dump"):
@@ -389,6 +404,35 @@ def make_interview_questions(
     return [item.model_dump() for item in parsed.questions]
 
 
+def make_fit_checklist(
+    company_summary,
+    jd_summary,
+    db_data=DEFAULT_DB_DATA,
+    checklist_count=CHECKLIST_COUNT,
+):
+    """회사 요약, JD 요약, 기본 DB 데이터를 바탕으로 지원자 적합성 체크 기준을 만듭니다."""
+
+    checklist_context = {
+        "company_summary": None if _is_empty_input(company_summary) else _to_prompt_value(company_summary),
+        "jd_summary": None if _is_empty_input(jd_summary) else _to_prompt_value(jd_summary),
+        "db_data": None if _is_empty_input(db_data) else _to_prompt_value(db_data),
+        "checklist_count": checklist_count,
+    }
+
+    if not any(checklist_context[key] for key in ("company_summary", "jd_summary", "db_data")):
+        raise ValueError("체크리스트 생성을 위한 회사 요약, JD 요약, DB 데이터 중 최소 하나가 필요합니다.")
+
+    context_json = json.dumps(checklist_context, ensure_ascii=False, indent=2)
+    return _create_structured_completion(
+        FIT_CHECKLIST_SYSTEM_PROMPT,
+        FIT_CHECKLIST_USER_PROMPT.format(
+            checklist_count=checklist_count,
+            context_json=context_json,
+        ),
+        FitChecklistStructure,
+    )
+
+
 def check_resume_fit(resume_summary, checklist):
     """이력서 요약이 각 체크리스트 기준을 충족하는지 LLM으로 판정합니다."""
 
@@ -437,18 +481,18 @@ def make_report(resume_summary, fit_checks):
     return report
 
 
-def invoke(
-    company_dict: dict,
-    jd_dict: dict,
-    checklist: list[str],
-    resume_dict: dict,
-):
+def invoke(resume_dict, company_dict, jd_dict):
     """요약, 체크리스트, 적합성 판단, 면접 질문, 리포트 생성을 순서대로 실행하는 전체 파이프라인입니다."""
 
     resume_summary = sum_resume(resume_dict)
     company_summary = sum_company(company_dict)
     jd_summary = sum_jd(jd_dict)
 
+    checklist = make_fit_checklist(
+        company_summary=company_summary,
+        jd_summary=jd_summary,
+        db_data=DEFAULT_DB_DATA,
+    )
     fit_checks = check_resume_fit(
         resume_summary=resume_summary,
         checklist=checklist,
@@ -464,5 +508,7 @@ def invoke(
         fit_checks=fit_checks,
     )
 
-    report["question"] = questions
-    return report
+    return {
+        "questions": questions,
+        "report": report,
+    }
