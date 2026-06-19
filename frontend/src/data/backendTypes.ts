@@ -77,6 +77,12 @@ export type JobDescription = {
   updated_at: DateTimeString;
 };
 
+export type Checklist = {
+  id: number;
+  job_description_id: number;
+  content: string;
+};
+
 export type Resume = {
   id: number;
   job_description_id: number;
@@ -105,7 +111,9 @@ export type AnalysisReport = {
   candidate_summary: string;
   checklist: unknown[];
   competency_analysis: string[];
-  fit_analysis: string[];
+  fit_analysis: string;
+  motive: string;
+  collaboration: string;
   strength: string[];
   concern: string[];
   check_point: string[];
@@ -120,4 +128,3 @@ export type InterviewQuestion = {
   answer: string;
   purpose: string;
 };
-

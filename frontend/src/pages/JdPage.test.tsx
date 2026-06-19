@@ -13,6 +13,9 @@ const jdPageData = vi.hoisted(() => ({
   selectedJd: null as JdItem | null,
   jdList: [] as JdItem[],
 }));
+const checklistData = vi.hoisted(() => ({
+  items: [{ id: 1, job_description_id: 1, content: 'React 실무 경험 확인' }],
+}));
 
 function makeJdItem(overrides: Partial<JdItem> = {}): JdItem {
   return {
@@ -50,6 +53,13 @@ vi.mock('../hooks/mutations/useJdMutations', () => ({
     analyzeJd: { isPending: false, mutateAsync: analyzeJdMutateAsync },
     deleteJd: { isPending: false, mutateAsync: deleteJdMutateAsync },
     saveJd: { isPending: false, mutateAsync: saveJdMutateAsync },
+  }),
+}));
+
+vi.mock('../hooks/useJdChecklist', () => ({
+  useJdChecklist: () => ({
+    data: checklistData.items,
+    isLoading: false,
   }),
 }));
 
@@ -94,5 +104,33 @@ describe('JdPage', () => {
 
     expect(await screen.findByText('필수 기술을 입력하세요.')).toBeInTheDocument();
     expect(saveJdMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('JD 목록을 검색하고 선택된 JD의 checklist를 조회 표시한다', async () => {
+    const user = userEvent.setup();
+    const backendJd = makeJdItem({
+      id: '2',
+      title: '백엔드 개발자',
+      status: '진행 중',
+      statusCode: 'on_going',
+      stack: ['Django'],
+      preferredStack: ['PostgreSQL'],
+      summary: 'API 서버 개발',
+      employmentType: '계약직',
+    });
+    jdPageData.selectedJd = makeJdItem();
+    jdPageData.jdList = [jdPageData.selectedJd, backendJd];
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    expect(screen.getByText('React 실무 경험 확인')).toBeInTheDocument();
+    expect(screen.queryByLabelText('JD 상태 필터')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('JD 정렬')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('기술 키워드')).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText('JD명, 업무, 기술 검색'), 'API 서버');
+
+    expect(screen.getByRole('button', { name: '백엔드 개발자 JD 선택' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '프론트엔드 개발자 JD 선택' })).not.toBeInTheDocument();
   });
 });

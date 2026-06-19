@@ -13,6 +13,7 @@ type CoverLetterUploadPanelProps = {
   selectedResumeId: string | null;
   onSelectResume: (resumeId: string) => void;
   onDeleteResume: (resumeId: string) => void;
+  emptyDescription?: string;
 };
 
 export function CoverLetterUploadPanel({
@@ -23,6 +24,7 @@ export function CoverLetterUploadPanel({
   selectedResumeId,
   onSelectResume,
   onDeleteResume,
+  emptyDescription = '저장된 자소서가 없습니다.',
 }: CoverLetterUploadPanelProps) {
   const isWarningStatus = (statusCode: CoverLetterRow['statusCode']) =>
     statusCode === 'onqueue' || statusCode === 'processing' || statusCode === 'needs_review';
@@ -93,7 +95,7 @@ export function CoverLetterUploadPanel({
           ))}
         </div>
       ) : (
-        <EmptyState description="저장된 자소서가 없습니다." />
+        <EmptyState description={emptyDescription} />
       )}
       {analysisDone && (
         <Button className="mt-16" type="primary" block onClick={() => navigate('/chat')}>
