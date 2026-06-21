@@ -172,28 +172,25 @@ try {
       return fulfillJson(route, { error: false, data: resumes.filter((resume) => !deletedResumeIds.has(resume.id)) });
     }
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
-    if (path === 'resume/analize') {
+    if (path === 'resume/analyze') {
       analysisPayload = route.request().postDataJSON();
       return fulfillJson(route, {
         error: false,
         data: {
-          report: {
-            id: 91,
-            resume_id: analysisPayload.id,
-            overall_grade: 'A',
-            overall_summary: 'Good',
-            candidate_summary: 'Summary',
-            checklist: [],
-            competency_analysis: [],
-            fit_analysis: [],
-            strength: [],
-            concern: [],
-            check_point: [],
-            final_comment: 'Done',
-          },
-          questions: [],
+          id: 91,
+          resume_id: analysisPayload.id,
+          overall_grade: 'A',
+          overall_summary: 'Good',
+          candidate_summary: 'Summary',
+          checklist: [],
+          competency_analysis: [],
+          fit_analysis: [],
+          strength: [],
+          concern: [],
+          check_point: [],
+          final_comment: 'Done',
+          interview_question: [],
         },
       });
     }

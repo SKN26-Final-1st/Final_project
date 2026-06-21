@@ -150,7 +150,6 @@ async function mockBackend(page) {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: [resume] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'authkey/get') {
       return fulfillJson(route, {
         error: false,

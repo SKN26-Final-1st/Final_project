@@ -3,6 +3,7 @@ import {
   type AnalysisReport,
   type ApiResponse,
   type AuthKey,
+  type Checklist,
   type CompanyInfo,
   type InterviewQuestion,
   type JobDescription,
@@ -15,8 +16,8 @@ import {
   parseAnalysisReports,
   parseAuthKey,
   parseAuthKeys,
+  parseChecklists,
   parseCompanyInfo,
-  parseInterviewQuestion,
   parseInterviewQuestions,
   parseJobDescription,
   parseJobDescriptions,
@@ -64,11 +65,16 @@ type AuthKeyAddBody = {
   name: string;
   description?: string;
   credit_limit?: number;
+  authorized_resume?: number[];
 };
 
 type AuthKeyModifyBody = Partial<Omit<AuthKey, 'value'>> & {
   id: number;
   delete?: boolean;
+};
+
+type ChecklistGetBody = {
+  job_description_id: number;
 };
 
 type CompanyInfoModifyBody = Partial<Omit<CompanyInfo, 'id'>>;
@@ -153,6 +159,32 @@ function toApiResponse<T>(message: string, data: T): ApiResponse<T> {
   };
 }
 
+const INVALID_LOGIN_MESSAGE = '아이디 또는 비밀번호가 올바르지 않습니다.';
+
+function getLoginErrorMessage(error: unknown) {
+  const message = getRequestErrorMessage(error, '로그인에 실패했습니다.');
+
+  if (/invalid credentials/i.test(message)) {
+    return INVALID_LOGIN_MESSAGE;
+  }
+
+  return message;
+}
+
+function getReportQuestions(report: AnalysisReport): InterviewQuestion[] {
+  return parseInterviewQuestions(
+    report.interview_question.map((question, index) => ({
+      ...question,
+      id: question.id ?? index + 1,
+      resume_id: question.resume_id ?? report.resume_id,
+    })),
+  );
+}
+
+function getReportsQuestions(reports: AnalysisReport[]): InterviewQuestion[] {
+  return reports.flatMap((report) => getReportQuestions(report));
+}
+
 async function loginRequest(username: string, password: string) {
   try {
     const response = await httpClient.post<BackendEnvelope<unknown> | string>('/login/', { username, password });
@@ -164,7 +196,7 @@ async function loginRequest(username: string, password: string) {
 
     return payload;
   } catch (error) {
-    throw new Error(getRequestErrorMessage(error, '로그인에 실패했습니다.'));
+    throw new Error(getLoginErrorMessage(error));
   }
 }
 
@@ -292,19 +324,6 @@ async function getReportsForResume(resumeId: number, apiKey?: string) {
   }
 }
 
-async function getQuestionsForResume(resumeId: number, apiKey?: string) {
-  try {
-    const data = await requestBackend<InterviewQuestion[] | InterviewQuestion>(
-      'question/get',
-      { resume_id: resumeId },
-      { apiKey },
-    );
-    return parseInterviewQuestions(ensureArray(data));
-  } catch {
-    return [];
-  }
-}
-
 async function getDashboardData(): Promise<DashboardPayload> {
   const [account, companyInfo, jobDescriptions] = await Promise.all([
     getAccount(),
@@ -312,18 +331,15 @@ async function getDashboardData(): Promise<DashboardPayload> {
     getJobDescriptions(),
   ]);
   const resumes = (await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id)))).flat();
-  const [analysisReports, interviewQuestions] = await Promise.all([
-    Promise.all(resumes.map((resume) => getReportsForResume(resume.id))),
-    Promise.all(resumes.map((resume) => getQuestionsForResume(resume.id))),
-  ]);
+  const analysisReports = (await Promise.all(resumes.map((resume) => getReportsForResume(resume.id)))).flat();
 
   return {
     account,
     company_info: companyInfo,
     job_descriptions: jobDescriptions,
     resumes,
-    analysis_reports: analysisReports.flat(),
-    interview_questions: interviewQuestions.flat(),
+    analysis_reports: analysisReports,
+    interview_questions: getReportsQuestions(analysisReports),
   };
 }
 
@@ -368,16 +384,13 @@ async function deprecatedRequestResumeAnalysisForJob(jdId: string): Promise<Resu
     throw new Error('분석 요청할 지원서가 없습니다.');
   }
 
-  const analysis = await requestBackend<{
-        report: AnalysisReport;
-        questions: InterviewQuestion[];
-      }>('resume/analize', { id: resume.id });
+  const report = parseAnalysisReport(await requestBackend<AnalysisReport>('resume/analyze', { id: resume.id }));
 
   return {
     jd_id: jdId,
     resume_id: resume.id,
-    report: parseAnalysisReport(analysis.report),
-    questions: parseInterviewQuestions(analysis.questions),
+    report,
+    questions: getReportQuestions(report),
   };
 }
 
@@ -389,16 +402,13 @@ async function requestResumeAnalysisById(resumeId: number): Promise<ResumeAnalys
     throw new Error('분석 요청할 지원서를 찾을 수 없습니다.');
   }
 
-  const analysis = await requestBackend<{
-        report: AnalysisReport;
-        questions: InterviewQuestion[];
-      }>('resume/analize', { id: resume.id });
+  const report = parseAnalysisReport(await requestBackend<AnalysisReport>('resume/analyze', { id: resume.id }));
 
   return {
     jd_id: String(resume.job_description_id),
     resume_id: resume.id,
-    report: parseAnalysisReport(analysis.report),
-    questions: parseInterviewQuestions(analysis.questions),
+    report,
+    questions: getReportQuestions(report),
   };
 }
 
@@ -420,10 +430,9 @@ async function getSharedResumeBundle(resumeId: number, apiKey: string) {
     throw new Error('공유 지원서 정보를 찾을 수 없습니다.');
   }
 
-  const [jobDescriptions, reports, questions] = await Promise.all([
+  const [jobDescriptions, reports] = await Promise.all([
     getJobDescriptions(apiKey),
     getReportsForResume(resume.id, apiKey),
-    getQuestionsForResume(resume.id, apiKey),
   ]);
   const jobDescription = jobDescriptions.find((item) => item.id === resume.job_description_id) ?? null;
 
@@ -432,7 +441,7 @@ async function getSharedResumeBundle(resumeId: number, apiKey: string) {
     jobDescription,
     jobDescriptions,
     reports,
-    questions,
+    questions: getReportsQuestions(reports),
   };
 }
 
@@ -448,6 +457,13 @@ export const apiClient = {
 
   getJobDescriptions: async () =>
     toApiResponse('JD 목록을 불러왔습니다.', await getJobDescriptions()),
+
+  getChecklist: async (jobDescriptionId: number) => {
+    const body: ChecklistGetBody = { job_description_id: jobDescriptionId };
+    const data = parseChecklists(await requestBackend<Checklist[]>('checklist/get', body));
+
+    return toApiResponse('체크리스트를 불러왔습니다.', data);
+  },
 
   getCoverLetterDraft: async () => {
     const dashboard = await getDashboardSource();
@@ -607,9 +623,8 @@ export const apiClient = {
   },
 
   saveQuestion: async (body: QuestionModifyBody) => {
-    const data = parseInterviewQuestion(await requestBackend<InterviewQuestion>('question/modify', body));
-
-    return toApiResponse('면접 질문을 저장했습니다.', data);
+    void body;
+    return unsupportedBackendFeature('면접 질문 개별 수정');
   },
 
   checkSignupId: async (username: string) => {

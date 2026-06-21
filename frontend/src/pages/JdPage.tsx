@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Form, Row, Space } from 'antd';
+import { Button, Col, Form, Input, Row, Space } from 'antd';
 import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import { JdDeleteModal } from '../components/jd/JdDeleteModal';
 import { JdEditorPanel, type JdEditorFormValues } from '../components/jd/JdEditorPanel';
@@ -11,14 +11,36 @@ import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem } from '../api/adapters';
 import { useJdPageData } from '../hooks/useJdPageData';
+import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useJdMutations } from '../hooks/mutations/useJdMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
+import { toTrimmedStringList } from '../utils/stringList';
 
 type JdPageProps = {
   navigate: Navigate;
   showAlert: ShowAlert;
 };
+
+function normalizeSearchText(value: unknown) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function includesSearchText(values: unknown[], query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return values.some((value) => normalizeSearchText(value).includes(normalizedQuery));
+}
+
+function compareRecent(left?: string, right?: string) {
+  const leftTime = left ? new Date(left).getTime() : 0;
+  const rightTime = right ? new Date(right).getTime() : 0;
+  return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
+}
 
 function toJdEditorValues(selectedJd: JdItem): JdEditorFormValues {
   const validStatus = ['prepare', 'on_going', 'closed'].includes(selectedJd.statusCode)
@@ -56,6 +78,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   const [form] = Form.useForm<JdEditorFormValues>();
   const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [deleteTargetJd, setDeleteTargetJd] = useState<JdItem | null>(null);
+  const [jdSearchText, setJdSearchText] = useState('');
   const { jdList, resumes, selectedJdId, selectedJd, setSelectedJdId } = useJdPageData();
   const { addJd, analyzeJd, deleteJd, saveJd } = useJdMutations(showAlert);
   const isEmptyJdList = jdList.length === 0;
@@ -76,6 +99,31 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       : selectedJd && selectedJdResumes.length === 0
         ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.'
         : undefined;
+  const checklistQuery = useJdChecklist(!isCreateMode && selectedJd ? selectedJd.id : null);
+  const filteredJdList = useMemo(() => {
+    const filtered = jdList.filter((item) => {
+      const matchesSearch = includesSearchText(
+        [
+          item.title,
+          item.summary,
+          item.stack.join(' '),
+          item.preferredStack.join(' '),
+          item.employmentType,
+          item.status,
+          item.statusCode,
+          item.requiredExperience,
+          item.educationLevel,
+          item.major,
+          item.hiringReason,
+        ],
+        jdSearchText,
+      );
+
+      return matchesSearch;
+    });
+
+    return [...filtered].sort((left, right) => compareRecent(left.updatedAt, right.updatedAt));
+  }, [jdList, jdSearchText]);
 
   useEffect(() => {
     if (isCreateMode) {
@@ -104,9 +152,21 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     }
 
     const values = await form.validateFields();
+    const normalizedValues = {
+      ...values,
+      required_skill: toTrimmedStringList(values.required_skill),
+      preferred_skill: toTrimmedStringList(values.preferred_skill),
+    };
+
+    if (!normalizedValues.required_skill.length) {
+      form.setFields([{ name: 'required_skill', errors: ['필수 기술을 입력하세요.'] }]);
+      return;
+    }
+
+    form.setFields([{ name: 'required_skill', errors: [] }]);
 
     if (isCreateMode) {
-      const response = await addJd.mutateAsync(values);
+      const response = await addJd.mutateAsync(normalizedValues);
       setIsCreatingJd(false);
       setSelectedJdId(String(response.data.id));
       return;
@@ -116,7 +176,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       return;
     }
 
-    await saveJd.mutateAsync({ id: Number(selectedJd.id), ...values });
+    await saveJd.mutateAsync({ id: Number(selectedJd.id), ...normalizedValues });
   };
 
   const requestDeleteJd = (id: string) => {
@@ -215,12 +275,30 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
           >
             <p className="list-panel-hint">JD를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
             {jdList.length ? (
-              <JdListPanel
-                jdList={jdList}
-                selectedJdId={isCreateMode ? null : selectedJdId}
-                setSelectedJdId={selectExistingJd}
-                onDeleteJd={requestDeleteJd}
-              />
+              <>
+                <div className="list-query-controls">
+                  <Input
+                    allowClear
+                    className="list-query-input"
+                    placeholder="JD명, 업무, 기술 검색"
+                    value={jdSearchText}
+                    onChange={(event) => setJdSearchText(event.target.value)}
+                  />
+                  <span className="list-query-count">
+                    {filteredJdList.length} / {jdList.length}건
+                  </span>
+                </div>
+                {filteredJdList.length ? (
+                  <JdListPanel
+                    jdList={filteredJdList}
+                    selectedJdId={isCreateMode ? null : selectedJdId}
+                    setSelectedJdId={selectExistingJd}
+                    onDeleteJd={requestDeleteJd}
+                  />
+                ) : (
+                  <EmptyState description="조건에 맞는 JD가 없습니다." />
+                )}
+              </>
             ) : (
               <JdListEmptyState />
             )}
@@ -229,12 +307,33 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         <Col xs={24} xl={16}>
           <SectionCard className="scroll-card-body" title="JD 작성/수정">
             {showEditor && editorInitialValues ? (
-              <JdEditorPanel
-                form={form}
-                selectedJd={isCreateMode ? null : selectedJd}
-                initialValues={editorInitialValues}
-                mode={isCreateMode ? 'create' : 'edit'}
-              />
+              <>
+                <JdEditorPanel
+                  form={form}
+                  selectedJd={isCreateMode ? null : selectedJd}
+                  initialValues={editorInitialValues}
+                  mode={isCreateMode ? 'create' : 'edit'}
+                />
+                {!isCreateMode && selectedJd ? (
+                  <section className="jd-checklist-panel">
+                    <div className="jd-checklist-panel-head">
+                      <h3>JD 체크리스트</h3>
+                      <span className="muted">선택한 JD 기준 항목</span>
+                    </div>
+                    {checklistQuery.isLoading ? (
+                      <InlineLoading label="체크리스트 로딩 중" />
+                    ) : checklistQuery.data?.length ? (
+                      <ul className="jd-checklist-list">
+                        {checklistQuery.data.map((item) => (
+                          <li key={item.id}>{item.content}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted">등록된 체크리스트가 없습니다.</p>
+                    )}
+                  </section>
+                ) : null}
+              </>
             ) : (
               <EmptyState description="수정할 JD를 선택하거나 JD 목록에서 새 작성을 시작하세요." />
             )}

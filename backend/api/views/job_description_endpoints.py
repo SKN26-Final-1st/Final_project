@@ -1,8 +1,12 @@
 import json
 
+from asgiref.sync import sync_to_async
+from django.db import transaction
 from django.http import JsonResponse
 
-from ..models import JobDescription
+from common import checklist as checklist_service
+
+from ..models import Checklist, CompanyInfo, JobDescription
 from .columns import JOB_DESCRIPTION_ADD_BLOCKED_FIELDS, JOB_DESCRIPTION_BLOCKED_FIELDS
 from .error_code import error_code
 from .utils import accessible_job_descriptions, editable_model_fields, get_job_description_dicts
@@ -135,11 +139,95 @@ def jd_modify(request):
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
-def jd_analyze(request):
+def _get_jd_analysis_inputs(request, job_description_id):
+    job_description_queryset = accessible_job_descriptions(request)
     try:
-        if request.method != "POST":
-            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+        job_description = job_description_queryset.select_related("account").get(id=job_description_id)
+    except JobDescription.DoesNotExist:
+        return None
 
-        return JsonResponse({"error": False, "data": {}})
+    company_info, _ = CompanyInfo.objects.get_or_create(account=job_description.account)
+    checklist_count = job_description.checklists.count()
+
+    return {
+        "job_description_id": job_description.id,
+        "company": company_info.to_dict(),
+        "jd": job_description.to_dict(),
+        "remaining_count": max(0, checklist_service.CHECKLIST_COUNT - checklist_count),
+    }
+
+
+def _save_generated_checklists(job_description_id, contents):
+    with transaction.atomic():
+        try:
+            job_description = JobDescription.objects.select_for_update().get(id=job_description_id)
+        except JobDescription.DoesNotExist:
+            return None
+
+        current_count = Checklist.objects.filter(job_description=job_description).count()
+        remaining_count = max(0, checklist_service.CHECKLIST_COUNT - current_count)
+        valid_contents = [
+            content.strip()
+            for content in contents
+            if isinstance(content, str) and content.strip()
+        ][:remaining_count]
+
+        Checklist.objects.bulk_create(
+            [
+                Checklist(job_description=job_description, content=content)
+                for content in valid_contents
+            ]
+        )
+
+        checklists = Checklist.objects.filter(job_description=job_description).order_by("id")
+        return [checklist.to_dict() for checklist in checklists]
+
+
+async def _jd_analyze_async(request):
+    if request.method != "POST":
+        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+
+    data = json.loads(request.body or "{}")
+    job_description_id = data.get("id")
+
+    if not job_description_id:
+        return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
+
+    if set(data) != {"id"}:
+        return JsonResponse({"error": True, "message": error_code("Only JobDescription id is allowed.", 402)}, status=400)
+
+    try:
+        inputs = await sync_to_async(_get_jd_analysis_inputs)(request, job_description_id)
+    except PermissionError:
+        return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)}, status=403)
+
+    if inputs is None:
+        return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
+
+    if inputs["remaining_count"]:
+        generated_contents = await sync_to_async(
+            checklist_service.invoke,
+            thread_sensitive=False,
+        )(
+            inputs["company"],
+            inputs["jd"],
+            inputs["remaining_count"],
+        )
+    else:
+        generated_contents = []
+
+    checklists = await sync_to_async(_save_generated_checklists)(
+        inputs["job_description_id"],
+        generated_contents,
+    )
+    if checklists is None:
+        return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
+
+    return JsonResponse({"error": False, "data": checklists})
+
+
+async def jd_analyze(request):
+    try:
+        return await _jd_analyze_async(request)
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)

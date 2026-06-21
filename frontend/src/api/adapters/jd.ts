@@ -15,6 +15,7 @@ export type JdItem = {
   educationLevel: string;
   major: string;
   hiringReason: string;
+  updatedAt?: string;
 };
 
 const JOB_STATUS_LABEL: Record<JobDescription['status'], string> = {
@@ -98,5 +99,6 @@ export function mapJdList(data: JobDescription[], resumes: Resume[], analysisRep
     educationLevel: item.education_level,
     major: item.major,
     hiringReason: item.hiring_reason,
+    updatedAt: item.updated_at,
   }));
 }

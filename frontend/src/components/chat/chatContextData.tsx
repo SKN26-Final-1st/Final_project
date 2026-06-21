@@ -48,7 +48,11 @@ export const chatScopeOptions: { key: ChatContextScope; label: string }[] = [
   { key: 'guide', label: '사용 가이드' },
 ];
 
-function findResume(resumes: Resume[], resumeId: number) {
+function findResume(resumes: Resume[], resumeId?: number) {
+  if (!resumeId) {
+    return null;
+  }
+
   return resumes.find((resume) => resume.id === resumeId) ?? null;
 }
 
@@ -66,6 +70,10 @@ function recentItems<T>(items: T[], limit: number) {
   return items.slice(-limit).reverse();
 }
 
+function questionKey(question: InterviewQuestion, index: number) {
+  return question.id ? `question-${question.id}` : `question-${question.resume_id ?? 'report'}-${index}`;
+}
+
 export function buildChatContextData({
   jdList,
   resumes,
@@ -77,28 +85,28 @@ export function buildChatContextData({
       key: 'jd',
       icon: <FileTextOutlined />,
       title: 'JD',
-      detail: '현재 계정에서 조회 가능한 JD',
+      detail: 'AI 채팅이 실제로 참조할 수 있는 JD',
       count: `${jdList.length}개`,
     },
     {
       key: 'report',
       icon: <FileSearchOutlined />,
       title: '분석 리포트',
-      detail: '저장된 지원자 분석 리포트',
+      detail: '화면에서 확인 가능한 분석 결과',
       count: `${analysisReports.length}개`,
     },
     {
       key: 'question',
       icon: <QuestionOutlined />,
       title: '면접 질문',
-      detail: '분석 결과에서 생성된 추천 질문',
+      detail: '리포트에 포함된 추천 질문',
       count: `${interviewQuestions.length}개`,
     },
     {
       key: 'guide',
       icon: <BookOutlined />,
       title: '사용 가이드',
-      detail: '앱 사용 매뉴얼 검색 가능',
+      detail: '앱 사용법 검색 가능',
     },
   ];
 
@@ -109,6 +117,7 @@ export function buildChatContextData({
     icon: <HistoryOutlined />,
     scope: 'jd',
   }));
+
   const reportSources: ChatContextSource[] = recentItems(analysisReports, 3).map((report) => {
     const resume = findResume(resumes, report.resume_id);
     const jd = findJd(jdList, resume);
@@ -121,12 +130,13 @@ export function buildChatContextData({
       scope: 'report',
     };
   });
-  const questionSources: ChatContextSource[] = recentItems(interviewQuestions, 3).map((question) => {
+
+  const questionSources: ChatContextSource[] = recentItems(interviewQuestions, 3).map((question, index) => {
     const resume = findResume(resumes, question.resume_id);
     const jd = findJd(jdList, resume);
 
     return {
-      key: `question-${question.id}`,
+      key: questionKey(question, index),
       title: question.question,
       description: applicantJdLabel(resume, jd),
       icon: <HistoryOutlined />,
@@ -151,8 +161,8 @@ export function buildChatContextData({
         scope: 'report' as const,
       };
     }),
-    ...recentItems(interviewQuestions, 2).map((question) => ({
-      key: `prompt-question-${question.id}`,
+    ...recentItems(interviewQuestions, 2).map((question, index) => ({
+      key: `prompt-${questionKey(question, index)}`,
       label: `${question.question} 질문의 의도와 후속 질문을 정리해줘`,
       scope: 'question' as const,
     })),

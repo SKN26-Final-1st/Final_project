@@ -141,6 +141,7 @@ const question = {
   answer: 'Use memoization and component boundaries.',
   purpose: 'Validate frontend performance experience.',
 };
+report.interview_question = [question];
 
 const forbiddenTexts = ['회사 정책', '채용 운영', '42개', '68개', '면접 평가 기준', '채용 운영 가이드'];
 const server = startDevServer();
@@ -162,7 +163,6 @@ try {
     if (path === 'jd/get') return fulfillJson(route, { error: false, data: [jd] });
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: [resume] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [report] });
-    if (path === 'question/get') return fulfillJson(route, { error: false, data: [question] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'chat') return fulfillJson(route, { error: false, response: { role: 'agent', message: 'Checked.' } });
     return fulfillJson(route, { error: false, data: [] });

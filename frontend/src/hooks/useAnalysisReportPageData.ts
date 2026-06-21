@@ -15,7 +15,6 @@ export function useAnalysisReportPageData() {
   const { data } = useAppDataQuery();
   const [searchParams, setSearchParams] = useSearchParams();
   const reports = useMemo(() => data?.analysisReports ?? [], [data?.analysisReports]);
-  const questions = useMemo(() => data?.interviewQuestions ?? [], [data?.interviewQuestions]);
   const resumes = useMemo(() => data?.resumes ?? [], [data?.resumes]);
   const jdList = useMemo(() => data?.jdList ?? [], [data?.jdList]);
   const selectedReportResumeId = searchParams.get('resumeId');
@@ -29,10 +28,14 @@ export function useAnalysisReportPageData() {
           report,
           resume,
           jd,
-          questions: questions.filter((item) => item.resume_id === report.resume_id),
+          questions: report.interview_question.map((question, index) => ({
+            ...question,
+            id: question.id ?? index + 1,
+            resume_id: question.resume_id ?? report.resume_id,
+          })),
         };
       }),
-    [jdList, questions, reports, resumes],
+    [jdList, reports, resumes],
   );
   const selectedItem =
     reportItems.find((item) => String(item.report.resume_id) === selectedReportResumeId) ?? reportItems[0] ?? null;

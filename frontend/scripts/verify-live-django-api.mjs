@@ -271,9 +271,7 @@ async function runScenario() {
   assert(modifiedResume.data.name === 'Live Candidate Updated', 'resume/modify must persist allowed fields');
 
   const reports = await request('report/get', { resume_id: resume.data.id });
-  const questions = await request('question/get', { resume_id: resume.data.id });
   assert(Array.isArray(reports.data), 'report/get must return an array');
-  assert(Array.isArray(questions.data), 'question/get must return an array');
 
   const authKey = await request('authkey/add', {
     name: 'Live Share Key',
@@ -318,8 +316,11 @@ async function runScenario() {
   );
 
   if (process.env.RUN_LLM_E2E === '1' && process.env.OPENAI_API_KEY) {
-    const analysis = await request('resume/analize', { id: resume.data.id }, { apiKey: authKey.data.value });
-    assert(analysis.data.report && Array.isArray(analysis.data.questions), 'resume/analize must return report and questions');
+    const analysis = await request('resume/analyze', { id: resume.data.id }, { apiKey: authKey.data.value });
+    assert(
+      analysis.data && Array.isArray(analysis.data.interview_question),
+      'resume/analyze must return an AnalysisReport with interview_question array',
+    );
 
     const chat = await request(
       'chat',
@@ -328,7 +329,7 @@ async function runScenario() {
     );
     assert(chat.response?.role === 'agent' && typeof chat.response.message === 'string', 'chat must return an agent response');
   } else {
-    console.log('LLM scenarios skipped: set RUN_LLM_E2E=1 and OPENAI_API_KEY to verify resume/analize and chat live.');
+    console.log('LLM scenarios skipped: set RUN_LLM_E2E=1 and OPENAI_API_KEY to verify resume/analyze and chat live.');
   }
 }
 

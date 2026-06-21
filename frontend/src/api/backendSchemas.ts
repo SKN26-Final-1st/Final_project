@@ -3,6 +3,7 @@ import type {
   Account,
   AnalysisReport,
   AuthKey,
+  Checklist,
   CompanyInfo,
   InterviewQuestion,
   JobDescription,
@@ -11,6 +12,13 @@ import type {
 
 const unknownArraySchema = z.array(z.unknown());
 const stringArraySchema = z.array(z.string());
+const textFieldSchema = z.union([z.string(), stringArraySchema]).transform((value) => {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join('\n');
+  }
+
+  return value;
+});
 
 export const accountSchema = z.object({
   id: z.number(),
@@ -58,6 +66,12 @@ export const jobDescriptionSchema = z.object({
   updated_at: z.string(),
 }) satisfies z.ZodType<JobDescription>;
 
+export const checklistSchema = z.object({
+  id: z.number(),
+  job_description_id: z.number(),
+  content: z.string(),
+}) satisfies z.ZodType<Checklist>;
+
 export const resumeSchema = z.object({
   id: z.number(),
   job_description_id: z.number(),
@@ -78,6 +92,14 @@ export const resumeSchema = z.object({
   updated_at: z.string(),
 }) satisfies z.ZodType<Resume>;
 
+export const interviewQuestionSchema = z.object({
+  id: z.number().optional(),
+  resume_id: z.number().optional(),
+  question: z.string(),
+  answer: z.string(),
+  purpose: z.string(),
+}) satisfies z.ZodType<InterviewQuestion>;
+
 export const analysisReportSchema = z.object({
   id: z.number(),
   resume_id: z.number(),
@@ -86,25 +108,21 @@ export const analysisReportSchema = z.object({
   candidate_summary: z.string(),
   checklist: unknownArraySchema,
   competency_analysis: stringArraySchema,
-  fit_analysis: stringArraySchema,
+  fit_analysis: textFieldSchema,
+  motive: textFieldSchema.default(''),
+  collaboration: textFieldSchema.default(''),
   strength: stringArraySchema,
   concern: stringArraySchema,
   check_point: stringArraySchema,
   final_comment: z.string(),
+  interview_question: z.array(interviewQuestionSchema).default([]),
 }) satisfies z.ZodType<AnalysisReport>;
-
-export const interviewQuestionSchema = z.object({
-  id: z.number(),
-  resume_id: z.number(),
-  question: z.string(),
-  answer: z.string(),
-  purpose: z.string(),
-}) satisfies z.ZodType<InterviewQuestion>;
 
 export const parseAccount = (value: unknown) => accountSchema.parse(value);
 export const parseCompanyInfo = (value: unknown) => companyInfoSchema.parse(value);
 export const parseAuthKey = (value: unknown) => authKeySchema.parse(value);
 export const parseAuthKeys = (value: unknown) => z.array(authKeySchema).parse(value);
+export const parseChecklists = (value: unknown) => z.array(checklistSchema).parse(value);
 export const parseJobDescription = (value: unknown) => jobDescriptionSchema.parse(value);
 export const parseJobDescriptions = (value: unknown) => z.array(jobDescriptionSchema).parse(value);
 export const parseResume = (value: unknown) => resumeSchema.parse(value);

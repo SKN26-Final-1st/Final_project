@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Button, Col, Form, Row } from 'antd';
+import { Button, Form } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import { SaveOutlined } from '@ant-design/icons';
 import { AccountSettingsForm, type AccountSettingsFormValues } from '../components/mypage/AccountSettingsForm';
@@ -15,7 +15,6 @@ import { apiClient } from '../api/backendClient';
 import { queryKeys } from '../api/queryKeys';
 import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { Navigate, RunApiAction } from '../types/app';
-import { pageSectionGutter } from '../utils/layout';
 
 type MyPageProps = {
   loadingKey: string | null;
@@ -135,32 +134,32 @@ export function MyPage({
           </Button>
         }
       />
-      <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>
-        <Col xs={24} xl={8}>
+      <div className="mypage-layout-grid">
+        <div className="mypage-profile-column">
           <SectionCard className="scroll-card-body" title="프로필">
             <ProfileSummaryCard profile={profile} />
           </SectionCard>
-        </Col>
-        <Col className="viewport-column-scroll" xs={24} xl={16}>
-          <Row className="section-row" gutter={pageSectionGutter}>
-            <Col xs={24} lg={12}>
+        </div>
+        <div className="viewport-column-scroll mypage-settings-column">
+          <div className="mypage-settings-grid">
+            <div>
               <SectionCard title="계정 정보">
                 <AccountSettingsForm form={accountForm} initialValues={accountInitialValues} />
               </SectionCard>
-            </Col>
-            <Col xs={24} lg={12}>
+            </div>
+            <div>
               <SectionCard title="보안 설정">
                 <SecuritySettingsForm form={securityForm} />
               </SectionCard>
-            </Col>
-            <Col span={24}>
+            </div>
+            <div className="mypage-settings-wide">
               <SectionCard title="회사 정보 요약">
                 <CompanySummaryPanel company={company} navigate={navigate} />
               </SectionCard>
-            </Col>
-          </Row>
-        </Col>
-      </Row>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { queryKeys } from '../api/queryKeys';
 import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { RunApiAction, ShowAlert } from '../types/app';
 import { pageSectionGutter } from '../utils/layout';
+import { toTrimmedStringList } from '../utils/stringList';
 
 type CompanyPageProps = {
   loadingKey: string | null;
@@ -28,6 +29,14 @@ function toCompanyFormValues(company: CompanyProfile): CompanyProfileFormValues 
     team_composition: company.teamComposition,
     company_description: company.description,
     employ_style: company.employStyle,
+  };
+}
+
+function normalizeCompanyFormValues(values: CompanyProfileFormValues): CompanyProfileFormValues {
+  return {
+    ...values,
+    team_composition: toTrimmedStringList(values.team_composition ?? []),
+    employ_style: toTrimmedStringList(values.employ_style ?? []),
   };
 }
 
@@ -58,7 +67,7 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
 
   const saveCompany = async () => {
     const values = await form.validateFields();
-    await runApiAction('company-save', () => apiClient.saveCompanyProfile(values), () => {
+    await runApiAction('company-save', () => apiClient.saveCompanyProfile(normalizeCompanyFormValues(values)), () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
     });
   };
@@ -99,7 +108,7 @@ export function CompanyPage({ loadingKey, runApiAction, showAlert }: CompanyPage
         </Col>
         <Col xs={24} xl={9}>
           <SectionCard className="scroll-card-body" title="입력 완성도">
-            <CompanyCompletionPanel company={company} showAlert={showAlert} />
+            <CompanyCompletionPanel company={company} />
           </SectionCard>
         </Col>
       </Row>
