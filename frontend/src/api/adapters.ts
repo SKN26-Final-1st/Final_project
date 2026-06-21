@@ -127,7 +127,10 @@ export type CoverLetterRow = {
   skills: string[];
   experienceCount: number;
   updatedAt: string;
+  updatedAtIso?: string;
   reviewed: boolean;
+  jdId?: string;
+  resumeStatus?: Resume['status'];
 };
 
 export type AnalysisReportData = {
@@ -523,7 +526,10 @@ export function mapCoverLetterRows(
       skills: toStringList(resume.skill).slice(0, 4),
       experienceCount: Array.isArray(resume.experience) ? resume.experience.length : 0,
       updatedAt: formatDateTime(resume.updated_at),
+      updatedAtIso: resume.updated_at,
       reviewed: resume.reviewed,
+      jdId: job ? String(job.id) : String(resume.job_description_id),
+      resumeStatus: resume.status,
     };
   });
 }
@@ -588,7 +594,7 @@ export function mapAnalysisReport(
         key: 'fit',
         label: '적합성',
         title: '직무/조직 적합성',
-        content: formatList(data.fit_analysis),
+        content: data.fit_analysis || '등록된 항목이 없습니다.',
       },
       {
         key: 'risk',
@@ -629,4 +635,3 @@ export function mapTemplateQuestions(data: InterviewQuestion[]): TemplateQuestio
     guide: question.purpose,
   }));
 }
-
