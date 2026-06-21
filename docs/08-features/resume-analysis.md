@@ -13,11 +13,16 @@
 
 역할:
 
-- JD 선택
-- 지원자명과 자기소개 문항/답변 확인
-- 지원서 추가·수정·삭제 (`addResume`, `saveResume`, `deleteResume`)
+- JD 선택 (`selectedJdId`)
+- 지원서 목록에서 행 선택 (`selectedResumeId`, `CoverLetterUploadPanel`)
+- 지원자명과 자기소개 문항/답변 확인·편집 (`CoverLetterInputPanel`)
+- 신규 작성 모드(`isCreatingCoverLetter`)와 기존 지원서 수정 모드 분리
+- 지원서 추가·수정·삭제 (`useResumeMutations` → `addResume`, `saveResume`, `deleteResume`)
+- 삭제 확인 모달 (`CoverLetterDeleteModal`) — 삭제 후 선택 id를 인접 항목으로 재지정
 - 분석 요청
 - 분석 완료 후 `/chat` 이동 버튼 표시
+
+선택 상태는 `useCoverLetterPageData`가 관리합니다. override가 없으면 첫 JD·첫 지원서를 기본 선택합니다. 근거: `frontend/src/hooks/useCoverLetterPageData.ts`, `frontend/src/pages/CoverLetterPage.tsx`
 
 ## 분석 요청
 
