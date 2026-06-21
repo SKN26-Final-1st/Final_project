@@ -13,6 +13,8 @@
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
 - React 화면, 라우팅, 전역 알림/로딩: `frontend/src/App.tsx`
 - 페이지별 데이터·mutation 훅: `frontend/src/hooks/` (`useJdPageData`, `useCoverLetterPageData`, `useAnalysisReportPageData`, `useChatPageData`, `useAdminPageData`, `useDocumentChatState`, `hooks/mutations/*`)
+- 지원서 선택·삭제 UI: `CoverLetterUploadPanel`, `CoverLetterDeleteModal`, `useCoverLetterPageData`의 `selectedResumeId`
+- 뷰포트 고정 레이아웃(`viewport-page`): 주요 보호 화면 8개, `verify-viewport-layout.mjs`로 QA
 - 전역 알림 토스트: `frontend/src/components/common/FloatingAlert.tsx`
 - 인증 페이지 분리: `frontend/src/pages/auth/`, barrel `frontend/src/pages/AuthPages.tsx`
 - 데스크톱 사이드바 핀 고정: `frontend/src/components/layout/SidebarNav.tsx`
