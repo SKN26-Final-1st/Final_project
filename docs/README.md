@@ -27,6 +27,7 @@
 - [컴포넌트 구조](03-frontend/components.md)
 - [디자인 시스템](03-frontend/design-system.md)
 - [스타일과 QA](03-frontend/styling-and-qa.md)
+- [프론트엔드 쉽게 이해하기](03-frontend/frontend-easy-guide.md)
 
 ## 04. 백엔드
 
