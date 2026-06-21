@@ -170,7 +170,7 @@ Zod를 사용해 backend 응답 모양을 검사하는 곳입니다.
 | `useAppData` / `useAppDataQuery` | TanStack Query로 앱 데이터를 가져옴 |
 | `useApiAction` | 저장/로그인 같은 액션의 로딩, 알림, 중복 실행 방지 처리 |
 | `useJdPageData` | JD 페이지에 필요한 데이터만 골라 줌 |
-| `useCoverLetterPageData` | 자소서 페이지에 필요한 데이터만 골라 줌 |
+| `useCoverLetterPageData` | 자소서 페이지에 필요한 JD·지원서 목록과 현재 선택 id를 골라 줌 |
 | `useAnalysisReportPageData` | 리포트/질문 추천 페이지 데이터 선택 |
 | `useChatPageData` | 채팅 추천 데이터 생성에 필요한 데이터 제공 |
 | `useDocumentChatState` | 채팅 입력값, 메시지, 전송 실패 롤백 처리 |
