@@ -20,7 +20,7 @@
 | `useAppData` | `frontend/src/hooks/useAppData.ts` | 인증 후 초기 `AppData` 로딩 (`loading`, `error`, `reload`) |
 | `useAppDataQuery` | `frontend/src/hooks/useAppDataQuery.ts` | TanStack Query 래퍼, `appDataQueryOptions` 연결 |
 | `useJdPageData` | `frontend/src/hooks/useJdPageData.ts` | JD 목록·선택 JD (`selectedJdIdOverride`) |
-| `useCoverLetterPageData` | `frontend/src/hooks/useCoverLetterPageData.ts` | 지원서 행, JD 선택 |
+| `useCoverLetterPageData` | `frontend/src/hooks/useCoverLetterPageData.ts` | 지원서 행, JD·지원서 선택 (`selectedJdId`, `selectedResumeId`) |
 | `useAnalysisReportPageData` | `frontend/src/hooks/useAnalysisReportPageData.ts` | 리포트 목록, `?resumeId=` URL 선택 |
 | `useChatPageData` | `frontend/src/hooks/useChatPageData.ts` | 채팅 컨텍스트용 리포트·JD·질문 slice |
 | `useAdminPageData` | `frontend/src/hooks/useAdminPageData.ts` | 관리자 요약, AuthKey 목록 |
