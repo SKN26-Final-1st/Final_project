@@ -5,7 +5,7 @@ HumouR는 채용 담당자가 회사 정보, JD, 지원서, AI 분석 리포트,
 ## 핵심 구성
 
 - 프론트엔드: React, Vite, TypeScript, Ant Design 기반의 운영 화면입니다. 주요 진입점은 `frontend/src/main.tsx`, 라우팅·인증 가드·전역 UI는 `frontend/src/App.tsx`, 페이지별 상태는 `frontend/src/hooks/`에 있습니다.
-- 백엔드: Django 앱 `api`가 계정, 회사 정보, JD, 이력서, 분석 리포트, 면접 질문, API 키를 관리합니다. 설정은 `backend/config/settings.py`, URL 연결은 `backend/config/urls.py`와 `backend/api/urls.py`에 있습니다.
+- 백엔드: Django 앱 `api`가 계정, 회사 정보, JD, 체크리스트, 이력서, 분석 리포트(`interview_question` JSON 포함), API 키를 관리합니다. 설정은 `backend/config/settings.py`, URL 연결은 `backend/config/urls.py`와 `backend/api/urls.py`에 있습니다.
 - AI 분석: 지원서 분석은 `backend/common/report.py`(운영), 프롬프트 실험은 `report2.py`/`report3.py`, 문서/HR 채팅은 `backend/common/chat_graph.py`와 `backend/common/chat_agent.py`가 담당합니다.
 - 데이터 작업: 채용공고 조건 크롤러는 `database/crawling/`, 문서 임베딩과 Pinecone 업로드 노트북은 `database/embedding/`에 있습니다.
 - 배포: Elastic Beanstalk 배포와 nginx 라우팅은 `.github/workflows/deploy-eb.yml`, `.platform/`, `Procfile`에 있습니다.
@@ -15,7 +15,7 @@ HumouR는 채용 담당자가 회사 정보, JD, 지원서, AI 분석 리포트,
 1. 사용자는 로그인/회원가입 화면에서 세션을 시작합니다.
 2. 회사 정보를 입력하고 JD를 관리합니다.
 3. JD에 연결된 지원서를 등록하거나 API로 조회합니다.
-4. 지원서 분석 요청이 백엔드의 `resume/analyze/` 엔드포인트로 전달됩니다. (프론트 클라이언트는 아직 `resume/analize/` 경로를 사용합니다.)
+4. 지원서 분석 요청이 백엔드의 `resume/analyze/` 엔드포인트로 전달됩니다.
 5. 백엔드는 OpenAI 기반 리포트/면접 질문 생성 결과를 DB에 저장합니다.
 6. 프론트엔드는 대시보드, 분석 리포트, 채팅, 모집 공고, 문항 템플릿 화면으로 결과를 보여줍니다.
 
@@ -23,4 +23,5 @@ HumouR는 채용 담당자가 회사 정보, JD, 지원서, AI 분석 리포트,
 
 - [시스템 아키텍처](../02-architecture/system-architecture.md)
 - [API 레퍼런스](../06-api/api-reference.md)
+- [프론트 API ID 매핑](../06-api/frontend-api-id-map.md)
 - [모델 파이프라인](../07-ai-modeling/model-pipeline.md)

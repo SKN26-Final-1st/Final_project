@@ -4,7 +4,7 @@
 
 백엔드 엔드포인트: `POST /api/resume/analyze/` (`resume_analyze` in `backend/api/views/resume_endpoints.py`)
 
-프론트는 `requestResumeAnalysisById()` 등에서 아직 `/api/resume/analize/`를 호출하고 `{report, questions}` 응답 shape를 기대합니다. 백엔드 계약과 불일치하므로 연동 수정이 필요합니다.
+프론트는 `requestResumeAnalysisById()`에서 `resume/get`으로 대상 지원서를 확인한 뒤 `/api/resume/analyze/`를 호출합니다. 백엔드의 `AnalysisReport` 응답은 프론트에서 `report`와 `questions` 형태로 포장됩니다.
 
 근거:
 
@@ -25,17 +25,16 @@
 
 ## LLM 분석
 
-`backend/common/report.py`의 `invoke(resume_dict, company_dict, jd_dict)`가 전체 분석을 수행합니다.
+`backend/common/report.py`의 `invoke(company_dict, jd_dict, checklist, resume_dict)`가 전체 분석을 수행합니다.
 
 순서:
 
 1. `sum_resume()`: 지원서 요약
 2. `sum_company()`: 회사 정보 요약
 3. `sum_jd()`: JD 요약
-4. `make_fit_checklist()`: 회사/JD/기본 DB 데이터를 기준으로 체크리스트 생성
-5. `check_resume_fit()`: 지원서 요약이 체크리스트를 충족하는지 판단
-6. `make_interview_questions()`: 면접 질문, 모범 답안, 질문 의도 생성
-7. `make_report()`: 최종 분석 리포트 생성
+4. `check_resume_fit()`: DB에 저장된 JD 체크리스트를 지원서 요약이 충족하는지 판단
+5. `make_interview_questions()`: 면접 질문, 모범 답안, 질문 의도 생성
+6. `make_report()`: 최종 분석 리포트 생성
 
 모델명:
 
@@ -68,9 +67,11 @@ OpenAI SDK의 `client.beta.chat.completions.parse`가 있으면 parse를 사용�
 
 근거: `backend/api/views/resume_endpoints.py`, `backend/api/models.py`
 
-## JD 분석 스텁
+## JD 체크리스트 생성 API
 
-`POST /api/jd/analyze/`는 현재 빈 `{data:{}}`만 반환합니다. 근거: `backend/api/views/job_description_endpoints.py`
+`POST /api/jd/analyze/`는 `{ id }`를 받아 해당 JD의 체크리스트를 AI로 보강합니다. 기존 체크리스트 수가 `backend/common/checklist.py`의 `CHECKLIST_COUNT`보다 적으면 부족한 개수만 생성하고, 저장된 전체 체크리스트 목록을 반환합니다.
+
+근거: `backend/api/views/job_description_endpoints.py`, `backend/common/checklist.py`
 
 ## 실패와 예외
 

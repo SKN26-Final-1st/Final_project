@@ -9,7 +9,7 @@
 5. `frontend/src/api/adapters.ts`가 원천 데이터를 화면별 표시 모델로 변환합니다.
 6. 각 페이지는 `useAppDataQuery()` 캐시에서 필요한 slice를 읽습니다. JD·지원서·리포트·채팅·관리자 화면은 `frontend/src/hooks/use*PageData.ts`가 담당합니다.
 
-`getDashboard()`는 내부적으로 여러 Django API를 조합합니다. 면접 질문은 `report/get` 응답의 `interview_question` 필드에서 읽을 수 있지만, 현재 프론트는 제거된 `question/get`도 함께 호출합니다. 근거: `frontend/src/api/backendClient.ts`의 `getDashboardData()`
+`getDashboard()`는 내부적으로 여러 Django API를 조합합니다. 면접 질문은 `report/get` 응답의 `interview_question` 필드에서 읽고 `getReportQuestions()`로 화면용 배열을 만듭니다. 근거: `frontend/src/api/backendClient.ts`의 `getDashboardData()`
 
 ```mermaid
 flowchart TD
@@ -74,7 +74,7 @@ sequenceDiagram
 
 근거: `backend/api/views/resume_endpoints.py`, `backend/common/report.py`
 
-프론트 `backendClient.ts`는 아직 `resume/analize/`와 `{report, questions}` 응답 shape를 기대합니다. 백엔드 계약과 불일치하므로 연동 시 경로·응답 파싱 수정이 필요합니다.
+프론트 `backendClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다. 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다.
 
 ## 채팅 흐름
 
@@ -110,7 +110,7 @@ sequenceDiagram
 ## 공유 리포트 흐름
 
 1. `/shared?resumeId=...` 접근 시 `SharedReportPage`가 API 키와 resume id 입력 폼을 표시합니다.
-2. `apiClient.getSharedResumeBundle(resumeId, apiKey)`가 `X-API-Key`로 resume/report/JD를 조회합니다. 면접 질문은 `report/get` 응답의 `interview_question`에 포함되지만, 프론트는 아직 `question/get`도 호출합니다.
+2. `apiClient.getSharedResumeBundle(resumeId, apiKey)`가 `X-API-Key`로 resume/report/JD를 조회합니다. 면접 질문은 `report/get` 응답의 `interview_question`에서 추출합니다.
 3. 공유 화면 채팅은 report/JD/question 요약을 대화 문맥에 포함해 `sendChatMessage()`를 호출합니다.
 
 근거: `frontend/src/pages/SharedReportPage.tsx`, `frontend/src/api/backendClient.ts`

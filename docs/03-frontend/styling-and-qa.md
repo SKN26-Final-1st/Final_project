@@ -30,6 +30,23 @@
 - 991px 이하에서는 데스크톱 사이드바를 숨기고 모바일 헤더와 Drawer를 사용합니다.
 - 데이터 테이블은 데스크톱 Table과 모바일 카드 리스트를 병행합니다. 근거: `ApplicantReviewTable`, `CoverLetterUploadPanel`, `JdSelectionPanel`
 
+## 뷰포트 고정 레이아웃
+
+주요 보호 화면은 루트에 `viewport-page` 클래스를 붙여 셸 높이(`100dvh`) 안에서 스크롤을 내부 영역으로 제한합니다. 근거: `frontend/src/styles.css`, 각 `frontend/src/pages/*Page.tsx`
+
+적용 페이지:
+
+- `/dashboard`, `/admin`, `/company`, `/jd`, `/cover-letter`, `/analysis-report`, `/chat`, `/mypage`
+
+주요 CSS 패턴:
+
+- `.content:has(.viewport-page) .content-frame` — 페이지를 flex column으로 고정
+- `.viewport-page > .split-editor-layout-row`, `.chat-page-layout-row` — 2열 편집·채팅 레이아웃이 남은 높이를 채움
+- `.viewport-column-scroll`, `.scroll-card-body` — 카드 본문 내부 스크롤
+- `.dashboard-body-scroll` — 대시보드 본문만 세로 스크롤
+
+`verify-viewport-layout.mjs`는 위 8개 라우트를 1366×768, 1440×900, 1920×1080과 모바일(390×844, `/dashboard`)에서 검사합니다. 카드·내부 스크롤 컬럼 클리핑, `/dashboard` 가로 오버플로, `/chat` 입력창 가시성을 확인합니다.
+
 ## QA 스크립트
 
 `frontend/scripts/`에 검증 스크립트가 있습니다. 상세는 [실행과 운영](../01-getting-started/run-and-operations.md)과 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.

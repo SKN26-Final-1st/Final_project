@@ -27,7 +27,7 @@
 | 분석 리포트 | `POST /api/report/get/` `{ resume_id }` |
 | 채팅 | `POST /api/chat/` `{ chat }` |
 
-면접 질문은 `report/get` 응답의 `interview_question` 필드에 포함됩니다. 프론트 `getSharedResumeBundle()`는 아직 제거된 `question/get`도 호출합니다.
+면접 질문은 `report/get` 응답의 `interview_question` 필드에 포함됩니다. 프론트 `getSharedResumeBundle()`는 리포트 목록에서 질문 배열을 추출합니다.
 
 AuthKey의 `authorized_resume`에 해당 resume id가 포함되어 있어야 접근 가능합니다. 근거: `backend/api/views/resume_endpoints.py`, `backend/api/views/analysis_report_endpoints.py`, `frontend/src/api/backendClient.ts`
 

@@ -12,6 +12,8 @@
 
 프론트 구현 근거: `frontend/src/api/backendClient.ts`
 
+프론트 산출물용 API ID 표는 [프론트 API ID 매핑](frontend-api-id-map.md)을 참고하세요.
+
 ## 인증/계정
 
 | 경로 | 메서드 | 인증 | 요청 | 응답 |
@@ -54,9 +56,11 @@
 | `/api/jd/add/` | POST | 세션 | `job_name`, 선택 `career_level`, `required_skill` 등 | `{error:false,data:JobDescription}` |
 | `/api/jd/get/` | POST | 세션 또는 API 키 | 없음 | `{error:false,data:JobDescription[]}` |
 | `/api/jd/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:JobDescription}` |
-| `/api/jd/analyze/` | POST | 세션 | 없음 | `{error:false,data:{}}` (현재 스텁) |
+| `/api/jd/analyze/` | POST | 세션 | `id` | `{error:false,data:Checklist[]}` |
 
 상태값은 `prepare`, `on_going`, `closed`만 허용합니다.
+
+`jd/analyze`는 `id`만 허용합니다. 해당 JD의 기존 체크리스트 개수를 확인한 뒤 부족한 항목을 `backend/common/checklist.py`로 생성하고 저장된 전체 체크리스트를 반환합니다.
 
 ## 체크리스트
 
@@ -81,7 +85,7 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 
 주의:
 
-- 백엔드 분석 경로는 `analyze/`입니다. 프론트 `backendClient.ts`는 아직 `analize/`를 호출합니다.
+- 분석 경로는 `analyze/`입니다. 프론트 `backendClient.ts`도 `resume/analyze`를 호출합니다.
 - `resume/add`는 `status`, `reviewed`, `reviewed_at`, 생성/수정일을 직접 설정할 수 없습니다.
 - 분석 응답은 `AnalysisReport.to_dict()`이며, 면접 질문은 `interview_question` 필드에 포함됩니다.
 
@@ -96,11 +100,10 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 
 `AnalysisReport` 응답 필드에는 `interview_question` (`question`, `answer`, `purpose` 객체 배열), `motive`, `collaboration` 등이 포함됩니다.
 
-## 제거된 엔드포인트 (프론트 미반영)
+## 제거된 엔드포인트
 
 이전 버전의 `/api/question/get/`, `/api/question/modify/`는 제거되었습니다. 면접 질문은 `AnalysisReport.interview_question`으로 조회합니다.
-
-프론트 `backendClient.ts`는 아직 `question/get`, `question/modify`를 호출합니다. `getQuestionsForResume()`는 실패 시 빈 배열을 반환하므로 화면은 부분적으로 동작할 수 있지만, 질문 표시는 `report/interview_question` 연동이 필요합니다.
+프론트 `backendClient.ts`는 `report/get` 응답의 `interview_question`을 `getReportQuestions()`로 변환해 사용합니다.
 
 ## 채팅
 
@@ -134,5 +137,6 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 
 ## 관련 문서
 
+- [프론트 API ID 매핑](frontend-api-id-map.md)
 - [인증과 권한](../04-backend/auth-and-permissions.md)
 - [스키마와 ERD](../05-database/schema-and-erd.md)

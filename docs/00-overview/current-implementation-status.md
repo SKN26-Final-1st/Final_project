@@ -7,12 +7,15 @@
 - Django 모델과 CRUD성 API: `backend/api/models.py`, `backend/api/views/`, `backend/api/urls.py`
 - 세션 기반 인증과 일부 API 키 기반 접근: `backend/api/views/account_endpoints.py` 등 도메인별 endpoint 모듈
 - JD별 체크리스트 CRUD: `Checklist` 모델, `backend/api/views/checklist_endpoints.py`
+- JD 기반 AI 체크리스트 생성: `jd_analyze` in `backend/api/views/job_description_endpoints.py`, `backend/common/checklist.py`
 - 지원서 분석 저장 흐름: `_get_analysis_inputs`, `_save_analysis_result`, `resume_analyze` in `backend/api/views/resume_endpoints.py`
 - OpenAI 리포트/면접질문 생성 파이프라인(운영): `backend/common/report.py` — API는 이 모듈만 사용
 - 리포트 프롬프트 실험·평가: `backend/common/report2.py`, `report3.py`, `backend/common/eval/middle_report*_eval.ipynb`
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
 - React 화면, 라우팅, 전역 알림/로딩: `frontend/src/App.tsx`
 - 페이지별 데이터·mutation 훅: `frontend/src/hooks/` (`useJdPageData`, `useCoverLetterPageData`, `useAnalysisReportPageData`, `useChatPageData`, `useAdminPageData`, `useDocumentChatState`, `hooks/mutations/*`)
+- 지원서 선택·삭제 UI: `CoverLetterUploadPanel`, `CoverLetterDeleteModal`, `useCoverLetterPageData`의 `selectedResumeId`
+- 뷰포트 고정 레이아웃(`viewport-page`): 주요 보호 화면 8개, `verify-viewport-layout.mjs`로 QA
 - 전역 알림 토스트: `frontend/src/components/common/FloatingAlert.tsx`
 - 인증 페이지 분리: `frontend/src/pages/auth/`, barrel `frontend/src/pages/AuthPages.tsx`
 - 데스크톱 사이드바 핀 고정: `frontend/src/components/layout/SidebarNav.tsx`
@@ -37,8 +40,8 @@
 ## 주의할 실제 이름
 
 - 비밀번호 질문 라우트는 코드상 `passqestion/`입니다. 근거: `backend/api/urls.py`, `frontend/src/api/backendClient.ts`
-- 백엔드 지원서 분석 라우트는 `resume/analyze/`입니다. 프론트 `backendClient.ts`는 아직 `resume/analize/`를 호출합니다. 근거: `backend/api/urls.py`, `frontend/src/api/backendClient.ts`
-- 면접 질문은 `AnalysisReport.interview_question` JSON 필드에 저장됩니다. `question/get`, `question/modify` 엔드포인트는 제거되었고, 프론트는 아직 별도 질문 API를 호출합니다. 근거: `backend/api/models.py`, `backend/api/urls.py`, `frontend/src/api/backendClient.ts`
+- 지원서 분석 라우트는 `resume/analyze/`입니다. 프론트 `backendClient.ts`도 이 경로를 호출합니다. 근거: `backend/api/urls.py`, `frontend/src/api/backendClient.ts`
+- 면접 질문은 `AnalysisReport.interview_question` JSON 필드에 저장됩니다. `question/get`, `question/modify` 엔드포인트는 제거되었고, 프론트는 `getReportQuestions()`로 리포트 응답에서 질문 배열을 만듭니다. 근거: `backend/api/models.py`, `backend/api/urls.py`, `frontend/src/api/backendClient.ts`
 - Resume 모델 필드는 코드상 `self_intoduction`입니다. 근거: `backend/api/models.py`, `frontend/src/data/backendTypes.ts`
 - 크롤러 출력 파일명은 코드상 `qualification_requiremnets.csv`입니다. 근거: `database/crawling/*_scraper.py`
 
@@ -46,11 +49,11 @@
 
 - 실제 OpenAI/Pinecone 환경 변수와 인덱스 스키마는 로컬 `.env` 또는 운영 환경에 의존합니다.
 - `report/get` 백엔드 응답은 리스트를 반환하지만 프론트 `getReportsForResume()`는 빈 배열 fallback을 사용합니다. 근거: `backend/api/views/analysis_report_endpoints.py`, `frontend/src/api/backendClient.ts`
-- `jd/analyze/`는 현재 빈 `{data:{}}` 스텁입니다. 근거: `backend/api/views/job_description_endpoints.py`
 - Django 테스트 파일은 현재 별도 테스트 모듈로 보이지 않습니다. CI는 `python manage.py test`를 실행합니다. 근거: `.github/workflows/deploy-eb.yml`
 - `frontend/.env.example`의 `VITE_USE_MOCK_API`는 현재 `backendClient.ts`에서 참조하지 않습니다. mock API 모드는 제거된 상태입니다.
 
 ## 관련 문서
 
 - [프론트엔드 API 연동 README](../../frontend/README.md) — 연동 범위와 검증 스크립트 상세
+- [프론트 API ID 매핑](../06-api/frontend-api-id-map.md)
 - [실행과 운영](../01-getting-started/run-and-operations.md)
