@@ -43,6 +43,21 @@
 - 인증 화면
 - 반응형 미디어쿼리와 reduced motion 처리
 
+## 컴포넌트 구조
+
+프론트엔드 컴포넌트는 `frontend/src/components/` 아래에서 역할별 폴더로 나뉩니다. 컴포넌트 사용 기준과 디자인 QA는 [디자인 시스템](design-system.md)을 기준으로 삼습니다.
+
+| 폴더 | 역할 |
+| --- | --- |
+| `layout/` | `AppShell`, `SidebarNav`, `MobileShellHeader`, `AuthScreen`, 계정/크레딧 UI처럼 화면 뼈대를 구성합니다. `TopHeader`는 코드에 존재하지만 현재 `AppShell`에서 직접 사용하지 않습니다. |
+| `common/` | `PageTitle`, `SectionCard`, `PageState`, `InlineLoading`, `MetricCard`, `FloatingAlert`, `SearchSuggestions`처럼 화면 전반에서 재사용되는 UI를 둡니다. |
+| `dashboard/` | 대시보드 hero, 지표, 지원자 표, 분석 요약, 작업 목록을 구성합니다. |
+| `charts/` | ECharts 래퍼, 도넛 차트 option 생성, light/dark 차트 테마를 관리합니다. |
+| `chat/` | 전체 채팅 화면, 문서 검색 FAB, 추천 자료/빠른 질문 패널, 채팅 컨텍스트 데이터를 관리합니다. |
+| `admin/`, `company/`, `jd/`, `cover-letter/`, `mypage/`, `recruitment/` | 각 도메인 화면의 폼, 목록, 삭제 모달, 요약 패널처럼 업무 맥락이 강한 컴포넌트를 둡니다. |
+
+새 컴포넌트는 먼저 `common/`으로 올릴 만큼 재사용성이 있는지 확인하고, 특정 업무 흐름에 묶여 있으면 도메인 폴더에 둡니다. 같은 UI가 2개 이상 화면에서 반복되거나 접근성/상태 처리가 복잡하면 공통 컴포넌트 후보로 검토합니다.
+
 ## 데이터 소스
 
 프론트는 Django API를 직접 호출합니다. mock API 모드는 제거되었습니다.
@@ -61,4 +76,5 @@
 
 - [상태와 API 어댑터](state-and-api-adapters.md)
 - [페이지와 라우트](pages-and-routes.md)
+- [디자인 시스템](design-system.md)
 - [프론트엔드 API 연동 README](../../frontend/README.md)

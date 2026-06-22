@@ -24,10 +24,7 @@
 - [프론트엔드 개요](03-frontend/overview.md)
 - [페이지와 라우트](03-frontend/pages-and-routes.md)
 - [상태와 API 어댑터](03-frontend/state-and-api-adapters.md)
-- [컴포넌트 구조](03-frontend/components.md)
 - [디자인 시스템](03-frontend/design-system.md)
-- [스타일과 QA](03-frontend/styling-and-qa.md)
-- [프론트엔드 쉽게 이해하기](03-frontend/frontend-easy-guide.md)
 
 ## 04. 백엔드
 
