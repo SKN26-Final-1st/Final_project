@@ -15,6 +15,7 @@ from .chat_endpoints import chat
 from .checklist_endpoints import checklist_add, checklist_get, checklist_modify
 from .company_info_endpoints import compinfo_get, compinfo_modify
 from .job_description_endpoints import jd_add, jd_analyze, jd_get, jd_modify
+from .ping_endpoints import ping
 from .resume_endpoints import resume_add, resume_analyze, resume_get, resume_modify
 
 
@@ -41,6 +42,7 @@ __all__ = [
     "jd_modify",
     "password_question",
     "password_reset",
+    "ping",
     "report_get",
     "report_modify",
     "resume_add",

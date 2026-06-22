@@ -4,6 +4,7 @@ from . import views
 
 
 urlpatterns = [
+    path("ping/", views.ping),
     path("csrf/", views.csrf_token),
     path("signin/", views.account_signin),
     path("login/", views.account_login),
