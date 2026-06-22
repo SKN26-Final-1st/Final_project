@@ -44,6 +44,7 @@
 ## 06. API
 
 - [API 레퍼런스](06-api/api-reference.md)
+- [프론트 API ID 매핑](06-api/frontend-api-id-map.md)
 
 ## 07. AI 모델링
 

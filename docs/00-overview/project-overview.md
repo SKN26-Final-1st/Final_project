@@ -15,7 +15,7 @@ HumouR는 채용 담당자가 회사 정보, JD, 지원서, AI 분석 리포트,
 1. 사용자는 로그인/회원가입 화면에서 세션을 시작합니다.
 2. 회사 정보를 입력하고 JD를 관리합니다.
 3. JD에 연결된 지원서를 등록하거나 API로 조회합니다.
-4. 지원서 분석 요청이 백엔드의 `resume/analyze/` 엔드포인트로 전달됩니다. (프론트 클라이언트는 아직 `resume/analize/` 경로를 사용합니다.)
+4. 지원서 분석 요청이 백엔드의 `resume/analyze/` 엔드포인트로 전달됩니다.
 5. 백엔드는 OpenAI 기반 리포트/면접 질문 생성 결과를 DB에 저장합니다.
 6. 프론트엔드는 대시보드, 분석 리포트, 채팅, 모집 공고, 문항 템플릿 화면으로 결과를 보여줍니다.
 
@@ -23,4 +23,5 @@ HumouR는 채용 담당자가 회사 정보, JD, 지원서, AI 분석 리포트,
 
 - [시스템 아키텍처](../02-architecture/system-architecture.md)
 - [API 레퍼런스](../06-api/api-reference.md)
+- [프론트 API ID 매핑](../06-api/frontend-api-id-map.md)
 - [모델 파이프라인](../07-ai-modeling/model-pipeline.md)
