@@ -27,7 +27,7 @@
 
 ## 뷰포트 고정 레이아웃
 
-`/dashboard`부터 `/mypage`까지 주요 보호 화면(인증 라우트·`/shared` 제외)은 루트에 `viewport-page` 클래스를 사용해 셸 높이 안에서 내부 스크롤만 허용합니다. CSS 규칙과 QA 스크립트는 [스타일과 QA](styling-and-qa.md)를 참고하세요.
+`/dashboard`부터 `/mypage`까지 주요 보호 화면(인증 라우트·`/shared` 제외)은 루트에 `viewport-page` 클래스를 사용해 셸 높이 안에서 내부 스크롤만 허용합니다. CSS 규칙과 QA 스크립트는 [디자인 시스템](design-system.md)을 참고하세요.
 
 ## 인증 라우트
 
@@ -54,6 +54,6 @@
 
 ## 관련 문서
 
-- [컴포넌트 구조](components.md)
+- [디자인 시스템](design-system.md)
 - [채용 운영 워크스페이스](../08-features/recruiting-workspace.md)
 - [프론트엔드 API 연동 README](../../frontend/README.md)
