@@ -1,0 +1,197 @@
+name: Deploy Frontend & Backend by SSM
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".deploy/frontend.conf"
+      - ".deploy/backend.conf"
+      - ".deploy/gunicorn.service"
+      - ".github/workflows/deploy.yml"
+
+  workflow_dispatch:
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v7
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: 프론트 의존성 설치
+        working-directory: frontend
+        run: npm ci
+
+      - name: 프론트 빌드
+        working-directory: frontend
+        run: npm run build
+
+      - name: AWS 인증 설정
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_ACCESS_REGION }}
+
+      - name: S3에 프론트 빌드 파일 업로드
+        run: |
+          aws s3 sync frontend/dist s3://${{ secrets.S3_DEPLOY_BUCKET }}/frontend/ --delete
+
+      - name: S3에 Nginx conf 업로드
+        run: |
+          aws s3 cp .deploy/frontend.conf s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/frontend.conf
+
+      - name: SSM으로 EC2에 배포 명령 실행
+        id: ssm
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_FRONTEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy frontend from GitHub Actions" \
+            --parameters 'commands=[
+              "set -e",
+              "sudo mkdir -p /var/www/app/frontend",
+              "sudo aws s3 sync s3://${{ secrets.S3_DEPLOY_BUCKET }}/frontend/ /var/www/app/frontend/ --delete",
+              "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/frontend.conf /etc/nginx/conf.d/frontend.conf",
+              "sudo nginx -t",
+              "sudo systemctl reload nginx"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+
+      - name: SSM 명령 완료 대기
+        run: |
+          aws ssm wait command-executed \
+            --command-id "${{ steps.ssm.outputs.command_id }}" \
+            --instance-id "${{ secrets.AWS_FRONTEND_INSTANCE_ID }}" || true
+
+      - name: SSM 명령 결과 출력
+        if: always()
+        run: |
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.ssm.outputs.command_id }}" \
+            --instance-id "${{ secrets.AWS_FRONTEND_INSTANCE_ID }}" \
+            --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
+            --output json
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "${{ steps.ssm.outputs.command_id }}" \
+            --instance-id "${{ secrets.AWS_FRONTEND_INSTANCE_ID }}" \
+            --query "Status" \
+            --output text)
+
+          test "$STATUS" = "Success"
+
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v7
+
+      - name: AWS 인증 설정
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_ACCESS_REGION }}
+
+      - name: S3에 백엔드 소스 업로드
+        run: |
+          aws s3 sync backend/ s3://${{ secrets.S3_DEPLOY_BUCKET }}/backend/ \
+            --delete \
+            --exclude ".venv/*" \
+            --exclude "__pycache__/*" \
+            --exclude "*.pyc" \
+            --exclude "db.sqlite3" \
+            --exclude ".env"
+
+      - name: S3에 Nginx backend conf 업로드
+        run: |
+          aws s3 cp .deploy/backend.conf s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/backend.conf
+
+      - name: S3에 Gunicorn service 업로드
+        run: |
+          aws s3 cp .deploy/gunicorn.service s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/gunicorn.service
+
+      - name: SSM으로 EC2에 백엔드 배포 명령 실행
+        id: ssm_backend
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy backend from GitHub Actions" \
+            --parameters 'commands=[
+              "set -e",
+              "echo \"===== backend deploy start =====\"",
+              "date",
+
+              "sudo mkdir -p /var/www/app/backend",
+              "sudo chown -R ec2-user:ec2-user /var/www/app",
+
+              "sudo -u ec2-user aws s3 sync s3://${{ secrets.S3_DEPLOY_BUCKET }}/backend/ /var/www/app/backend/ --delete --exclude \".venv/*\"",
+              "sudo chown -R ec2-user:ec2-user /var/www/app/backend",
+
+              "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/backend.conf /etc/nginx/conf.d/backend.conf",
+              "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/gunicorn.service /etc/systemd/system/myapp-gunicorn.service",
+
+              "cd /var/www/app/backend",
+
+              "if [ ! -d /var/www/app/backend/.venv ]; then sudo -u ec2-user python3.14 -m venv /var/www/app/backend/.venv; fi",
+              "sudo chown -R ec2-user:ec2-user /var/www/app/backend/.venv",
+
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && python -m pip install --upgrade pip\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && pip install -r requirements.txt\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py check\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py migrate\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py collectstatic --noinput\"",
+
+              "sudo systemctl daemon-reload",
+              "sudo systemctl restart myapp-gunicorn",
+              "sudo systemctl enable myapp-gunicorn",
+
+              "sudo nginx -t",
+              "sudo systemctl reload nginx",
+
+              "sudo systemctl status myapp-gunicorn --no-pager",
+              "curl -f http://127.0.0.1/api/login/ || curl -f http://127.0.0.1/health/ || true",
+
+              "echo \"===== backend deploy success =====\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+
+      - name: SSM 명령 완료 대기
+        run: |
+          aws ssm wait command-executed \
+            --command-id "${{ steps.ssm_backend.outputs.command_id }}" \
+            --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+
+      - name: SSM 명령 결과 출력
+        if: always()
+        run: |
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.ssm_backend.outputs.command_id }}" \
+            --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
+            --output json
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "${{ steps.ssm_backend.outputs.command_id }}" \
+            --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --query "Status" \
+            --output text)
+
+          test "$STATUS" = "Success"
