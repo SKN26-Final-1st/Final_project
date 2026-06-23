@@ -191,21 +191,71 @@ jobs:
           STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
           test "$STATUS" = "Success"
 
-      - name: SSM backend 4 - Django check/migrate/static
+      - name: SSM backend 4a - Django check
         run: |
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "Backend deploy 4 - django commands" \
+            --comment "Backend deploy 4a - django check" \
             --parameters 'commands=[
               "set -e",
-              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py check\"",
-              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py migrate\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py check\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          for i in {1..120}; do
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+            case "$STATUS" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+              *) sleep 5 ;;
+            esac
+          done
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
+
+      - name: SSM backend 4b - Django migrate
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 4b - django migrate" \
+            --parameters 'commands=[
+              "set -e",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py migrate\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          for i in {1..120}; do
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+            case "$STATUS" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+              *) sleep 5 ;;
+            esac
+          done
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
+
+      - name: SSM backend 4c - Django collectstatic
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 4c - django collectstatic" \
+            --parameters 'commands=[
+              "set -e",
               "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py collectstatic --noinput\""
             ]' \
             --query "Command.CommandId" \
             --output text)
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          for i in {1..120}; do
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+            case "$STATUS" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+              *) sleep 5 ;;
+            esac
+          done
           aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
           STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
           test "$STATUS" = "Success"
