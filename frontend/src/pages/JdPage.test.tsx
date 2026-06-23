@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JdPage } from './JdPage';
@@ -106,8 +106,7 @@ describe('JdPage', () => {
     expect(saveJdMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('JD 목록을 검색하고 선택된 JD의 checklist를 조회 표시한다', async () => {
-    const user = userEvent.setup();
+  it('JD 목록을 검색하고 선택된 JD의 checklist를 조회 표시한다', () => {
     const backendJd = makeJdItem({
       id: '2',
       title: '백엔드 개발자',
@@ -128,7 +127,7 @@ describe('JdPage', () => {
     expect(screen.queryByLabelText('JD 정렬')).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('기술 키워드')).not.toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText('JD명, 업무, 기술 검색'), 'API 서버');
+    fireEvent.change(screen.getByPlaceholderText('JD명, 업무, 기술 검색'), { target: { value: 'API 서버' } });
 
     expect(screen.getByRole('button', { name: '백엔드 개발자 JD 선택' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '프론트엔드 개발자 JD 선택' })).not.toBeInTheDocument();
