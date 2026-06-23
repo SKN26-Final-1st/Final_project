@@ -130,81 +130,161 @@ jobs:
         run: |
           aws s3 cp .deploy/celery.service s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/celery.service
 
-      - name: SSM으로 EC2에 백엔드 배포 명령 실행
-        id: ssm_backend
+      - name: SSM backend 1 - 소스 동기화
         run: |
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy backend from GitHub Actions" \
+            --comment "Backend deploy 1 - sync source" \
             --parameters 'commands=[
               "set -e",
-              "echo \"===== backend deploy start =====\"",
-              "date",
-
               "sudo mkdir -p /var/www/app/backend",
               "sudo chown -R ec2-user:ec2-user /var/www/app",
-
               "sudo -u ec2-user aws s3 sync s3://${{ secrets.S3_DEPLOY_BUCKET }}/backend/ /var/www/app/backend/ --delete --exclude \".venv/*\"",
-              "sudo chown -R ec2-user:ec2-user /var/www/app/backend",
+              "sudo chown -R ec2-user:ec2-user /var/www/app/backend"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
 
+      - name: SSM backend 2 - 설정 파일 설치
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 2 - install config files" \
+            --parameters 'commands=[
+              "set -e",
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/backend.conf /etc/nginx/conf.d/backend.conf",
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/gunicorn.service /etc/systemd/system/myapp-gunicorn.service",
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/celery.service /etc/systemd/system/myapp-celery.service",
+              "sudo systemctl daemon-reload"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
 
+      - name: SSM backend 3 - Python 의존성 설치
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 3 - install python dependencies" \
+            --parameters 'commands=[
+              "set -e",
               "cd /var/www/app/backend",
-
               "if [ ! -d /var/www/app/backend/.venv ]; then sudo -u ec2-user python3.14 -m venv /var/www/app/backend/.venv; fi",
               "sudo chown -R ec2-user:ec2-user /var/www/app/backend/.venv",
-
               "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && python -m pip install --upgrade pip\"",
-              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && pip install -r requirements.txt\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && pip install -r requirements.txt\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
+
+      - name: SSM backend 4 - Django check/migrate/static
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 4 - django commands" \
+            --parameters 'commands=[
+              "set -e",
               "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py check\"",
               "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py migrate\"",
-              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py collectstatic --noinput\"",
+              "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py collectstatic --noinput\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
 
-              "sudo systemctl daemon-reload",
+      - name: SSM backend 5 - Valkey/Celery 재시작
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 5 - restart celery" \
+            --parameters 'commands=[
+              "set -e",
               "sudo systemctl enable --now valkey",
               "sudo systemctl restart myapp-celery",
               "sudo systemctl enable myapp-celery",
               "sudo systemctl is-active --quiet myapp-celery",
-              "sudo systemctl restart myapp-gunicorn",
-              "sudo systemctl enable myapp-gunicorn",
-
-              "sudo nginx -t",
-              "sudo systemctl enable nginx",
-              "sudo systemctl reload-or-restart nginx",
-
-              "sudo systemctl status myapp-celery --no-pager",
-              "sudo systemctl status myapp-gunicorn --no-pager",
-              "curl -f http://127.0.0.1/api/login/ || curl -f http://127.0.0.1/health/ || true",
-
-              "echo \"===== backend deploy success =====\""
+              "sudo systemctl status myapp-celery --no-pager"
             ]' \
             --query "Command.CommandId" \
             --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
 
-          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
-
-      - name: SSM 명령 완료 대기
+      - name: SSM backend 6 - Gunicorn 재시작
         run: |
-          aws ssm wait command-executed \
-            --command-id "${{ steps.ssm_backend.outputs.command_id }}" \
-            --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
-
-      - name: SSM 명령 결과 출력
-        if: always()
-        run: |
-          aws ssm get-command-invocation \
-            --command-id "${{ steps.ssm_backend.outputs.command_id }}" \
-            --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
-            --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
-            --output json
-
-          STATUS=$(aws ssm get-command-invocation \
-            --command-id "${{ steps.ssm_backend.outputs.command_id }}" \
-            --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
-            --query "Status" \
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 6 - restart gunicorn" \
+            --parameters 'commands=[
+              "set -e",
+              "sudo systemctl restart myapp-gunicorn",
+              "sudo systemctl enable myapp-gunicorn",
+              "sudo systemctl is-active --quiet myapp-gunicorn",
+              "sudo systemctl status myapp-gunicorn --no-pager"
+            ]' \
+            --query "Command.CommandId" \
             --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
 
+      - name: SSM backend 7 - Nginx 적용
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 7 - reload nginx" \
+            --parameters 'commands=[
+              "set -e",
+              "sudo nginx -t",
+              "sudo systemctl enable nginx",
+              "sudo systemctl reload-or-restart nginx",
+              "sudo systemctl is-active --quiet nginx",
+              "sudo systemctl status nginx --no-pager"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
+          test "$STATUS" = "Success"
+
+      - name: SSM backend 8 - 헬스 체크
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Backend deploy 8 - health check" \
+            --parameters 'commands=[
+              "set -e",
+              "curl -f http://127.0.0.1/api/ping/"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "${{ secrets.AWS_BACKEND_INSTANCE_ID }}" --query "Status" --output text)
           test "$STATUS" = "Success"
