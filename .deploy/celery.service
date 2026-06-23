@@ -1,0 +1,21 @@
+[Unit]
+Description=Celery Worker for Django Backend
+After=network.target valkey.service
+Requires=valkey.service
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/var/www/app/backend
+
+Environment="DJANGO_SETTINGS_MODULE=config.settings"
+EnvironmentFile=/etc/secrets.env
+
+ExecStart=/var/www/app/backend/.venv/bin/celery -A config worker --loglevel=info
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

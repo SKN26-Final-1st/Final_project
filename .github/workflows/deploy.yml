@@ -9,6 +9,7 @@ on:
       - ".deploy/frontend.conf"
       - ".deploy/backend.conf"
       - ".deploy/gunicorn.service"
+      - ".deploy/celery.service"
       - ".github/workflows/deploy.yml"
 
   workflow_dispatch:
@@ -124,6 +125,10 @@ jobs:
         run: |
           aws s3 cp .deploy/gunicorn.service s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/gunicorn.service
 
+      - name: S3에 Celery service 업로드
+        run: |
+          aws s3 cp .deploy/celery.service s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/celery.service
+
       - name: SSM으로 EC2에 백엔드 배포 명령 실행
         id: ssm_backend
         run: |
@@ -144,6 +149,7 @@ jobs:
 
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/backend.conf /etc/nginx/conf.d/backend.conf",
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/gunicorn.service /etc/systemd/system/myapp-gunicorn.service",
+              "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/systemd/celery.service /etc/systemd/system/myapp-celery.service",
 
               "cd /var/www/app/backend",
 
@@ -159,11 +165,14 @@ jobs:
               "sudo systemctl daemon-reload",
               "sudo systemctl restart myapp-gunicorn",
               "sudo systemctl enable myapp-gunicorn",
+              "sudo systemctl restart myapp-celery",
+              "sudo systemctl enable myapp-celery",
 
               "sudo nginx -t",
               "sudo systemctl reload nginx",
 
               "sudo systemctl status myapp-gunicorn --no-pager",
+              "sudo systemctl status myapp-celery --no-pager",
               "curl -f http://127.0.0.1/api/login/ || curl -f http://127.0.0.1/health/ || true",
 
               "echo \"===== backend deploy success =====\""
