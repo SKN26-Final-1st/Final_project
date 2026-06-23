@@ -93,6 +93,9 @@ def report_modify(request):
         except AnalysisReport.DoesNotExist:
             return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
 
+        if report.status == AnalysisReport.STATUS_PROCESSING:
+            return JsonResponse({"error": True, "message": error_code("Report is processing.", 407)}, status=400)
+
         report_fields = editable_model_fields(report, REPORT_BLOCKED_FIELDS)
 
         for key, value in data.items():

@@ -63,7 +63,8 @@ jobs:
               "sudo aws s3 sync s3://${{ secrets.S3_DEPLOY_BUCKET }}/frontend/ /var/www/app/frontend/ --delete",
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/frontend.conf /etc/nginx/conf.d/frontend.conf",
               "sudo nginx -t",
-              "sudo systemctl reload nginx"
+              "sudo systemctl enable nginx",
+              "sudo systemctl reload-or-restart nginx"
             ]' \
             --query "Command.CommandId" \
             --output text)
@@ -163,16 +164,19 @@ jobs:
               "sudo -u ec2-user bash -lc \"cd /var/www/app/backend && source .venv/bin/activate && set -a && source /etc/secrets.env && set +a && python manage.py collectstatic --noinput\"",
 
               "sudo systemctl daemon-reload",
-              "sudo systemctl restart myapp-gunicorn",
-              "sudo systemctl enable myapp-gunicorn",
+              "sudo systemctl enable --now valkey",
               "sudo systemctl restart myapp-celery",
               "sudo systemctl enable myapp-celery",
+              "sudo systemctl is-active --quiet myapp-celery",
+              "sudo systemctl restart myapp-gunicorn",
+              "sudo systemctl enable myapp-gunicorn",
 
               "sudo nginx -t",
-              "sudo systemctl reload nginx",
+              "sudo systemctl enable nginx",
+              "sudo systemctl reload-or-restart nginx",
 
-              "sudo systemctl status myapp-gunicorn --no-pager",
               "sudo systemctl status myapp-celery --no-pager",
+              "sudo systemctl status myapp-gunicorn --no-pager",
               "curl -f http://127.0.0.1/api/login/ || curl -f http://127.0.0.1/health/ || true",
 
               "echo \"===== backend deploy success =====\""
