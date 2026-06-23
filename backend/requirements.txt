@@ -10,3 +10,5 @@ langgraph
 pydantic
 python-dotenv
 typing-extensions
+celery
+redis
