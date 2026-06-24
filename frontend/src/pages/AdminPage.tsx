@@ -5,12 +5,13 @@ import { AdminCreditPanel } from '../components/admin/AdminCreditPanel';
 import { AdminSummaryCards } from '../components/admin/AdminSummaryCards';
 import { AuthKeyCreateForm, type AuthKeyCreateFormValues } from '../components/admin/AuthKeyCreateForm';
 import { AuthKeyDeleteModal } from '../components/admin/AuthKeyDeleteModal';
-import { AuthKeyList } from '../components/admin/AuthKeyList';
+import { AuthKeyList, type AuthKeyAccessGroup } from '../components/admin/AuthKeyList';
 import { CreatedAuthKeyPanel } from '../components/admin/CreatedAuthKeyPanel';
 import { UnsupportedBackendPanel } from '../components/admin/UnsupportedBackendPanel';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
+import type { JdItem } from '../api/adapters';
 import type { AuthKey, Resume } from '../data/backendTypes';
 import { useAdminPageData } from '../hooks/useAdminPageData';
 import { useAdminMutations } from '../hooks/mutations/useAdminMutations';
@@ -21,8 +22,43 @@ type AdminPageProps = {
   showAlert: ShowAlert;
 };
 
-function formatResumeLabel(resume: Resume) {
-  return `${resume.name || '이름 없음'} · #${resume.id}`;
+function formatResumeAccessLabel(resume: Resume) {
+  return resume.name || '이름 없음';
+}
+
+function createResumeAccessGroups(resumes: Resume[], jdList: JdItem[]): AuthKeyAccessGroup[] {
+  const resumesByJdId = new Map<string, Resume[]>();
+
+  resumes.forEach((resume) => {
+    const jdId = String(resume.job_description_id);
+    const groupResumes = resumesByJdId.get(jdId) ?? [];
+    groupResumes.push(resume);
+    resumesByJdId.set(jdId, groupResumes);
+  });
+
+  const groups = jdList
+    .map((jd) => {
+      const groupResumes = resumesByJdId.get(jd.id) ?? [];
+      resumesByJdId.delete(jd.id);
+
+      return {
+        key: `jd-${jd.id}`,
+        label: jd.title || '제목 없는 JD',
+        resumes: groupResumes.map((resume) => ({ value: resume.id, label: formatResumeAccessLabel(resume) })),
+      };
+    })
+    .filter((group) => group.resumes.length > 0);
+
+  const unlinkedResumes = Array.from(resumesByJdId.values()).flat();
+  if (unlinkedResumes.length > 0) {
+    groups.push({
+      key: 'jd-unlinked',
+      label: '연결 JD 없음',
+      resumes: unlinkedResumes.map((resume) => ({ value: resume.id, label: formatResumeAccessLabel(resume) })),
+    });
+  }
+
+  return groups;
 }
 
 export function AdminPage({ navigate, showAlert }: AdminPageProps) {
@@ -30,7 +66,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
   const [createdAuthKey, setCreatedAuthKey] = useState<Pick<AuthKey, 'name' | 'value'> | null>(null);
   const [deleteTargetAuthKey, setDeleteTargetAuthKey] = useState<AuthKey | null>(null);
-  const { admin, authKeys, resumes } = useAdminPageData();
+  const { admin, authKeys, jdList, resumes } = useAdminPageData();
   const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAuthKey } =
     useAdminMutations(showAlert);
   const loadingKey = createAuthKeyMutation.isPending
@@ -40,10 +76,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
       : deleteAuthKeyMutation.isPending && deleteAuthKeyMutation.variables
         ? `authkey-delete-${deleteAuthKeyMutation.variables}`
         : null;
-  const resumeOptions = useMemo(
-    () => resumes.map((resume) => ({ value: resume.id, label: formatResumeLabel(resume) })),
-    [resumes],
-  );
+  const accessGroups = useMemo(() => createResumeAccessGroups(resumes, jdList), [jdList, resumes]);
 
   const createAuthKey = async (values: AuthKeyCreateFormValues) => {
     const response = await createAuthKeyMutation.mutateAsync(values);
@@ -149,7 +182,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
           <AuthKeyList
             authKeys={authKeys}
             loadingKey={loadingKey}
-            resumeOptions={resumeOptions}
+            accessGroups={accessGroups}
             getAuthorizedResumeIds={getAuthorizedResumeIds}
             updateAuthorizedDraft={updateAuthorizedDraft}
             saveAuthorizedResumes={saveAuthorizedResumes}
