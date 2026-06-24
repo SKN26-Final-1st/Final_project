@@ -9,15 +9,41 @@ const defaultInitialValues: CoverLetterInputFormValues = {
   job_description_id: 1,
   name: '홍길동',
   skill: ['React'],
-  education_level_text: '',
-  experience: ['인턴 6개월'],
-  question: '지원 동기',
-  answer: '답변',
+  education_level: {
+    final_degree: 'bachelor',
+    bachelor: '한국대학교',
+    master: '',
+    doctoral: '',
+  },
+  experience: [
+    {
+      company_name: '휴머',
+      length: '6개월',
+      position: '인턴',
+      experience_description: '데이터 분석 업무',
+    },
+  ],
+  self_intoduction: [{ question: '지원 동기', answer: '답변' }],
   certification: ['SQLD'],
-  language: ['영어 OPIC IH'],
-  award: ['해커톤 우수상'],
-  training: ['AI 부트캠프'],
-  other_activity: ['오픈소스 기여'],
+  language: [{ language_name: '영어', test_name: 'OPIC', score: 'IH' }],
+  award: [{ award_name: '해커톤 우수상', award_from: '서울시', time: '2024' }],
+  training: [
+    {
+      education_name: 'AI 부트캠프',
+      education_from: '패스트캠퍼스',
+      education_description: '프론트엔드 프로젝트',
+      start: '2024-01',
+      end: '2024-03',
+    },
+  ],
+  other_activity: [
+    {
+      activity_name: '오픈소스 기여',
+      activity_description: '문서 개선',
+      start: '2023-01',
+      end: '2023-12',
+    },
+  ],
 };
 
 const jdItem: JdItem = {
@@ -112,7 +138,7 @@ describe('CoverLetterInputPanel', () => {
     expect(screen.getByRole('button', { name: /기술 추가/ })).toBeInTheDocument();
   });
 
-  it('추가 이력 정보 배열 항목도 요약과 접힌 편집 리스트로 수정한다', async () => {
+  it('경력 object 배열 항목도 요약과 접힌 편집 리스트로 수정한다', async () => {
     const user = userEvent.setup();
     const onRead = vi.fn();
 
@@ -120,17 +146,49 @@ describe('CoverLetterInputPanel', () => {
 
     await user.click(screen.getByRole('button', { name: /추가 이력 정보/ }));
 
-    expect(screen.getByText('인턴 6개월')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('인턴 6개월')).not.toBeVisible();
+    expect(screen.getByText('휴머 · 6개월 · 인턴')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('휴머')).not.toBeVisible();
 
     await user.click(screen.getByRole('button', { name: /경력 편집/ }));
-    await user.clear(screen.getByDisplayValue('인턴 6개월'));
-    await user.type(screen.getByLabelText('경력 1'), '데이터 분석 인턴');
+    await user.clear(screen.getByLabelText('경력 1 회사명'));
+    await user.type(screen.getByLabelText('경력 1 회사명'), '데이터랩');
+    await user.clear(screen.getByLabelText('경력 1 경력 설명'));
+    await user.type(screen.getByLabelText('경력 1 경력 설명'), '대시보드 구축');
     await user.click(screen.getByRole('button', { name: '값 확인' }));
 
     expect(onRead).toHaveBeenCalledWith(
       expect.objectContaining({
-        experience: ['데이터 분석 인턴'],
+        experience: [
+          expect.objectContaining({
+            company_name: '데이터랩',
+            length: '6개월',
+            position: '인턴',
+            experience_description: '대시보드 구축',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('자기소개 문항을 여러 개 추가해 list[dict]로 관리한다', async () => {
+    const user = userEvent.setup();
+    const onRead = vi.fn();
+
+    render(<CoverLetterInputPanelHarness onRead={onRead} />);
+
+    expect(screen.getByLabelText('자기소개 문항 1 문항')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: /자기소개 문항 추가/ }));
+    await user.type(screen.getByLabelText('자기소개 문항 2 문항'), '협업 경험');
+    await user.type(screen.getByLabelText('자기소개 문항 2 답변'), '협업 답변');
+    await user.click(screen.getByRole('button', { name: '값 확인' }));
+
+    expect(onRead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        self_intoduction: [
+          { question: '지원 동기', answer: '답변' },
+          { question: '협업 경험', answer: '협업 답변' },
+        ],
       }),
     );
   });

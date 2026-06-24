@@ -32,6 +32,12 @@ const REPORT_SEARCH_SUGGESTIONS = [
 const REPORT_GRADE_SUGGESTIONS = ['A/B 등급', 'C 이하'];
 const REPORT_CONTENT_SUGGESTIONS = ['질문 있음', '확인 포인트 있음', '우려사항 있음'];
 
+const REPORT_STATUS_LABEL: Record<AnalysisReport['status'], string> = {
+  onqueue: '분석 대기',
+  processing: '분석 중',
+  done: '분석 완료',
+};
+
 const GRADE_SCORE: Record<string, number> = {
   A: 94,
   B: 82,
@@ -86,6 +92,18 @@ function gradeScore(grade: string) {
   return GRADE_SCORE[grade.toUpperCase()] ?? 0;
 }
 
+function isReportPending(report: AnalysisReport) {
+  return report.status === 'onqueue' || report.status === 'processing';
+}
+
+function reportListTag(report: AnalysisReport) {
+  if (isReportPending(report)) {
+    return <Tag color={report.status === 'processing' ? 'processing' : 'warning'}>{REPORT_STATUS_LABEL[report.status]}</Tag>;
+  }
+
+  return <Tag>{report.overall_grade || 'N/A'} 등급</Tag>;
+}
+
 function hasListContent(value: unknown) {
   return toList(value).length > 0;
 }
@@ -101,7 +119,7 @@ function matchesReportSuggestion(
   }
 
   if (suggestion === 'C 이하') {
-    return grade !== 'A' && grade !== 'B';
+    return ['C', 'D', 'F'].includes(grade);
   }
 
   if (suggestion === '질문 있음') {
@@ -221,7 +239,8 @@ function CompactQuestionList({ questions }: { questions: InterviewQuestion[] }) 
 }
 
 export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
-  const { reportItems, selectedReportResumeId, setSelectedReportResumeId } = useAnalysisReportPageData();
+  const { refreshing, reloadData, reportItems, selectedReportResumeId, setSelectedReportResumeId } =
+    useAnalysisReportPageData();
   const [reportSearchText, setReportSearchText] = useState('');
   const selectedReportSuggestions = useMemo(
     () => getSelectedSuggestionLabels(reportSearchText, REPORT_SEARCH_SUGGESTIONS),
@@ -246,6 +265,8 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
           item.jd?.title,
           report.overall_grade,
           `${report.overall_grade} 등급`,
+          report.status,
+          REPORT_STATUS_LABEL[report.status],
           report.overall_summary,
           report.candidate_summary,
           report.fit_analysis,
@@ -336,7 +357,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                         >
                           <strong>{item.resume?.name || '지원자 정보 없음'}</strong>
                           <span>{item.jd?.title || '연결 JD 없음'}</span>
-                          <Tag>{item.report.overall_grade || 'N/A'} 등급</Tag>
+                          {reportListTag(item.report)}
                         </button>
                       );
                     })}
@@ -366,88 +387,107 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                       label: '분석 리포트',
                       children: (
                         <div className="analysis-report-tab-panel">
-                          <div className="analysis-report-hero">
-                            <div>
-                              <span className="eyebrow">Overall Grade</span>
-                              <h2>{displaySelectedItem.report.overall_grade || 'N/A'}</h2>
+                          {isReportPending(displaySelectedItem.report) ? (
+                            <div className="analysis-report-pending-panel">
+                              <Tag color={displaySelectedItem.report.status === 'processing' ? 'processing' : 'warning'}>
+                                {REPORT_STATUS_LABEL[displaySelectedItem.report.status]}
+                              </Tag>
+                              <h3>
+                                {displaySelectedItem.report.status === 'processing'
+                                  ? '분석 중입니다.'
+                                  : '분석 대기 중입니다.'}
+                              </h3>
+                              <p>분석이 완료되면 등급, 요약, 체크리스트와 추천 질문이 이 화면에 표시됩니다.</p>
+                              <Button disabled={refreshing} onClick={() => void reloadData()}>
+                                {refreshing ? '불러오는 중' : '다시 불러오기'}
+                              </Button>
                             </div>
-                          </div>
-                          <section className="analysis-report-section">
-                            <h3>전체 평가 요약</h3>
-                            <p>{displaySelectedItem.report.overall_summary || '요약이 없습니다.'}</p>
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>지원자 요약</h3>
-                            <p>{displaySelectedItem.report.candidate_summary || '지원자 요약이 없습니다.'}</p>
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>체크리스트</h3>
-                            <div className="analysis-report-checklist">
-                              {selectedChecklist.length ? (
-                                selectedChecklist.map((item) => (
-                                  <div className="analysis-report-check-row" key={item.content}>
-                                    <Tag color={item.result ? 'success' : 'warning'}>
-                                      {item.result ? '충족' : '미충족'}
-                                    </Tag>
-                                    <span>{item.content}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="muted">체크리스트가 없습니다.</p>
-                              )}
-                            </div>
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>역량 분석</h3>
-                            <CompactTextList
-                              items={toList(displaySelectedItem.report.competency_analysis)}
-                              emptyText="역량 분석이 없습니다."
-                            />
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>적합도 분석</h3>
-                            <CompactTextList
-                              items={toList(displaySelectedItem.report.fit_analysis)}
-                              emptyText="적합도 분석이 없습니다."
-                            />
-                          </section>
-                          {motiveItems.length ? (
-                            <section className="analysis-report-section">
-                              <h3>지원 동기</h3>
-                              <CompactTextList items={motiveItems} emptyText="지원 동기 분석이 없습니다." />
-                            </section>
-                          ) : null}
-                          {collaborationItems.length ? (
-                            <section className="analysis-report-section">
-                              <h3>협업 역량</h3>
-                              <CompactTextList items={collaborationItems} emptyText="협업 분석이 없습니다." />
-                            </section>
-                          ) : null}
-                          <section className="analysis-report-section">
-                            <h3>강점</h3>
-                            <CompactTextList
-                              items={toList(displaySelectedItem.report.strength)}
-                              emptyText="강점 정보가 없습니다."
-                            />
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>우려 / 검증 필요</h3>
-                            <CompactTextList
-                              items={toList(displaySelectedItem.report.concern)}
-                              emptyText="우려 사항이 없습니다."
-                            />
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>확인 포인트</h3>
-                            <CompactTextList
-                              items={toList(displaySelectedItem.report.check_point)}
-                              emptyText="확인 포인트가 없습니다."
-                            />
-                          </section>
-                          <section className="analysis-report-section">
-                            <h3>최종 코멘트</h3>
-                            <p>{displaySelectedItem.report.final_comment || '최종 코멘트가 없습니다.'}</p>
-                          </section>
+                          ) : (
+                            <>
+                              <div className="analysis-report-hero">
+                                <div>
+                                  <span className="eyebrow">Overall Grade</span>
+                                  <h2>{displaySelectedItem.report.overall_grade || 'N/A'}</h2>
+                                </div>
+                              </div>
+                              <section className="analysis-report-section">
+                                <h3>전체 평가 요약</h3>
+                                <p>{displaySelectedItem.report.overall_summary || '요약이 없습니다.'}</p>
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>지원자 요약</h3>
+                                <p>{displaySelectedItem.report.candidate_summary || '지원자 요약이 없습니다.'}</p>
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>체크리스트</h3>
+                                <div className="analysis-report-checklist">
+                                  {selectedChecklist.length ? (
+                                    selectedChecklist.map((item) => (
+                                      <div className="analysis-report-check-row" key={item.content}>
+                                        <Tag color={item.result ? 'success' : 'warning'}>
+                                          {item.result ? '충족' : '미충족'}
+                                        </Tag>
+                                        <span>{item.content}</span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="muted">체크리스트가 없습니다.</p>
+                                  )}
+                                </div>
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>역량 분석</h3>
+                                <CompactTextList
+                                  items={toList(displaySelectedItem.report.competency_analysis)}
+                                  emptyText="역량 분석이 없습니다."
+                                />
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>적합도 분석</h3>
+                                <CompactTextList
+                                  items={toList(displaySelectedItem.report.fit_analysis)}
+                                  emptyText="적합도 분석이 없습니다."
+                                />
+                              </section>
+                              {motiveItems.length ? (
+                                <section className="analysis-report-section">
+                                  <h3>지원 동기</h3>
+                                  <CompactTextList items={motiveItems} emptyText="지원 동기 분석이 없습니다." />
+                                </section>
+                              ) : null}
+                              {collaborationItems.length ? (
+                                <section className="analysis-report-section">
+                                  <h3>협업 역량</h3>
+                                  <CompactTextList items={collaborationItems} emptyText="협업 분석이 없습니다." />
+                                </section>
+                              ) : null}
+                              <section className="analysis-report-section">
+                                <h3>강점</h3>
+                                <CompactTextList
+                                  items={toList(displaySelectedItem.report.strength)}
+                                  emptyText="강점 정보가 없습니다."
+                                />
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>우려 / 검증 필요</h3>
+                                <CompactTextList
+                                  items={toList(displaySelectedItem.report.concern)}
+                                  emptyText="우려 사항이 없습니다."
+                                />
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>확인 포인트</h3>
+                                <CompactTextList
+                                  items={toList(displaySelectedItem.report.check_point)}
+                                  emptyText="확인 포인트가 없습니다."
+                                />
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>최종 코멘트</h3>
+                                <p>{displaySelectedItem.report.final_comment || '최종 코멘트가 없습니다.'}</p>
+                              </section>
+                            </>
+                          )}
                         </div>
                       ),
                     },

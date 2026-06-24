@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AnalysisReportPage } from './AnalysisReportPage';
@@ -19,7 +19,6 @@ const resume: Resume = {
   award: [],
   training: [],
   other_activity: [],
-  status: 'done',
   reviewed: false,
   reviewed_at: '',
   created_at: '',
@@ -64,6 +63,8 @@ const report: AnalysisReport = {
     { id: 3, resume_id: 1, question: '질문 3', answer: '답변 3', purpose: '의도 3' },
     { id: 4, resume_id: 1, question: '질문 4', answer: '답변 4', purpose: '의도 4' },
   ],
+  status: 'done',
+  created_at: '2026-06-24T00:00:00+09:00',
 };
 
 const selectedItem: AnalysisReportItem = {
@@ -166,9 +167,49 @@ const fourthItem: AnalysisReportItem = {
   questions: fourthReport.interview_question,
 };
 
+const processingResume: Resume = {
+  ...resume,
+  id: 5,
+  job_description_id: 50,
+  name: '이처리',
+};
+
+const processingJd: JdItem = {
+  ...jd,
+  id: '50',
+  title: '처리 JD',
+};
+
+const processingReport: AnalysisReport = {
+  ...report,
+  id: 5,
+  resume_id: 5,
+  overall_grade: '',
+  overall_summary: '',
+  candidate_summary: '',
+  competency_analysis: [],
+  fit_analysis: '',
+  motive: '',
+  collaboration: '',
+  strength: [],
+  concern: [],
+  check_point: [],
+  final_comment: '',
+  interview_question: [],
+  status: 'processing',
+  created_at: '2026-06-24T00:00:00+09:00',
+};
+
+const processingItem: AnalysisReportItem = {
+  report: processingReport,
+  resume: processingResume,
+  jd: processingJd,
+  questions: [],
+};
+
 vi.mock('../hooks/useAnalysisReportPageData', () => ({
   useAnalysisReportPageData: () => ({
-    reportItems: [selectedItem, secondItem, thirdItem, fourthItem],
+    reportItems: [selectedItem, secondItem, thirdItem, fourthItem, processingItem],
     selectedItem,
     selectedReportResumeId: '1',
     setSelectedReportResumeId: vi.fn(),
@@ -223,6 +264,15 @@ describe('AnalysisReportPage', () => {
 
     expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /홍길동/ })).not.toBeInTheDocument();
+  });
+
+  it('진행 중 리포트는 N/A 등급 대신 분석 상태를 표시한다', () => {
+    render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    const processingCard = screen.getByRole('button', { name: /이처리/ });
+
+    expect(within(processingCard).getByText('분석 중')).toBeInTheDocument();
+    expect(within(processingCard).queryByText(/N\/A/)).not.toBeInTheDocument();
   });
 
   it('입력 기반 추천검색어를 여러 개 선택해 리포트 목록을 좁히고 해제한다', () => {

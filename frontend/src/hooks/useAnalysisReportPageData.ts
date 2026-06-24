@@ -12,7 +12,7 @@ export type AnalysisReportItem = {
 };
 
 export function useAnalysisReportPageData() {
-  const { data } = useAppDataQuery();
+  const { data, isFetching, refetch } = useAppDataQuery();
   const [searchParams, setSearchParams] = useSearchParams();
   const reports = useMemo(() => data?.analysisReports ?? [], [data?.analysisReports]);
   const resumes = useMemo(() => data?.resumes ?? [], [data?.resumes]);
@@ -45,8 +45,10 @@ export function useAnalysisReportPageData() {
 
   return {
     reportItems,
+    reloadData: refetch,
     selectedItem,
     selectedReportResumeId,
     setSelectedReportResumeId,
+    refreshing: isFetching,
   };
 }
