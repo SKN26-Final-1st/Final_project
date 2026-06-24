@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api/backendClient';
 import { queryKeys } from '../../api/queryKeys';
-import type { ApiResponse } from '../../data/backendTypes';
+import type { AnalysisReport, ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
 import { useInvalidateAppData } from './useMutationHelpers';
 
@@ -66,11 +66,7 @@ export function useJdMutations(showAlert: ShowAlert) {
     onError: (error) => alertError(showAlert, error),
   });
 
-  const analyzeJd = useMutation<
-    ApiResponse<{ report: { resume_id: number }; resume_id: number } & Record<string, unknown>>,
-    unknown,
-    number
-  >({
+  const analyzeJd = useMutation<ApiResponse<{ report: AnalysisReport; resume_id: number }>, unknown, number>({
     mutationFn: apiClient.requestResumeAnalysis,
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
