@@ -41,7 +41,6 @@ const resume: Resume = {
   award: [],
   training: [],
   other_activity: [],
-  status: 'done',
   reviewed: false,
   reviewed_at: '',
   created_at: '',

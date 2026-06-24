@@ -2630,7 +2630,8 @@ button,
 
 .jd-checklist-panel-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
 }
@@ -2641,16 +2642,66 @@ button,
   font-size: 15px;
 }
 
+.jd-checklist-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
 .jd-checklist-list {
   display: grid;
   gap: 8px;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
 }
 
-.jd-checklist-list li {
+.jd-checklist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.jd-checklist-content {
   color: var(--text);
   line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.jd-checklist-edit-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.jd-checklist-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.form-field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .jd-checklist-add-form,
+  .jd-checklist-row {
+    grid-template-columns: 1fr;
+  }
+
+  .jd-checklist-row-actions {
+    justify-content: flex-start;
+  }
 }
 
 .jd-editor-form {
@@ -3007,6 +3058,20 @@ button,
   padding: 0 12px 12px !important;
 }
 
+.resume-education-field {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.resume-education-field .ant-form-item {
+  margin-bottom: 0;
+}
+
+.resume-education-field-wide {
+  grid-column: 1 / -1;
+}
+
 .analysis-report-list {
   display: grid;
   gap: calc(var(--layout-gap) / 2);
@@ -3129,6 +3194,26 @@ button,
 .analysis-report-hero h2 {
   font-size: 34px;
   line-height: 1;
+}
+
+.analysis-report-pending-panel {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: var(--section-inner-gap);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.analysis-report-pending-panel h3,
+.analysis-report-pending-panel p {
+  margin: 0;
+}
+
+.analysis-report-pending-panel p {
+  color: var(--muted);
+  line-height: 1.7;
 }
 
 .analysis-report-hero div {
@@ -5013,6 +5098,12 @@ button,
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .resume-education-field,
+  .structured-resume-list-row,
+  .structured-resume-list-row-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .resume-structured-summary-head,
   .jd-checklist-panel-head {
     align-items: flex-start;
@@ -5532,6 +5623,7 @@ button,
 }
 
 .collapsible-editable-list-field,
+.structured-resume-list-field,
 .skill-stack-field {
   display: grid;
   gap: 10px;
@@ -5565,8 +5657,40 @@ button,
 }
 
 .collapsible-editable-list-editor,
+.structured-resume-list-editor,
 .skill-stack-editor {
   width: 100%;
+}
+
+.structured-resume-list-stack {
+  width: 100%;
+}
+
+.structured-resume-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.structured-resume-list-row-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.structured-resume-list-row-fields .ant-form-item {
+  margin-bottom: 0;
+}
+
+.structured-resume-list-field-wide {
+  grid-column: 1 / -1;
 }
 
 .compact-text-list {

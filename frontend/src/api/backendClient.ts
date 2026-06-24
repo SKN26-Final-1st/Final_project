@@ -16,6 +16,7 @@ import {
   parseAnalysisReports,
   parseAuthKey,
   parseAuthKeys,
+  parseChecklist,
   parseChecklists,
   parseCompanyInfo,
   parseInterviewQuestions,
@@ -77,6 +78,16 @@ type ChecklistGetBody = {
   job_description_id: number;
 };
 
+type ChecklistAddBody = {
+  job_description_id: number;
+  content: string;
+};
+
+type ChecklistModifyBody = {
+  id: number;
+  content: string;
+};
+
 type CompanyInfoModifyBody = Partial<Omit<CompanyInfo, 'id'>>;
 
 type JobDescriptionAddBody = {
@@ -120,7 +131,7 @@ type ResumeModifyBody = Partial<Omit<ResumeAddBody, 'job_description_id'>> & {
   delete?: boolean;
 };
 
-type ReportModifyBody = Partial<Omit<AnalysisReport, 'resume_id'>> & {
+type ReportModifyBody = Partial<Omit<AnalysisReport, 'resume_id' | 'status' | 'created_at'>> & {
   id: number;
 };
 
@@ -317,11 +328,7 @@ async function getResumesForJob(jobDescriptionId: number, apiKey?: string) {
 }
 
 async function getReportsForResume(resumeId: number, apiKey?: string) {
-  try {
-    return parseAnalysisReports(await requestBackend<AnalysisReport[]>('report/get', { resume_id: resumeId }, { apiKey }));
-  } catch {
-    return [];
-  }
+  return parseAnalysisReports(await requestBackend<AnalysisReport[]>('report/get', { resume_id: resumeId }, { apiKey }));
 }
 
 async function getDashboardData(): Promise<DashboardPayload> {
@@ -412,6 +419,10 @@ async function requestResumeAnalysisById(resumeId: number): Promise<ResumeAnalys
   };
 }
 
+function getResumeAnalysisMessage(report: AnalysisReport) {
+  return report.status === 'done' ? '지원서 분석을 완료했습니다.' : '지원서 분석 요청이 접수되었습니다.';
+}
+
 function sanitizeAccountModifyBody(body: AccountModifyBody): Record<string, unknown> {
   const allowedBody: Record<string, unknown> = { ...body };
   delete allowedBody.id;
@@ -463,6 +474,30 @@ export const apiClient = {
     const data = parseChecklists(await requestBackend<Checklist[]>('checklist/get', body));
 
     return toApiResponse('체크리스트를 불러왔습니다.', data);
+  },
+
+  generateJdChecklist: async (jdId: number | string) => {
+    const data = parseChecklists(await requestBackend<Checklist[]>('jd/analyze', { id: Number(jdId) }));
+
+    return toApiResponse('체크리스트를 생성했습니다.', data);
+  },
+
+  addChecklist: async (body: ChecklistAddBody) => {
+    const data = parseChecklist(await requestBackend<Checklist>('checklist/add', body));
+
+    return toApiResponse('체크리스트를 추가했습니다.', data);
+  },
+
+  updateChecklist: async (body: ChecklistModifyBody) => {
+    const data = parseChecklist(await requestBackend<Checklist>('checklist/modify', body));
+
+    return toApiResponse('체크리스트를 수정했습니다.', data);
+  },
+
+  deleteChecklist: async (id: number) => {
+    const data = parseChecklist(await requestBackend<Checklist>('checklist/modify', { id, delete: true }));
+
+    return toApiResponse('체크리스트를 삭제했습니다.', data);
   },
 
   getCoverLetterDraft: async () => {
@@ -598,7 +633,7 @@ export const apiClient = {
 
   requestResumeAnalysis: async (resumeId: number) => {
     const data = await requestResumeAnalysisById(resumeId);
-    return toApiResponse('지원서 분석을 완료했습니다.', data);
+    return toApiResponse(getResumeAnalysisMessage(data.report), data);
   },
 
   sendChatMessage: async (

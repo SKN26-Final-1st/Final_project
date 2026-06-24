@@ -7,6 +7,10 @@ import type { JdItem } from '../api/adapters';
 const saveJdMutateAsync = vi.hoisted(() => vi.fn());
 const addJdMutateAsync = vi.hoisted(() => vi.fn());
 const analyzeJdMutateAsync = vi.hoisted(() => vi.fn());
+const generateChecklistMutateAsync = vi.hoisted(() => vi.fn());
+const addChecklistMutateAsync = vi.hoisted(() => vi.fn());
+const updateChecklistMutateAsync = vi.hoisted(() => vi.fn());
+const deleteChecklistMutateAsync = vi.hoisted(() => vi.fn());
 const deleteJdMutateAsync = vi.hoisted(() => vi.fn());
 
 const jdPageData = vi.hoisted(() => ({
@@ -51,8 +55,12 @@ vi.mock('../hooks/mutations/useJdMutations', () => ({
   useJdMutations: () => ({
     addJd: { isPending: false, mutateAsync: addJdMutateAsync },
     analyzeJd: { isPending: false, mutateAsync: analyzeJdMutateAsync },
+    addChecklist: { isPending: false, mutateAsync: addChecklistMutateAsync },
     deleteJd: { isPending: false, mutateAsync: deleteJdMutateAsync },
+    deleteChecklist: { isPending: false, mutateAsync: deleteChecklistMutateAsync },
+    generateChecklist: { isPending: false, mutateAsync: generateChecklistMutateAsync },
     saveJd: { isPending: false, mutateAsync: saveJdMutateAsync },
+    updateChecklist: { isPending: false, mutateAsync: updateChecklistMutateAsync },
   }),
 }));
 
@@ -72,6 +80,21 @@ describe('JdPage', () => {
       error: false,
       message: '저장되었습니다.',
       data: jdPageData.selectedJd,
+    });
+    addChecklistMutateAsync.mockResolvedValue({
+      error: false,
+      message: '체크리스트를 추가했습니다.',
+      data: { id: 2, job_description_id: 1, content: 'TypeScript 이해도 확인' },
+    });
+    updateChecklistMutateAsync.mockResolvedValue({
+      error: false,
+      message: '체크리스트를 수정했습니다.',
+      data: { id: 1, job_description_id: 1, content: 'React 프로젝트 경험 확인' },
+    });
+    deleteChecklistMutateAsync.mockResolvedValue({
+      error: false,
+      message: '체크리스트를 삭제했습니다.',
+      data: checklistData.items[0],
     });
   });
 
@@ -129,7 +152,89 @@ describe('JdPage', () => {
 
     fireEvent.change(screen.getByPlaceholderText('JD명, 업무, 기술 검색'), { target: { value: 'API 서버' } });
 
-    expect(screen.getByRole('button', { name: '백엔드 개발자 JD 선택' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '프론트엔드 개발자 JD 선택' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('백엔드 개발자 JD 선택')).toBeInTheDocument();
+    expect(screen.queryByLabelText('프론트엔드 개발자 JD 선택')).not.toBeInTheDocument();
+  });
+
+  it('선택된 JD의 체크리스트 생성을 요청한다', async () => {
+    const user = userEvent.setup();
+    generateChecklistMutateAsync.mockResolvedValue({
+      error: false,
+      message: '체크리스트를 생성했습니다.',
+      data: checklistData.items,
+    });
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /체크리스트 분석 요청/ }));
+
+    expect(generateChecklistMutateAsync).toHaveBeenCalledWith(1);
+  });
+
+  it('새 체크리스트 항목을 추가한다', async () => {
+    const user = userEvent.setup();
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.type(screen.getByPlaceholderText('체크리스트 항목 입력'), 'TypeScript 이해도 확인');
+    await user.click(screen.getByRole('button', { name: '체크리스트 추가' }));
+
+    expect(addChecklistMutateAsync).toHaveBeenCalledWith({
+      job_description_id: 1,
+      content: 'TypeScript 이해도 확인',
+    });
+  });
+
+  it('빈 체크리스트 항목은 추가하지 않는다', async () => {
+    const user = userEvent.setup();
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: '체크리스트 추가' }));
+
+    expect(screen.getByText('체크리스트 내용을 입력하세요.')).toBeInTheDocument();
+    expect(addChecklistMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('기존 체크리스트 항목을 수정 저장한다', async () => {
+    const user = userEvent.setup();
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 수정' }));
+    const editInput = screen.getByLabelText('React 실무 경험 확인 수정 내용');
+    await user.clear(editInput);
+    await user.type(editInput, 'React 프로젝트 경험 확인');
+    await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 저장' }));
+
+    expect(updateChecklistMutateAsync).toHaveBeenCalledWith({
+      id: 1,
+      job_description_id: 1,
+      content: 'React 프로젝트 경험 확인',
+    });
+  });
+
+  it('빈 체크리스트 수정은 저장하지 않는다', async () => {
+    const user = userEvent.setup();
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 수정' }));
+    await user.clear(screen.getByLabelText('React 실무 경험 확인 수정 내용'));
+    await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 저장' }));
+
+    expect(screen.getByText('체크리스트 내용을 입력하세요.')).toBeInTheDocument();
+    expect(updateChecklistMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('기존 체크리스트 항목을 삭제한다', async () => {
+    const user = userEvent.setup();
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 삭제' }));
+    await user.click(await screen.findByRole('button', { name: '삭제' }));
+
+    expect(deleteChecklistMutateAsync).toHaveBeenCalledWith({ id: 1, job_description_id: 1 });
   });
 });

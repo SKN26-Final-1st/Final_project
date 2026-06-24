@@ -52,7 +52,6 @@ describe('backendSchemas', () => {
           award: [],
           training: [],
           other_activity: [],
-          status: 'onqueue',
           reviewed: false,
           reviewed_at: '',
           created_at: '',
@@ -79,12 +78,16 @@ describe('backendSchemas', () => {
           check_point: [],
           final_comment: '',
           interview_question: [],
+          status: 'done',
+          created_at: '2026-06-24T00:00:00+09:00',
         },
       ])[0],
     ).toMatchObject({
       fit_analysis: 'JD 적합도가 높습니다.',
       motive: '지원 동기가 구체적입니다.',
       collaboration: '협업 경험이 확인됩니다.',
+      status: 'done',
+      created_at: '2026-06-24T00:00:00+09:00',
     });
     expect(parseAuthKeys([])).toEqual([]);
   });
