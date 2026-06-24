@@ -31,6 +31,8 @@ button,
 .ant-card,
 .selection-card,
 .jd-card,
+.cover-letter-list-card,
+.analysis-report-list-card,
 .task-item,
 .sidebar-account-button,
 .sidebar-pin-button,
@@ -3130,6 +3132,51 @@ button,
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.jd-card,
+.cover-letter-list-card,
+.analysis-report-list-card {
+  border-color: var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-soft));
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+.jd-card:hover,
+.jd-card:focus-visible,
+.cover-letter-list-card:hover,
+.cover-letter-list-card:focus-visible,
+.analysis-report-list-card:hover,
+.analysis-report-list-card:focus-visible {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.jd-card.active,
+.cover-letter-list-card.active,
+.analysis-report-list-card.active {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-strong));
+  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
+}
+
+.jd-card:focus-visible,
+.cover-letter-list-card:focus-visible,
+.analysis-report-list-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.cover-letter-list-card.warning:not(.active) {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+}
+
+.cover-letter-list-card.active.warning {
+  background: color-mix(in srgb, var(--primary-soft) 80%, color-mix(in srgb, var(--warning) 12%, var(--surface)));
 }
 
 .analysis-report-list-tags {
@@ -6265,6 +6312,176 @@ button,
 .authkey-delete-value {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.destructive-confirm-modal .ant-modal-content {
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.destructive-confirm-modal .ant-modal-header,
+.destructive-confirm-modal .ant-modal-body,
+.destructive-confirm-modal .ant-modal-footer {
+  padding-inline: 18px;
+}
+
+.destructive-confirm-modal .ant-modal-header {
+  padding-top: 18px;
+  padding-bottom: 8px;
+  background: transparent;
+}
+
+.destructive-confirm-modal .ant-modal-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.destructive-confirm-modal .ant-modal-close {
+  top: 12px;
+  inset-inline-end: 12px;
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+
+.destructive-confirm-modal .ant-modal-close:hover,
+.destructive-confirm-modal .ant-modal-close:focus-visible {
+  color: var(--text);
+  background: var(--surface-soft);
+  outline: 2px solid color-mix(in srgb, var(--primary) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.destructive-confirm-modal .ant-modal-body {
+  padding-top: 8px;
+  padding-bottom: 12px;
+}
+
+.destructive-confirm-modal .ant-modal-footer {
+  padding-top: 8px;
+  padding-bottom: 16px;
+}
+
+.destructive-confirm-modal-content {
+  display: grid;
+  gap: 12px;
+}
+
+.destructive-confirm-modal-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.destructive-confirm-warning {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-soft));
+  color: var(--text);
+}
+
+.destructive-confirm-warning > .anticon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--warning);
+  font-size: 16px;
+}
+
+.destructive-confirm-warning strong,
+.destructive-confirm-warning p {
+  margin: 0;
+}
+
+.destructive-confirm-warning strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.destructive-confirm-warning p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.destructive-confirm-target {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface-soft));
+}
+
+.destructive-confirm-target strong,
+.destructive-confirm-target span,
+.destructive-confirm-target code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.destructive-confirm-target strong {
+  color: var(--text);
+}
+
+.destructive-confirm-target span {
+  color: var(--muted);
+}
+
+.destructive-confirm-target code {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 6px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.destructive-confirm-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.destructive-confirm-modal-footer .ant-btn-default {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-raised) !important;
+}
+
+.destructive-confirm-modal-footer .ant-btn-primary.ant-btn-dangerous {
+  color: #fff;
+  border-color: var(--danger);
+  background: var(--danger) !important;
+  box-shadow: none;
+}
+
+.destructive-confirm-modal-footer .ant-btn-primary.ant-btn-dangerous:not(:disabled):hover,
+.destructive-confirm-modal-footer .ant-btn-primary.ant-btn-dangerous:not(:disabled):focus-visible {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--danger) 78%, #000);
+  background: color-mix(in srgb, var(--danger) 88%, #000) !important;
+}
+
+.destructive-confirm-modal-footer .ant-btn-primary.ant-btn-dangerous:disabled {
+  color: rgba(255, 255, 255, 0.78);
+  border-color: color-mix(in srgb, var(--danger) 44%, var(--border));
+  background: color-mix(in srgb, var(--danger) 58%, var(--surface-soft)) !important;
 }
 
 .admin-credit-panel {

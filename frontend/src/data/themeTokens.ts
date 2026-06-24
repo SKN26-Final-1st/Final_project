@@ -1,0 +1,42 @@
+export const themePalette = {
+  light: {
+    primary: '#2f73f6',
+    primaryStrong: '#1e56d8',
+    primarySoft: '#e9f1ff',
+    accent: '#14b8a6',
+    accentSoft: '#e6fbf7',
+    warning: '#f59e0b',
+    danger: '#ef4444',
+    dark: '#183872',
+    background: '#f4f7ff',
+    card: '#ffffff',
+    surfaceSoft: '#f7faff',
+    text: '#102033',
+    muted: 'rgba(16, 32, 51, 0.64)',
+    border: 'rgba(47, 115, 246, 0.14)',
+    borderStrong: 'rgba(47, 115, 246, 0.28)',
+  },
+  dark: {
+    primary: '#6ea3ff',
+    primaryStrong: '#8fb7ff',
+    primarySoft: 'rgba(110, 163, 255, 0.16)',
+    accent: '#43d9c6',
+    accentSoft: 'rgba(67, 217, 198, 0.13)',
+    warning: '#fbbf24',
+    danger: '#ef4444',
+    dark: '#0d1b35',
+    background: '#0f172a',
+    card: 'rgba(22, 34, 58, 0.92)',
+    surfaceSoft: 'rgba(255, 255, 255, 0.06)',
+    text: '#f8fbff',
+    muted: 'rgba(248, 251, 255, 0.68)',
+    border: 'rgba(255, 255, 255, 0.12)',
+    borderStrong: 'rgba(110, 163, 255, 0.34)',
+  },
+} as const;
+
+export const radiusTokens = {
+  sm: 10,
+  md: 16,
+  lg: 22,
+} as const;
