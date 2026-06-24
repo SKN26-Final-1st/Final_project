@@ -475,7 +475,9 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     }
 
     const response = await analyzeResume.mutateAsync(editingResume.id);
-    navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
+    const reportId = response.data.report.id;
+    const resumeId = response.data.report.resume_id || response.data.resume_id;
+    navigate(reportId ? `/analysis-report?reportId=${reportId}` : `/analysis-report?resumeId=${resumeId}`);
   };
 
   return (
