@@ -26,6 +26,12 @@ type SharedLookupForm = {
   apiKey: string;
 };
 
+const SHARED_REPORT_STATUS_LABEL: Record<AnalysisReport['status'], string> = {
+  onqueue: '분석 대기',
+  processing: '분석 중',
+  done: '분석 완료',
+};
+
 function getInitialResumeId(search: string) {
   const query = new URLSearchParams(search);
   const rawResumeId = query.get('resumeId') ?? query.get('resume_id') ?? '';
@@ -83,6 +89,17 @@ function getSharedChecklist(report: AnalysisReport) {
         })
         .filter((item): item is { content: string; result: boolean } => Boolean(item))
     : [];
+}
+
+function getSharedReportStatus(report: AnalysisReport | undefined) {
+  if (!report) {
+    return { label: '분석 전', color: 'default' };
+  }
+
+  return {
+    label: SHARED_REPORT_STATUS_LABEL[report.status],
+    color: report.status === 'done' ? 'green' : 'gold',
+  };
 }
 
 function formatReportContext(bundle: SharedBundle) {
@@ -172,6 +189,7 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
   };
 
   const report = bundle?.reports[0];
+  const reportStatus = getSharedReportStatus(report);
 
   return (
     <div className="shared-report-page">
@@ -242,7 +260,7 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                       <div>
                         <Space wrap>
                           <Tag color="blue">Resume #{bundle.resume.id}</Tag>
-                          <Tag color={bundle.resume.status === 'done' ? 'green' : 'gold'}>{bundle.resume.status}</Tag>
+                          <Tag color={reportStatus.color}>{reportStatus.label}</Tag>
                         </Space>
                         <Typography.Title level={3}>{bundle.resume.name || '이름 없음'}</Typography.Title>
                       </div>

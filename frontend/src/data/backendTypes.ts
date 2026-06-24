@@ -15,11 +15,11 @@ export type DateTimeString = string;
 
 export type JobDescriptionStatus = 'prepare' | 'on_going' | 'closed';
 
-export type ResumeStatus = 'onqueue' | 'processing' | 'done';
+export type AnalysisReportStatus = 'onqueue' | 'processing' | 'done';
 
 export type StatusCode =
   | JobDescriptionStatus
-  | ResumeStatus
+  | AnalysisReportStatus
   | 'reviewed'
   | 'needs_review'
   | 'subscribe_active'
@@ -96,7 +96,6 @@ export type Resume = {
   award: unknown[];
   training: unknown[];
   other_activity: unknown[];
-  status: ResumeStatus;
   reviewed: boolean;
   reviewed_at: DateTimeString;
   created_at: DateTimeString;
@@ -119,6 +118,8 @@ export type AnalysisReport = {
   check_point: string[];
   final_comment: string;
   interview_question: InterviewQuestion[];
+  status: AnalysisReportStatus;
+  created_at: DateTimeString;
 };
 
 export type InterviewQuestion = {
