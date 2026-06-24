@@ -76,9 +76,9 @@ def analyze_and_save_report(report_id):
             report.save(update_fields=["status"])
 
             inputs = {
-                "company": company_info.to_dict(),
-                "jd": job_description.to_dict(),
-                "resume": resume.to_dict(),
+                "company": company_info.to_masked_dict(),
+                "jd": job_description.to_masked_dict(),
+                "resume": resume.to_masked_dict(),
                 "checklist": list(
                     job_description.checklists.order_by("id").values_list("content", flat=True)
                 ),

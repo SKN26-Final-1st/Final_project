@@ -31,7 +31,7 @@ async def chat(request):
                 return JsonResponse({"error": True, "message": error_code("Chat message must be a string.", 400)}, status=400)
 
         try:
-            job_descriptions = await sync_to_async(get_job_description_dicts)(request)
+            job_descriptions = await sync_to_async(get_job_description_dicts)(request, masked=True)
         except PermissionError as error:
             return JsonResponse({"error": True, "message": error_code(str(error), 403)})
 

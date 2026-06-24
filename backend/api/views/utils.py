@@ -1,8 +1,12 @@
 from ..models import AuthKey, JobDescription
 
 
-def get_job_description_dicts(request):
-    return [job_description.to_dict() for job_description in accessible_job_descriptions(request).order_by("id")]
+def get_job_description_dicts(request, masked=False):
+    serializer = "to_masked_dict" if masked else "to_dict"
+    return [
+        getattr(job_description, serializer)()
+        for job_description in accessible_job_descriptions(request).order_by("id")
+    ]
 
 
 def accessible_job_descriptions(request):

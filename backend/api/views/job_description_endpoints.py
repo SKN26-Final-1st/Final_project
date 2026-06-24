@@ -151,8 +151,8 @@ def _get_jd_analysis_inputs(request, job_description_id):
 
     return {
         "job_description_id": job_description.id,
-        "company": company_info.to_dict(),
-        "jd": job_description.to_dict(),
+        "company": company_info.to_masked_dict(),
+        "jd": job_description.to_masked_dict(),
         "remaining_count": max(0, checklist_service.CHECKLIST_COUNT - checklist_count),
     }
 
