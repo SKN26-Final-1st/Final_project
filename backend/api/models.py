@@ -125,8 +125,6 @@ class CompanyInfo(models.Model):
 
     def to_masked_dict(self):
         return {
-            "id": self.id,
-            "company_name": _value_or_empty_string(self.company_name),
             "employee_count": _value_or_zero(self.employee_count),
             "team_composition": _value_or_empty_list(self.team_composition),
             "company_description": _value_or_empty_string(self.company_description),
@@ -241,7 +239,6 @@ class JobDescription(models.Model):
 
     def to_masked_dict(self):
         return {
-            "id": self.id,
             "job_name": _value_or_empty_string(self.job_name),
             "education_level": _value_or_empty_string(self.education_level),
             "major": _value_or_empty_string(self.major),
@@ -250,10 +247,7 @@ class JobDescription(models.Model):
             "preferred_skill": _value_or_empty_list(self.preferred_skill),
             "main_task": _value_or_empty_string(self.main_task),
             "hiring_reason": _value_or_empty_string(self.hiring_reason),
-            "work_type": _value_or_empty_string(self.work_type),
-            "status": _value_or_empty_string(self.status),
-            "created_at": _datetime_to_iso(self.created_at),
-            "updated_at": _datetime_to_iso(self.updated_at),
+            "work_type": _value_or_empty_string(self.work_type)
         }
 
 
@@ -340,9 +334,6 @@ class Resume(models.Model):
 
     def to_masked_dict(self):
         return {
-            "id": self.id,
-            "job_description_id": _value_or_zero(self.job_description_id),
-            "name": _value_or_empty_string(self.name),
             "skill": _value_or_empty_list(self.skill),
             "education_level": _value_or_empty_dict(self.education_level),
             "experience": _value_or_empty_list(self.experience),
@@ -351,11 +342,7 @@ class Resume(models.Model):
             "language": _value_or_empty_list(self.language),
             "award": _value_or_empty_list(self.award),
             "training": _value_or_empty_list(self.training),
-            "other_activity": _value_or_empty_list(self.other_activity),
-            "reviewed": _value_or_false(self.reviewed),
-            "reviewed_at": _datetime_to_iso(self.reviewed_at),
-            "created_at": _datetime_to_iso(self.created_at),
-            "updated_at": _datetime_to_iso(self.updated_at),
+            "other_activity": _value_or_empty_list(self.other_activity)
         }
 
 
