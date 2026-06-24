@@ -14,6 +14,10 @@ on:
 
   workflow_dispatch:
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -60,7 +64,8 @@ jobs:
             --parameters 'commands=[
               "set -e",
               "sudo mkdir -p /var/www/app/frontend",
-              "sudo aws s3 sync s3://${{ secrets.S3_DEPLOY_BUCKET }}/frontend/ /var/www/app/frontend/ --delete",
+              "sudo aws s3 sync s3://${{ secrets.S3_DEPLOY_BUCKET }}/frontend/ /var/www/app/frontend/ --delete --exact-timestamps",
+              "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/frontend/index.html /var/www/app/frontend/index.html",
               "sudo aws s3 cp s3://${{ secrets.S3_DEPLOY_BUCKET }}/nginx/frontend.conf /etc/nginx/conf.d/frontend.conf",
               "sudo nginx -t",
               "sudo systemctl enable nginx",
