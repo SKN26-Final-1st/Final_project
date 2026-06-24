@@ -11,6 +11,7 @@ import {
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import { themePalette } from './themeTokens';
 
 export type AppRoute =
   | '/dashboard'
@@ -42,14 +43,7 @@ export type ChatMessage = {
   text: string;
 };
 
-export const palette = {
-  primary: '#2F73F6',
-  accent: '#14B8A6',
-  dark: '#183872',
-  background: '#F4F7FF',
-  card: '#FFFFFF',
-  text: '#102033',
-};
+export const palette = themePalette.light;
 
 export const mainMenu: MenuItem[] = [
   {
