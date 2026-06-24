@@ -9,6 +9,7 @@ import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
 import { palette, type AppRoute } from './data/appConfig';
+import { radiusTokens } from './data/themeTokens';
 import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthSession } from './hooks/useAuthSession';
@@ -56,21 +57,21 @@ export default function App() {
         colorBgBase: mode === 'dark' ? palette.text : palette.background,
         colorTextBase: mode === 'dark' ? palette.card : palette.text,
         fontFamily: '"Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif',
-        borderRadius: 12,
+        borderRadius: radiusTokens.md,
       },
       components: {
         Card: {
-          borderRadiusLG: 22,
+          borderRadiusLG: radiusTokens.lg,
         },
         Button: {
-          borderRadius: 12,
+          borderRadius: radiusTokens.sm + 2,
           controlHeight: 40,
         },
         Input: {
-          borderRadius: 12,
+          borderRadius: radiusTokens.sm + 2,
         },
         Select: {
-          borderRadius: 12,
+          borderRadius: radiusTokens.sm + 2,
         },
       },
     }),
