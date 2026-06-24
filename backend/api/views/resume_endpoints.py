@@ -1,18 +1,15 @@
 import json
 
-from asgiref.sync import sync_to_async
-from django.db import transaction
 from django.http import JsonResponse
 
-from common import report as report_service
-
-from ..models import AnalysisReport, AuthKey, CompanyInfo, JobDescription, Resume
+from ..models import AnalysisReport, AuthKey, JobDescription, Resume
+from ..tasks import analyze_and_save_report, enqueue_report_analyze, is_celery_worker_available
 from .columns import RESUME_ADD_ALLOWED_FIELDS, RESUME_ADD_BLOCKED_FIELDS, RESUME_MODIFY_BLOCKED_FIELDS
 from .error_code import error_code
 from .utils import editable_model_fields
 
 
-def _get_analysis_inputs(request, resume_id):
+def _get_analysis_resume(request, resume_id):
     if request.user.is_authenticated:
         resumes = Resume.objects.select_related(
             "job_description",
@@ -43,90 +40,69 @@ def _get_analysis_inputs(request, resume_id):
     except Resume.DoesNotExist:
         return None
 
-    job_description = resume.job_description
-    company_info, _ = CompanyInfo.objects.get_or_create(account=job_description.account)
-
-    resume.status = Resume.STATUS_PROCESSING
-    resume.save(update_fields=["status", "updated_at"])
-
-    checklist = list(
-        job_description.checklists.order_by("id").values_list("content", flat=True)
-    )
-
-    return {
-        "resume_id": resume.id,
-        "resume": resume.to_dict(),
-        "company": company_info.to_dict(),
-        "jd": job_description.to_dict(),
-        "checklist": checklist,
-    }
+    return resume
 
 
-def _save_analysis_result(resume_id, report_data):
-    question_items = report_data.get("question") or []
-    interview_question = [
-        {
-            "question": item.get("question", ""),
-            "answer": item.get("answer", ""),
-            "purpose": item.get("purpose", ""),
-        }
-        for item in question_items
-        if item.get("question")
-    ]
+def resume_analyze(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
-    with transaction.atomic():
+        data = json.loads(request.body or "{}")
+        resume_id = data.get("id")
+
+        if not resume_id:
+            return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
+
+        try:
+            resume = _get_analysis_resume(request, resume_id)
+        except PermissionError as error:
+            return JsonResponse({"error": True, "message": error_code(str(error), 403)}, status=400)
+
+        if resume is None:
+            return JsonResponse({"error": True, "message": error_code("Resume does not exist.", 400)}, status=400)
+
+        celery_worker_available = is_celery_worker_available()
+
         report = AnalysisReport.objects.create(
-            resume_id=resume_id,
-            overall_grade=report_data.get("overall_grade", ""),
-            overall_summary=report_data.get("overall_summary", ""),
-            candidate_summary=report_data.get("candidate_summary", ""),
-            checklist=report_data.get("checklist", []),
-            competency_analysis=report_data.get("competency_analysis", []),
-            fit_analysis=report_data.get("fit_analysis", ""),
-            motive=report_data.get("motive", ""),
-            collaboration=report_data.get("collaboration", ""),
-            strength=report_data.get("strength", []),
-            concern=report_data.get("concern", []),
-            check_point=report_data.get("check_point", []),
-            interview_question=interview_question,
-            final_comment=report_data.get("final_comment", ""),
+            resume=resume,
+            overall_grade="",
+            overall_summary="",
+            candidate_summary="",
+            checklist=[],
+            competency_analysis=[],
+            fit_analysis="",
+            motive="",
+            collaboration="",
+            strength=[],
+            concern=[],
+            check_point=[],
+            interview_question=[],
+            final_comment="",
+            status=AnalysisReport.STATUS_ONQUEUE,
         )
 
-        Resume.objects.filter(id=resume_id).update(status=Resume.STATUS_DONE)
+        if not celery_worker_available:
+            saved_result = analyze_and_save_report(report.id)
 
-    return report.to_dict()
+            if saved_result is None:
+                return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
 
+            return JsonResponse({"error": False, "data": saved_result})
 
-async def _resume_analyze_async(request):
-    if request.method != "POST":
-        return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+        try:
+            enqueue_report_analyze.delay(report.id)
+        except Exception:
+            saved_result = analyze_and_save_report(report.id)
 
-    data = json.loads(request.body or "{}")
-    resume_id = data.get("id")
+            if saved_result is None:
+                return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
 
-    if not resume_id:
-        return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
+            return JsonResponse({"error": False, "data": saved_result})
 
-    try:
-        inputs = await sync_to_async(_get_analysis_inputs)(request, resume_id)
-    except PermissionError as error:
-        return JsonResponse({"error": True, "message": error_code(str(error), 403)}, status=400)
-
-    if inputs is None:
-        return JsonResponse({"error": True, "message": error_code("Resume does not exist.", 400)}, status=400)
-
-    analysis_result = await sync_to_async(report_service.invoke, thread_sensitive=False)(
-        company_dict=inputs["company"],
-        jd_dict=inputs["jd"],
-        checklist=inputs["checklist"],
-        resume_dict=inputs["resume"],
-    )
-    saved_result = await sync_to_async(_save_analysis_result)(
-        inputs["resume_id"],
-        analysis_result,
-    )
-
-    return JsonResponse({"error": False, "data": saved_result})
+        return JsonResponse({"error": False, "data": report.to_dict()})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
 def resume_add(request):
@@ -276,12 +252,5 @@ def resume_modify(request):
         resume.save()
 
         return JsonResponse({"error": False, "data": resume.to_dict()})
-    except Exception as error:
-        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
-
-
-async def resume_analyze(request):
-    try:
-        return await _resume_analyze_async(request)
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)

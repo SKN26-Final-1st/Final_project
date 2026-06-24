@@ -25,6 +25,10 @@
 
 후순위 MVP 라우트는 `appConfig.tsx`에서 `mvpStatus: 'planned'`, `visibleInNav: false`로 nav에서 숨깁니다. `activeMainMenu`는 이 항목을 제외합니다.
 
+## 뷰포트 고정 레이아웃
+
+`/dashboard`부터 `/mypage`까지 주요 보호 화면(인증 라우트·`/shared` 제외)은 루트에 `viewport-page` 클래스를 사용해 셸 높이 안에서 내부 스크롤만 허용합니다. CSS 규칙과 QA 스크립트는 [디자인 시스템](design-system.md)을 참고하세요.
+
 ## 인증 라우트
 
 `/login`, `/signup`, `/password-reset`은 `authRoutes`로 분리되어 `AppShell` 없이 `AuthScreen`을 사용합니다. 각 페이지 구현은 `frontend/src/pages/auth/`에 있고, `frontend/src/pages/AuthPages.tsx`는 `App.tsx`용 re-export barrel입니다. 근거: `frontend/src/utils/routes.ts`, `frontend/src/components/layout/AuthScreen.tsx`, `frontend/src/pages/AuthPages.tsx`
@@ -50,6 +54,6 @@
 
 ## 관련 문서
 
-- [컴포넌트 구조](components.md)
+- [디자인 시스템](design-system.md)
 - [채용 운영 워크스페이스](../08-features/recruiting-workspace.md)
 - [프론트엔드 API 연동 README](../../frontend/README.md)

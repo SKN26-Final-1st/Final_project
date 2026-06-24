@@ -106,6 +106,6 @@ node scripts/verify-live-django-api.mjs
 
 ## 관련 문서
 
-- [프론트엔드 스타일과 QA](../03-frontend/styling-and-qa.md)
+- [프론트엔드 디자인 시스템](../03-frontend/design-system.md)
 - [배포와 인프라](../09-deployment/deployment.md)
 - [프론트엔드 API 연동 README](../../frontend/README.md)

@@ -24,9 +24,7 @@
 - [프론트엔드 개요](03-frontend/overview.md)
 - [페이지와 라우트](03-frontend/pages-and-routes.md)
 - [상태와 API 어댑터](03-frontend/state-and-api-adapters.md)
-- [컴포넌트 구조](03-frontend/components.md)
 - [디자인 시스템](03-frontend/design-system.md)
-- [스타일과 QA](03-frontend/styling-and-qa.md)
 
 ## 04. 백엔드
 
@@ -43,6 +41,7 @@
 ## 06. API
 
 - [API 레퍼런스](06-api/api-reference.md)
+- [프론트 API ID 매핑](06-api/frontend-api-id-map.md)
 
 ## 07. AI 모델링
 

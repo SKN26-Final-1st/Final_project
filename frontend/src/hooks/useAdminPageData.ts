@@ -6,6 +6,7 @@ export function useAdminPageData() {
   return {
     admin: data?.admin,
     authKeys: data?.authKeys ?? [],
+    jdList: data?.jdList ?? [],
     resumes: data?.resumes ?? [],
   };
 }

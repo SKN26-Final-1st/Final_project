@@ -13,11 +13,16 @@
 
 역할:
 
-- JD 선택
-- 지원자명과 자기소개 문항/답변 확인
-- 지원서 추가·수정·삭제 (`addResume`, `saveResume`, `deleteResume`)
+- JD 선택 (`selectedJdId`)
+- 지원서 목록에서 행 선택 (`selectedResumeId`, `CoverLetterUploadPanel`)
+- 지원자명과 자기소개 문항/답변 확인·편집 (`CoverLetterInputPanel`)
+- 신규 작성 모드(`isCreatingCoverLetter`)와 기존 지원서 수정 모드 분리
+- 지원서 추가·수정·삭제 (`useResumeMutations` → `addResume`, `saveResume`, `deleteResume`)
+- 삭제 확인 모달 (`CoverLetterDeleteModal`) — 삭제 후 선택 id를 인접 항목으로 재지정
 - 분석 요청
 - 분석 완료 후 `/chat` 이동 버튼 표시
+
+선택 상태는 `useCoverLetterPageData`가 관리합니다. override가 없으면 첫 JD·첫 지원서를 기본 선택합니다. 근거: `frontend/src/hooks/useCoverLetterPageData.ts`, `frontend/src/pages/CoverLetterPage.tsx`
 
 ## 분석 요청
 
@@ -30,9 +35,10 @@
 - `POST /api/resume/analyze/` with `{ id: resumeId }`
 - 응답 `data`는 `AnalysisReport.to_dict()` (면접 질문은 `interview_question` 필드)
 
-프론트 미반영:
+프론트 처리:
 
-- `backendClient.ts`는 아직 `resume/analize/`를 호출하고 `{report, questions}` shape를 파싱합니다. 근거: `frontend/src/api/backendClient.ts`, `backend/api/urls.py`
+- `backendClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다.
+- 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다. 근거: `frontend/src/api/backendClient.ts`, `backend/api/urls.py`
 
 백엔드 구현:
 
@@ -66,7 +72,7 @@
 프론트 표시:
 
 - `mapAnalysisReport()`가 리포트 탭을 생성합니다.
-- `exampleQuestions`는 아직 별도 `InterviewQuestion[]` 배열에서 `resume_id`로 필터링합니다. 백엔드가 `report.interview_question`만 제공하므로, 프론트 어댑터 연동 수정이 필요합니다.
+- `exampleQuestions`는 `report.interview_question`에서 생성된 `InterviewQuestion[]` 배열을 `resume_id`로 필터링합니다.
 - `mapTemplateQuestions()`가 면접 질문을 문항/가이드로 변환합니다.
 
 근거: `frontend/src/api/adapters.ts`, `backend/api/models.py`
@@ -90,4 +96,5 @@
 ## 관련 문서
 
 - [분석 파이프라인](../04-backend/analysis-pipeline.md)
+- [프론트 API ID 매핑](../06-api/frontend-api-id-map.md)
 - [모델 파이프라인](../07-ai-modeling/model-pipeline.md)

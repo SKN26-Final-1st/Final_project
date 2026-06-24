@@ -257,15 +257,6 @@ class Checklist(models.Model):
 
 
 class Resume(models.Model):
-    STATUS_ONQUEUE = "onqueue"
-    STATUS_PROCESSING = "processing"
-    STATUS_DONE = "done"
-    STATUS_CHOICES = [
-        (STATUS_ONQUEUE, "On queue"),
-        (STATUS_PROCESSING, "Processing"),
-        (STATUS_DONE, "Done"),
-    ]
-
     id = models.BigAutoField(primary_key=True)
 
     job_description = models.ForeignKey(
@@ -288,11 +279,6 @@ class Resume(models.Model):
     training = models.JSONField(null=True, blank=True)
     other_activity = models.JSONField(null=True, blank=True)
 
-    status = models.CharField(
-        max_length=30,
-        choices=STATUS_CHOICES,
-        default=STATUS_ONQUEUE,
-    )
     reviewed = models.BooleanField(default=False)
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
@@ -319,7 +305,6 @@ class Resume(models.Model):
             "award": _value_or_empty_list(self.award),
             "training": _value_or_empty_list(self.training),
             "other_activity": _value_or_empty_list(self.other_activity),
-            "status": _value_or_empty_string(self.status),
             "reviewed": _value_or_false(self.reviewed),
             "reviewed_at": _datetime_to_iso(self.reviewed_at),
             "created_at": _datetime_to_iso(self.created_at),
@@ -328,6 +313,15 @@ class Resume(models.Model):
 
 
 class AnalysisReport(models.Model):
+    STATUS_ONQUEUE = "onqueue"
+    STATUS_PROCESSING = "processing"
+    STATUS_DONE = "done"
+    STATUS_CHOICES = [
+        (STATUS_ONQUEUE, "On queue"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_DONE, "Done"),
+    ]
+
     id = models.BigAutoField(primary_key=True)
 
     resume = models.ForeignKey(
@@ -352,6 +346,12 @@ class AnalysisReport(models.Model):
     interview_question = models.JSONField(default=list, blank=True)
 
     final_comment = models.TextField(null=True, blank=True)
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default=STATUS_ONQUEUE,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "analysis_reports"
@@ -376,6 +376,8 @@ class AnalysisReport(models.Model):
             "check_point": _value_or_empty_list(self.check_point),
             "interview_question": self.get_interview_question(),
             "final_comment": _value_or_empty_string(self.final_comment),
+            "status": _value_or_empty_string(self.status),
+            "created_at": _datetime_to_iso(self.created_at),
         }
 
     def get_interview_question(self):

@@ -1,13 +1,16 @@
-import { Button, List, Select, Tag, type SelectProps } from 'antd';
+import { Button, List, Tag } from 'antd';
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { InlineLoading } from '../common/InlineLoading';
 import type { AuthKey } from '../../data/backendTypes';
 import { maskAuthKeyValue } from './authKeyUtils';
+import { AuthKeyAccessTree, type AuthKeyAccessGroup } from './AuthKeyAccessTree';
+
+export type { AuthKeyAccessGroup, AuthKeyAccessResumeOption } from './AuthKeyAccessTree';
 
 type AuthKeyListProps = {
   authKeys: AuthKey[];
   loadingKey: string | null;
-  resumeOptions: SelectProps<number[]>['options'];
+  accessGroups: AuthKeyAccessGroup[];
   getAuthorizedResumeIds: (authKey: AuthKey) => number[];
   updateAuthorizedDraft: (id: number, nextIds: number[]) => void;
   saveAuthorizedResumes: (authKey: AuthKey) => void;
@@ -21,7 +24,7 @@ function formatNumber(value: number) {
 export function AuthKeyList({
   authKeys,
   loadingKey,
-  resumeOptions,
+  accessGroups,
   getAuthorizedResumeIds,
   updateAuthorizedDraft,
   saveAuthorizedResumes,
@@ -37,51 +40,50 @@ export function AuthKeyList({
         const deleteKey = `authkey-delete-${authKey.id}`;
 
         return (
-          <List.Item
-            actions={[
-              <Button
-                key="save"
-                icon={loadingKey === saveKey ? undefined : <SaveOutlined />}
-                disabled={loadingKey === saveKey}
-                onClick={() => saveAuthorizedResumes(authKey)}
-              >
-                {loadingKey === saveKey ? <InlineLoading label="저장 중" /> : '저장'}
-              </Button>,
-              <Button
-                danger
-                key="delete"
-                icon={<DeleteOutlined />}
-                disabled={loadingKey === deleteKey}
-                onClick={() => deleteAuthKey(authKey)}
-              >
-                삭제
-              </Button>,
-            ]}
-          >
-            <List.Item.Meta
-              title={
-                <div className="authkey-meta">
-                  <strong className="authkey-name">{authKey.name}</strong>
-                  <div className="authkey-tags">
-                    <Tag className="authkey-value-tag">{maskAuthKeyValue(authKey.value)}</Tag>
-                    <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
-                    <Tag color={authKey.authorized_resume.length ? 'green' : 'default'}>
-                      허용 지원서 {authKey.authorized_resume.length}건
-                    </Tag>
-                  </div>
+          <List.Item>
+            <div className="authkey-item-content">
+              <div className="authkey-item-header">
+                <List.Item.Meta
+                  title={
+                    <div className="authkey-meta">
+                      <strong className="authkey-name">{authKey.name}</strong>
+                      <div className="authkey-tags">
+                        <Tag className="authkey-value-tag">{maskAuthKeyValue(authKey.value)}</Tag>
+                        <Tag color="geekblue">한도 {formatNumber(authKey.credit_limit)}pt</Tag>
+                        <Tag color={authKey.authorized_resume.length ? 'green' : 'default'}>
+                          허용 지원서 {authKey.authorized_resume.length}건
+                        </Tag>
+                      </div>
+                    </div>
+                  }
+                  description={<span className="authkey-description">{authKey.description || '설명 없음'}</span>}
+                />
+                <div className="authkey-item-actions" aria-label={`${authKey.name} API key 작업`}>
+                  <Button
+                    icon={loadingKey === saveKey ? undefined : <SaveOutlined />}
+                    disabled={loadingKey === saveKey}
+                    onClick={() => saveAuthorizedResumes(authKey)}
+                  >
+                    {loadingKey === saveKey ? <InlineLoading label="저장 중" /> : '저장'}
+                  </Button>
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    disabled={loadingKey === deleteKey}
+                    onClick={() => deleteAuthKey(authKey)}
+                  >
+                    삭제
+                  </Button>
                 </div>
-              }
-              description={<span className="authkey-description">{authKey.description || '설명 없음'}</span>}
-            />
-            <Select
-              mode="multiple"
-              allowClear
-              className="authkey-resume-select"
-              placeholder="허용할 지원서 선택"
-              options={resumeOptions}
-              value={getAuthorizedResumeIds(authKey)}
-              onChange={(nextIds) => updateAuthorizedDraft(authKey.id, nextIds)}
-            />
+              </div>
+              <AuthKeyAccessTree
+                authKeyId={authKey.id}
+                authKeyName={authKey.name}
+                groups={accessGroups}
+                selectedIds={getAuthorizedResumeIds(authKey)}
+                onChange={(nextIds) => updateAuthorizedDraft(authKey.id, nextIds)}
+              />
+            </div>
           </List.Item>
         );
       }}

@@ -15,7 +15,7 @@ JOB_DESCRIPTION_ADD_BLOCKED_FIELDS = JOB_DESCRIPTION_BLOCKED_FIELDS
 CHECKLIST_BLOCKED_FIELDS = {"id", "job_description", "job_description_id"}
 CHECKLIST_ADD_ALLOWED_FIELDS = {"job_description_id", "content"}
 
-RESUME_BLOCKED_FIELDS = {"id", "created_at", "updated_at", "status", "reviewed", "reviewed_at"}
+RESUME_BLOCKED_FIELDS = {"id", "created_at", "updated_at", "reviewed", "reviewed_at"}
 RESUME_ADD_BLOCKED_FIELDS = RESUME_BLOCKED_FIELDS
 RESUME_ADD_ALLOWED_FIELDS = {
     "job_description_id",
@@ -32,4 +32,4 @@ RESUME_ADD_ALLOWED_FIELDS = {
 }
 RESUME_MODIFY_BLOCKED_FIELDS = RESUME_BLOCKED_FIELDS | {"job_description", "job_description_id"}
 
-REPORT_BLOCKED_FIELDS = {"id", "resume", "resume_id"}
+REPORT_BLOCKED_FIELDS = {"id", "resume", "resume_id", "status"}
