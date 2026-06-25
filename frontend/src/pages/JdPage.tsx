@@ -15,6 +15,7 @@ import { useJdPageData } from '../hooks/useJdPageData';
 import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useJdMutations } from '../hooks/mutations/useJdMutations';
 import type { Navigate, ShowAlert } from '../types/app';
+import { getStoredApiKey } from '../utils/apiKeySession';
 import { pageSectionGutter } from '../utils/layout';
 import { toTrimmedStringList } from '../utils/stringList';
 
@@ -91,8 +92,10 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     saveJd,
     updateChecklist,
   } = useJdMutations(showAlert);
+  const isApiKeyMode = Boolean(getStoredApiKey());
+  const canCreateJd = !isApiKeyMode;
   const isEmptyJdList = jdList.length === 0;
-  const isCreateMode = isCreatingJd || isEmptyJdList;
+  const isCreateMode = canCreateJd && (isCreatingJd || isEmptyJdList);
   const editorInitialValues = useMemo(
     () => (isCreateMode ? EMPTY_JD_EDITOR_VALUES : selectedJd ? toJdEditorValues(selectedJd) : undefined),
     [isCreateMode, selectedJd],
@@ -147,6 +150,11 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   }, [form, isCreateMode, selectedJd]);
 
   const startCreateJd = () => {
+    if (!canCreateJd) {
+      showAlert({ type: 'info', message: 'API Key 모드에서는 새 JD를 등록할 수 없습니다.' });
+      return;
+    }
+
     setIsCreatingJd(true);
     form.setFieldsValue(EMPTY_JD_EDITOR_VALUES);
   };
@@ -176,6 +184,11 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     form.setFields([{ name: 'required_skill', errors: [] }]);
 
     if (isCreateMode) {
+      if (!canCreateJd) {
+        showAlert({ type: 'info', message: 'API Key 모드에서는 새 JD를 등록할 수 없습니다.' });
+        return;
+      }
+
       const response = await addJd.mutateAsync(normalizedValues);
       setIsCreatingJd(false);
       setSelectedJdId(String(response.data.id));
@@ -220,8 +233,10 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
 
       if (nextJd) {
         setSelectedJdId(nextJd.id);
-      } else {
+      } else if (canCreateJd) {
         startCreateJd();
+      } else {
+        setSelectedJdId(null);
       }
     }
   };
@@ -288,9 +303,11 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
             className="scroll-card-body"
             title="JD 목록"
             extra={
-              <Button size="small" icon={<PlusOutlined />} onClick={startCreateJd}>
-                새 JD 작성
-              </Button>
+              canCreateJd ? (
+                <Button size="small" icon={<PlusOutlined />} onClick={startCreateJd}>
+                  새 JD 작성
+                </Button>
+              ) : null
             }
           >
             <p className="list-panel-hint">JD를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
@@ -320,7 +337,11 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
                 )}
               </>
             ) : (
-              <JdListEmptyState />
+              isApiKeyMode ? (
+                <EmptyState description="API Key로 접근 가능한 JD가 없습니다." />
+              ) : (
+                <JdListEmptyState />
+              )
             )}
           </SectionCard>
         </Col>
