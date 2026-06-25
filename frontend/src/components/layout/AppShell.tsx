@@ -4,13 +4,17 @@ import { MobileShellHeader, SidebarNav } from './SidebarNav';
 import type { UserProfile } from '../../api/adapters';
 import type { AppRoute } from '../../data/appConfig';
 import type { Navigate, ShowAlert, ThemeMode } from '../../types/app';
+import type { AuthMode } from '../../utils/apiKeySession';
 
 const { Content } = Layout;
 
 type AppShellProps = {
+  allowedRoutes?: AppRoute[];
+  authMode?: AuthMode;
   route: AppRoute;
   children: ReactNode;
   assistantFab?: ReactNode;
+  homeRoute?: AppRoute;
   mode: ThemeMode;
   themeSwitch: ReactNode;
   creditPercent: number;
@@ -21,9 +25,12 @@ type AppShellProps = {
 };
 
 export function AppShell({
+  allowedRoutes,
+  authMode,
   route,
   children,
   assistantFab,
+  homeRoute,
   mode,
   themeSwitch,
   creditPercent,
@@ -35,6 +42,9 @@ export function AppShell({
   return (
     <Layout className="shell">
       <SidebarNav
+        allowedRoutes={allowedRoutes}
+        authMode={authMode}
+        homeRoute={homeRoute}
         route={route}
         mode={mode}
         creditPercent={creditPercent}
@@ -46,6 +56,9 @@ export function AppShell({
       />
       <Layout>
         <MobileShellHeader
+          allowedRoutes={allowedRoutes}
+          authMode={authMode}
+          homeRoute={homeRoute}
           route={route}
           mode={mode}
           creditPercent={creditPercent}
