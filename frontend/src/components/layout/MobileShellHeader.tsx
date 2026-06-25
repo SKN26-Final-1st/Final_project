@@ -7,10 +7,21 @@ import type { NavigationProps } from './navigationTypes';
 import { getInitials } from './navigationUtils';
 
 export function MobileShellHeader(props: NavigationProps) {
-  const { route, mode, creditPercent, profile, themeSwitch, navigate, showAlert } = props;
+  const {
+    allowedRoutes,
+    authMode,
+    homeRoute = '/dashboard',
+    route,
+    mode,
+    creditPercent,
+    profile,
+    themeSwitch,
+    navigate,
+    showAlert,
+  } = props;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const displayName = profile?.displayName ?? '채용 담당자';
+  const displayName = authMode === 'apiKey' ? 'API Key 사용자' : profile?.displayName ?? '채용 담당자';
 
   return (
     <>
@@ -18,7 +29,7 @@ export function MobileShellHeader(props: NavigationProps) {
         <button type="button" className="mobile-nav-trigger" onClick={() => setDrawerOpen(true)} aria-label="메뉴 열기">
           <MenuOutlined />
         </button>
-        <button type="button" className="mobile-brand-logo" onClick={() => navigate('/dashboard')} aria-label="대시보드로 이동">
+        <button type="button" className="mobile-brand-logo" onClick={() => navigate(homeRoute)} aria-label="홈으로 이동">
           <img src={mode === 'dark' ? '/assets/humour-logo-dark.png' : '/assets/humour-logo-light.png'} alt="HumouR" />
         </button>
         <Popover
@@ -31,6 +42,7 @@ export function MobileShellHeader(props: NavigationProps) {
           content={
             <AccountMenu
               creditPercent={creditPercent}
+              authMode={authMode}
               profile={profile}
               themeSwitch={themeSwitch}
               navigate={navigate}
@@ -66,15 +78,20 @@ export function MobileShellHeader(props: NavigationProps) {
           className="brand-button mobile-drawer-brand"
           onClick={() => {
             setDrawerOpen(false);
-            navigate('/dashboard');
+            navigate(homeRoute);
           }}
-          aria-label="대시보드로 이동"
+          aria-label="홈으로 이동"
         >
           <img src={mode === 'dark' ? '/assets/humour-logo-dark.png' : '/assets/humour-logo-light.png'} alt="HumouR" />
         </button>
         <div className="side-section mobile-drawer-menu">
           <span className="side-label">Main menu</span>
-          <MenuItems route={route} navigate={navigate} onNavigate={() => setDrawerOpen(false)} />
+          <MenuItems
+            allowedRoutes={allowedRoutes}
+            route={route}
+            navigate={navigate}
+            onNavigate={() => setDrawerOpen(false)}
+          />
         </div>
       </Drawer>
     </>
