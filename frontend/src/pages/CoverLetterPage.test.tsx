@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverLetterPage } from './CoverLetterPage';
@@ -16,15 +16,47 @@ const resume: Resume = {
   job_description_id: 10,
   name: '홍길동',
   skill: [' React ', '   ', 'TypeScript'],
-  education_level: {},
-  experience: [' 인턴 6개월 ', ''],
+  education_level: {
+    final_degree: 'bachelor',
+    bachelor: '한국대학교',
+    master: '',
+    doctoral: '',
+  },
+  experience: [
+    {
+      company_name: ' 휴머 ',
+      length: ' 6개월 ',
+      position: ' 인턴 ',
+      experience_description: ' 데이터 분석 업무 ',
+    },
+    {
+      company_name: '   ',
+      length: '',
+      position: '',
+      experience_description: '',
+    },
+  ],
   self_intoduction: [{ question: '지원 동기', answer: '답변' }],
   certification: [' SQLD ', ' '],
-  language: [' 영어 OPIC IH ', ''],
-  award: [' 해커톤 우수상 ', ''],
-  training: [' AI 부트캠프 ', ''],
-  other_activity: [' 오픈소스 기여 ', ''],
-  status: 'onqueue',
+  language: [{ language_name: ' 영어 ', test_name: ' OPIC ', score: ' IH ' }],
+  award: [{ award_name: ' 해커톤 우수상 ', award_from: ' 서울시 ', time: ' 2024 ' }],
+  training: [
+    {
+      education_name: ' AI 부트캠프 ',
+      education_from: ' 패스트캠퍼스 ',
+      education_description: ' 프로젝트 교육 ',
+      start: ' 2024-01 ',
+      end: ' 2024-03 ',
+    },
+  ],
+  other_activity: [
+    {
+      activity_name: ' 오픈소스 기여 ',
+      activity_description: ' 문서 개선 ',
+      start: ' 2023-01 ',
+      end: ' 2023-12 ',
+    },
+  ],
   reviewed: false,
   reviewed_at: '',
   created_at: '',
@@ -92,7 +124,7 @@ describe('CoverLetterPage', () => {
     coverLetterPageData.coverRows = [];
   });
 
-  it('저장할 때 기술 스택 배열의 빈 항목을 제거하고 공백을 정리한다', async () => {
+  it('저장할 때 이력서 구조화 필드를 목업 JSON 구조로 정리한다', async () => {
     saveResumeMutateAsync.mockResolvedValue({
       error: false,
       message: '저장되었습니다.',
@@ -109,12 +141,41 @@ describe('CoverLetterPage', () => {
         expect.objectContaining({
           id: 1,
           skill: ['React', 'TypeScript'],
-          experience: ['인턴 6개월'],
+          education_level: {
+            final_degree: 'bachelor',
+            bachelor: '한국대학교',
+            master: '',
+            doctoral: '',
+          },
+          experience: [
+            {
+              company_name: '휴머',
+              length: '6개월',
+              position: '인턴',
+              experience_description: '데이터 분석 업무',
+            },
+          ],
+          self_intoduction: [{ question: '지원 동기', answer: '답변' }],
           certification: ['SQLD'],
-          language: ['영어 OPIC IH'],
-          award: ['해커톤 우수상'],
-          training: ['AI 부트캠프'],
-          other_activity: ['오픈소스 기여'],
+          language: [{ language_name: '영어', test_name: 'OPIC', score: 'IH' }],
+          award: [{ award_name: '해커톤 우수상', award_from: '서울시', time: '2024' }],
+          training: [
+            {
+              education_name: 'AI 부트캠프',
+              education_from: '패스트캠퍼스',
+              education_description: '프로젝트 교육',
+              start: '2024-01',
+              end: '2024-03',
+            },
+          ],
+          other_activity: [
+            {
+              activity_name: '오픈소스 기여',
+              activity_description: '문서 개선',
+              start: '2023-01',
+              end: '2023-12',
+            },
+          ],
         }),
       );
     });
@@ -139,7 +200,7 @@ describe('CoverLetterPage', () => {
     render(<CoverLetterPage navigate={vi.fn()} showAlert={vi.fn()} />);
 
     expect(screen.getByText('구조화 이력 요약')).toBeInTheDocument();
-    expect(screen.getByText('영어 OPIC IH')).toBeInTheDocument();
+    expect(screen.getByText('영어 · OPIC · IH')).toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 분석 상태 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 검토 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 JD 필터')).not.toBeInTheDocument();
@@ -197,11 +258,12 @@ describe('CoverLetterPage', () => {
 
     fireEvent.change(searchInput, { target: { value: '분' } });
 
-    expect(screen.getByRole('group', { name: '자소서 추천검색어' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '분석 대기' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '분석 중' })).toBeInTheDocument();
+    const suggestionGroup = screen.getByRole('group', { name: '자소서 추천검색어' });
+    expect(suggestionGroup).toBeInTheDocument();
+    expect(within(suggestionGroup).getByRole('button', { name: '분석 대기' })).toBeInTheDocument();
+    expect(within(suggestionGroup).getByRole('button', { name: '분석 중' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '분석 완료' }));
+    fireEvent.click(within(suggestionGroup).getByRole('button', { name: '분석 완료' }));
 
     expect(screen.getByLabelText('김백엔드 자소서 선택')).toBeInTheDocument();
     expect(screen.getByLabelText('이완료 자소서 선택')).toBeInTheDocument();
@@ -209,7 +271,7 @@ describe('CoverLetterPage', () => {
     expect(screen.queryByLabelText('최처리 자소서 선택')).not.toBeInTheDocument();
     expect(searchInput).toHaveValue('분석 완료');
     expect(screen.queryByRole('group', { name: '선택된 자소서 추천검색어' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '분석 완료' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(screen.getByRole('group', { name: '자소서 추천검색어' })).getByRole('button', { name: '분석 완료' })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.change(searchInput, { target: { value: '분석 완료, React' } });
 
@@ -218,13 +280,13 @@ describe('CoverLetterPage', () => {
     expect(screen.queryByLabelText('김백엔드 자소서 선택')).not.toBeInTheDocument();
 
     fireEvent.change(searchInput, { target: { value: '분석 완료, 검' } });
-    fireEvent.click(screen.getByRole('button', { name: '검토 완료' }));
+    fireEvent.click(within(screen.getByRole('group', { name: '자소서 추천검색어' })).getByRole('button', { name: '검토 완료' }));
 
     expect(searchInput).toHaveValue('분석 완료, 검토 완료');
     expect(screen.getByLabelText('김백엔드 자소서 선택')).toBeInTheDocument();
     expect(screen.queryByLabelText('이완료 자소서 선택')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '검토 완료' }));
+    fireEvent.click(within(screen.getByRole('group', { name: '자소서 추천검색어' })).getByRole('button', { name: '검토 완료' }));
 
     expect(searchInput).toHaveValue('분석 완료');
     expect(screen.getByLabelText('김백엔드 자소서 선택')).toBeInTheDocument();

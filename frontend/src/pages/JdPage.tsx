@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Form, Input, Row, Space } from 'antd';
 import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { JdChecklistPanel } from '../components/jd/JdChecklistPanel';
 import { JdDeleteModal } from '../components/jd/JdDeleteModal';
 import { JdEditorPanel, type JdEditorFormValues } from '../components/jd/JdEditorPanel';
 import { JdListEmptyState } from '../components/jd/JdListEmptyState';
@@ -80,7 +81,16 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   const [deleteTargetJd, setDeleteTargetJd] = useState<JdItem | null>(null);
   const [jdSearchText, setJdSearchText] = useState('');
   const { jdList, resumes, selectedJdId, selectedJd, setSelectedJdId } = useJdPageData();
-  const { addJd, analyzeJd, deleteJd, saveJd } = useJdMutations(showAlert);
+  const {
+    addChecklist,
+    addJd,
+    analyzeJd,
+    deleteChecklist,
+    deleteJd,
+    generateChecklist,
+    saveJd,
+    updateChecklist,
+  } = useJdMutations(showAlert);
   const isEmptyJdList = jdList.length === 0;
   const isCreateMode = isCreatingJd || isEmptyJdList;
   const editorInitialValues = useMemo(
@@ -226,7 +236,17 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     }
 
     const response = await analyzeJd.mutateAsync(analysisTargetResume.id);
-    navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
+    const reportId = response.data.report.id;
+    const resumeId = response.data.report.resume_id || response.data.resume_id;
+    navigate(reportId ? `/analysis-report?reportId=${reportId}` : `/analysis-report?resumeId=${resumeId}`);
+  };
+
+  const requestChecklistGeneration = async () => {
+    if (!selectedJd) {
+      return;
+    }
+
+    await generateChecklist.mutateAsync(Number(selectedJd.id));
   };
 
   return (
@@ -257,7 +277,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
               title={analysisDisabledReason}
               onClick={() => void requestAnalysis()}
             >
-              {analyzeJd.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}
+              {analyzeJd.isPending ? <InlineLoading label="분석 중" /> : '지원서 분석 요청'}
             </Button>
           </Space>
         }
@@ -315,23 +335,19 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
                   mode={isCreateMode ? 'create' : 'edit'}
                 />
                 {!isCreateMode && selectedJd ? (
-                  <section className="jd-checklist-panel">
-                    <div className="jd-checklist-panel-head">
-                      <h3>JD 체크리스트</h3>
-                      <span className="muted">선택한 JD 기준 항목</span>
-                    </div>
-                    {checklistQuery.isLoading ? (
-                      <InlineLoading label="체크리스트 로딩 중" />
-                    ) : checklistQuery.data?.length ? (
-                      <ul className="jd-checklist-list">
-                        {checklistQuery.data.map((item) => (
-                          <li key={item.id}>{item.content}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="muted">등록된 체크리스트가 없습니다.</p>
-                    )}
-                  </section>
+                  <JdChecklistPanel
+                    adding={addChecklist.isPending}
+                    deleting={deleteChecklist.isPending}
+                    generating={generateChecklist.isPending}
+                    items={checklistQuery.data ?? []}
+                    jobDescriptionId={Number(selectedJd.id)}
+                    loading={checklistQuery.isLoading}
+                    updating={updateChecklist.isPending}
+                    onAdd={addChecklist.mutateAsync}
+                    onDelete={deleteChecklist.mutateAsync}
+                    onGenerate={requestChecklistGeneration}
+                    onUpdate={updateChecklist.mutateAsync}
+                  />
                 ) : null}
               </>
             ) : (

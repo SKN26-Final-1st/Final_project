@@ -85,7 +85,6 @@ export const resumeSchema = z.object({
   award: unknownArraySchema,
   training: unknownArraySchema,
   other_activity: unknownArraySchema,
-  status: z.enum(['onqueue', 'processing', 'done']),
   reviewed: z.boolean(),
   reviewed_at: z.string(),
   created_at: z.string(),
@@ -116,12 +115,15 @@ export const analysisReportSchema = z.object({
   check_point: stringArraySchema,
   final_comment: z.string(),
   interview_question: z.array(interviewQuestionSchema).default([]),
+  status: z.enum(['onqueue', 'processing', 'done']),
+  created_at: z.string(),
 }) satisfies z.ZodType<AnalysisReport>;
 
 export const parseAccount = (value: unknown) => accountSchema.parse(value);
 export const parseCompanyInfo = (value: unknown) => companyInfoSchema.parse(value);
 export const parseAuthKey = (value: unknown) => authKeySchema.parse(value);
 export const parseAuthKeys = (value: unknown) => z.array(authKeySchema).parse(value);
+export const parseChecklist = (value: unknown) => checklistSchema.parse(value);
 export const parseChecklists = (value: unknown) => z.array(checklistSchema).parse(value);
 export const parseJobDescription = (value: unknown) => jobDescriptionSchema.parse(value);
 export const parseJobDescriptions = (value: unknown) => z.array(jobDescriptionSchema).parse(value);

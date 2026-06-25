@@ -4,6 +4,14 @@ import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icon
 import {
   CoverLetterInputPanel,
   type CoverLetterInputFormValues,
+  type AwardFormValue,
+  type EducationDegree,
+  type EducationLevelFormValue,
+  type ExperienceFormValue,
+  type LanguageFormValue,
+  type OtherActivityFormValue,
+  type SelfIntroductionFormValue,
+  type TrainingFormValue,
 } from '../components/cover-letter/CoverLetterInputPanel';
 import { CoverLetterDeleteModal } from '../components/cover-letter/CoverLetterDeleteModal';
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
@@ -41,6 +49,19 @@ const COVER_SEARCH_SUGGESTIONS = [
 
 const COVER_ANALYSIS_STATUS_SUGGESTIONS = ['분석 대기', '분석 중', '분석 완료'];
 const COVER_REVIEW_STATUS_SUGGESTIONS = ['미검토', '검토 완료'];
+const VALID_DEGREES = new Set<EducationDegree>(['', 'bachelor', 'master', 'doctoral']);
+const EMPTY_EDUCATION_LEVEL: EducationLevelFormValue = {
+  final_degree: '',
+  bachelor: '',
+  master: '',
+  doctoral: '',
+};
+const EXPERIENCE_KEYS = ['company_name', 'length', 'position', 'experience_description'] as const;
+const SELF_INTRODUCTION_KEYS = ['question', 'answer'] as const;
+const LANGUAGE_KEYS = ['language_name', 'test_name', 'score'] as const;
+const AWARD_KEYS = ['award_name', 'award_from', 'time'] as const;
+const TRAINING_KEYS = ['education_name', 'education_from', 'education_description', 'start', 'end'] as const;
+const OTHER_ACTIVITY_KEYS = ['activity_name', 'activity_description', 'start', 'end'] as const;
 
 function normalizeSearchText(value: unknown) {
   return String(value ?? '').trim().toLowerCase();
@@ -60,28 +81,6 @@ function compareRecent(left?: string, right?: string) {
   const leftTime = left ? new Date(left).getTime() : 0;
   const rightTime = right ? new Date(right).getTime() : 0;
   return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
-}
-
-function getSelfIntroduction(resume: Resume | null) {
-  const [firstIntro] = Array.isArray(resume?.self_intoduction) ? resume.self_intoduction : [];
-
-  if (firstIntro && typeof firstIntro === 'object' && !Array.isArray(firstIntro)) {
-    const intro = firstIntro as Record<string, unknown>;
-    return {
-      question: typeof intro.question === 'string' ? intro.question : '',
-      answer: typeof intro.answer === 'string' ? intro.answer : '',
-    };
-  }
-
-  if (typeof firstIntro === 'string') {
-    const [question = '', ...answerParts] = firstIntro.split(/\n\s*\n/);
-    return {
-      question: question.trim(),
-      answer: answerParts.join('\n\n').trim(),
-    };
-  }
-
-  return { question: '', answer: '' };
 }
 
 function matchesCoverSuggestion(row: CoverLetterRow, suggestion: string) {
@@ -149,40 +148,149 @@ function toStringArray(value: unknown[] | undefined) {
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
-function toEducationSummary(value: Record<string, unknown> | undefined) {
-  if (!value || !Object.keys(value).length) {
-    return '';
+function toCleanString(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasAnyRecordValue(value: Record<string, string>) {
+  return Object.values(value).some((item) => item.trim());
+}
+
+function normalizeDegree(value: unknown): EducationDegree {
+  const degree = toCleanString(value) as EducationDegree;
+  return VALID_DEGREES.has(degree) ? degree : '';
+}
+
+function normalizeRecord<T extends Record<string, string>>(
+  value: unknown,
+  keys: readonly (keyof T & string)[],
+): T {
+  const record = isRecord(value) ? value : {};
+
+  return keys.reduce((result, key) => {
+    result[key] = toCleanString(record[key]) as T[keyof T & string];
+    return result;
+  }, {} as T);
+}
+
+function normalizeEducationLevel(value: Record<string, unknown> | undefined): EducationLevelFormValue {
+  const record = isRecord(value) ? value : {};
+  const normalized: EducationLevelFormValue = {
+    final_degree: normalizeDegree(record.final_degree),
+    bachelor: toCleanString(record.bachelor),
+    master: toCleanString(record.master),
+    doctoral: toCleanString(record.doctoral),
+  };
+  const summary = toCleanString(record.summary);
+
+  return summary ? { ...normalized, summary } : normalized;
+}
+
+function normalizeObjectList<T extends Record<string, string>>(
+  value: unknown[] | undefined,
+  keys: readonly (keyof T & string)[],
+  legacyFactory: (text: string) => T,
+): T[] {
+  if (!Array.isArray(value)) {
+    return [];
   }
 
-  const summary = value.summary;
-  if (typeof summary === 'string') {
-    return summary;
+  return value
+    .map((item) => (isRecord(item) ? normalizeRecord<T>(item, keys) : legacyFactory(toCleanString(item))))
+    .filter(hasAnyRecordValue);
+}
+
+function normalizeSelfIntroductions(value: unknown[] | undefined): SelfIntroductionFormValue[] {
+  if (!Array.isArray(value)) {
+    return [];
   }
 
-  return Object.entries(value)
-    .map(([key, nextValue]) => `${key}: ${String(nextValue)}`)
-    .join(', ');
+  return value
+    .map((item) => {
+      if (isRecord(item)) {
+        return normalizeRecord<SelfIntroductionFormValue>(item, SELF_INTRODUCTION_KEYS);
+      }
+
+      const text = toCleanString(item);
+      const [question = '', ...answerParts] = text.split(/\n\s*\n/);
+      return {
+        question: question.trim(),
+        answer: answerParts.join('\n\n').trim(),
+      };
+    })
+    .filter(hasAnyRecordValue);
+}
+
+function cleanObjectList<T extends Record<string, string>>(
+  value: T[] | undefined,
+  keys: readonly (keyof T & string)[],
+): T[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => normalizeRecord<T>(item, keys)).filter(hasAnyRecordValue);
+}
+
+function cleanEducationLevel(value: EducationLevelFormValue | undefined): EducationLevelFormValue {
+  const normalized = normalizeEducationLevel(value as Record<string, unknown> | undefined);
+  const summary = toCleanString(normalized.summary);
+
+  return summary ? { ...normalized, summary } : normalized;
+}
+
+function withDefaultSelfIntroduction(value: SelfIntroductionFormValue[]) {
+  return value.length ? value : [{ question: '', answer: '' }];
 }
 
 function toCoverLetterInitialValues(
   selectedJdId: string | null,
   currentResume: Resume | null,
 ): CoverLetterInputFormValues {
-  const intro = getSelfIntroduction(currentResume);
-
   return {
     job_description_id: currentResume?.job_description_id ?? (selectedJdId ? Number(selectedJdId) : undefined),
     name: currentResume?.name ?? '',
     skill: toStringArray(currentResume?.skill),
-    education_level_text: toEducationSummary(currentResume?.education_level),
-    experience: toStringArray(currentResume?.experience),
-    question: intro.question,
-    answer: intro.answer,
+    education_level: normalizeEducationLevel(currentResume?.education_level),
+    experience: normalizeObjectList<ExperienceFormValue>(currentResume?.experience, EXPERIENCE_KEYS, (text) => ({
+      company_name: '',
+      length: '',
+      position: '',
+      experience_description: text,
+    })),
+    self_intoduction: withDefaultSelfIntroduction(normalizeSelfIntroductions(currentResume?.self_intoduction)),
     certification: toStringArray(currentResume?.certification),
-    language: toStringArray(currentResume?.language),
-    award: toStringArray(currentResume?.award),
-    training: toStringArray(currentResume?.training),
-    other_activity: toStringArray(currentResume?.other_activity),
+    language: normalizeObjectList<LanguageFormValue>(currentResume?.language, LANGUAGE_KEYS, (text) => ({
+      language_name: text,
+      test_name: '',
+      score: '',
+    })),
+    award: normalizeObjectList<AwardFormValue>(currentResume?.award, AWARD_KEYS, (text) => ({
+      award_name: text,
+      award_from: '',
+      time: '',
+    })),
+    training: normalizeObjectList<TrainingFormValue>(currentResume?.training, TRAINING_KEYS, (text) => ({
+      education_name: text,
+      education_from: '',
+      education_description: '',
+      start: '',
+      end: '',
+    })),
+    other_activity: normalizeObjectList<OtherActivityFormValue>(
+      currentResume?.other_activity,
+      OTHER_ACTIVITY_KEYS,
+      (text) => ({
+        activity_name: text,
+        activity_description: '',
+        start: '',
+        end: '',
+      }),
+    ),
   };
 }
 
@@ -191,10 +299,9 @@ function toEmptyCoverLetterValues(selectedJdId: string | null): CoverLetterInput
     job_description_id: selectedJdId ? Number(selectedJdId) : undefined,
     name: '',
     skill: [],
-    education_level_text: '',
+    education_level: { ...EMPTY_EDUCATION_LEVEL },
     experience: [],
-    question: '',
-    answer: '',
+    self_intoduction: [{ question: '', answer: '' }],
     certification: [],
     language: [],
     award: [],
@@ -216,6 +323,10 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     [resumes, selectedResumeId],
   );
   const editingResume = isCreatingCoverLetter ? null : currentResume;
+  const currentCoverRow = useMemo(
+    () => coverRows.find((row) => row.key === selectedResumeId) ?? null,
+    [coverRows, selectedResumeId],
+  );
   const initialValues = useMemo(
     () =>
       isCreatingCoverLetter
@@ -226,7 +337,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const hasCurrentResume = Boolean(editingResume);
   const isEditMode = Boolean(editingResume);
   const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter);
-  const analysisDone = editingResume?.status === 'done';
+  const analysisDone = currentCoverRow?.resumeStatus === 'done' || currentCoverRow?.statusCode === 'done';
   const selectedCoverSuggestions = useMemo(
     () => getSelectedSuggestionLabels(coverSearchText, COVER_SEARCH_SUGGESTIONS),
     [coverSearchText],
@@ -330,19 +441,20 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     const payload = {
       name: values.name,
       skill: toTrimmedStringList(allValues.skill ?? values.skill ?? []),
-      education_level: values.education_level_text ? { summary: values.education_level_text } : {},
-      experience: toTrimmedStringList(allValues.experience ?? values.experience ?? []),
-      self_intoduction: [
-        {
-          question: values.question,
-          answer: values.answer,
-        },
-      ],
+      education_level: cleanEducationLevel(allValues.education_level ?? values.education_level),
+      experience: cleanObjectList<ExperienceFormValue>(allValues.experience ?? values.experience, EXPERIENCE_KEYS),
+      self_intoduction: cleanObjectList<SelfIntroductionFormValue>(
+        allValues.self_intoduction ?? values.self_intoduction,
+        SELF_INTRODUCTION_KEYS,
+      ),
       certification: toTrimmedStringList(allValues.certification ?? values.certification ?? []),
-      language: toTrimmedStringList(allValues.language ?? values.language ?? []),
-      award: toTrimmedStringList(allValues.award ?? values.award ?? []),
-      training: toTrimmedStringList(allValues.training ?? values.training ?? []),
-      other_activity: toTrimmedStringList(allValues.other_activity ?? values.other_activity ?? []),
+      language: cleanObjectList<LanguageFormValue>(allValues.language ?? values.language, LANGUAGE_KEYS),
+      award: cleanObjectList<AwardFormValue>(allValues.award ?? values.award, AWARD_KEYS),
+      training: cleanObjectList<TrainingFormValue>(allValues.training ?? values.training, TRAINING_KEYS),
+      other_activity: cleanObjectList<OtherActivityFormValue>(
+        allValues.other_activity ?? values.other_activity,
+        OTHER_ACTIVITY_KEYS,
+      ),
     };
 
     if (editingResume) {
@@ -363,7 +475,9 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     }
 
     const response = await analyzeResume.mutateAsync(editingResume.id);
-    navigate(`/analysis-report?resumeId=${response.data.report.resume_id || response.data.resume_id}`);
+    const reportId = response.data.report.id;
+    const resumeId = response.data.report.resume_id || response.data.resume_id;
+    navigate(reportId ? `/analysis-report?reportId=${reportId}` : `/analysis-report?resumeId=${resumeId}`);
   };
 
   return (

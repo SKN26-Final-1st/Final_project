@@ -1,6 +1,7 @@
 import type {
   Account,
   AnalysisReport,
+  AnalysisReportStatus,
   CompanyInfo,
   JobDescription,
   InterviewQuestion,
@@ -130,7 +131,7 @@ export type CoverLetterRow = {
   updatedAtIso?: string;
   reviewed: boolean;
   jdId?: string;
-  resumeStatus?: Resume['status'];
+  resumeStatus?: StatusCode;
 };
 
 export type AnalysisReportData = {
@@ -157,7 +158,7 @@ export type TemplateQuestion = {
   guide: string;
 };
 
-const RESUME_STATUS_LABEL: Record<Resume['status'], string> = {
+const ANALYSIS_STATUS_LABEL: Record<AnalysisReportStatus, string> = {
   onqueue: '분석 대기',
   processing: '분석 중',
   done: '분석 완료',
@@ -227,8 +228,33 @@ function findJob(jobDescriptions: JobDescription[], resume: Resume) {
   return jobDescriptions.find((job) => job.id === resume.job_description_id);
 }
 
-function findReport(analysisReports: AnalysisReport[], resume: Resume) {
-  return analysisReports.find((report) => report.resume_id === resume.id);
+function reportTime(report: AnalysisReport) {
+  const time = report.created_at ? new Date(report.created_at).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function compareReportRecent(left: AnalysisReport, right: AnalysisReport) {
+  const timeDiff = reportTime(right) - reportTime(left);
+  return timeDiff || right.id - left.id;
+}
+
+function findLatestReport(analysisReports: AnalysisReport[], resume: Resume) {
+  return analysisReports
+    .filter((report) => report.resume_id === resume.id)
+    .sort(compareReportRecent)[0];
+}
+
+function latestReportsByResume(analysisReports: AnalysisReport[]) {
+  const reportsByResume = new Map<number, AnalysisReport>();
+
+  analysisReports.forEach((report) => {
+    const current = reportsByResume.get(report.resume_id);
+    if (!current || compareReportRecent(report, current) < 0) {
+      reportsByResume.set(report.resume_id, report);
+    }
+  });
+
+  return reportsByResume;
 }
 
 function formatList(items: string[]) {
@@ -277,12 +303,16 @@ function formatDateTime(isoDate: string) {
   }).format(date);
 }
 
-function mapResumeStatus(resume: Resume): { label: string; code: StatusCode } {
-  if (resume.reviewed) {
-    return { label: '검토 완료', code: 'reviewed' };
+function mapAnalysisStatus(report?: AnalysisReport): { label: string; code: StatusCode } {
+  if (!report) {
+    return { label: '분석 전', code: 'normal' };
   }
 
-  return { label: RESUME_STATUS_LABEL[resume.status], code: resume.status };
+  return { label: ANALYSIS_STATUS_LABEL[report.status], code: report.status };
+}
+
+function isActiveAnalysis(report?: AnalysisReport) {
+  return report?.status === 'onqueue' || report?.status === 'processing';
 }
 
 function getFirstIntro(resume?: Resume | null) {
@@ -301,12 +331,12 @@ function getFirstIntro(resume?: Resume | null) {
 }
 
 export function mapDashboard(data: DashboardSource): DashboardData {
-  const reportsByResume = new Map(data.analysis_reports.map((report) => [report.resume_id, report]));
+  const reportsByResume = latestReportsByResume(data.analysis_reports);
   const applicantScores = data.resumes.map((resume) => gradeToScore(reportsByResume.get(resume.id)?.overall_grade));
   const averageScore = average(applicantScores);
   const activeJobs = data.job_descriptions.filter((job) => job.status === 'on_going').length;
   const reviewedCount = data.resumes.filter((resume) => resume.reviewed).length;
-  const processingCount = data.resumes.filter((resume) => resume.status === 'processing').length;
+  const processingCount = data.resumes.filter((resume) => isActiveAnalysis(reportsByResume.get(resume.id))).length;
   const unreviewedCount = data.resumes.length - reviewedCount;
   const employStyle = toStringList(data.company_info.employ_style);
 
@@ -340,16 +370,17 @@ export function mapDashboard(data: DashboardSource): DashboardData {
     applicants: data.resumes.map((resume) => {
       const job = findJob(data.job_descriptions, resume);
       const report = reportsByResume.get(resume.id);
-      const status = mapResumeStatus(resume);
+      const status = mapAnalysisStatus(report);
+      const hasDoneGrade = report?.status === 'done' && Boolean(report.overall_grade);
 
       return {
         key: String(resume.id),
         name: resume.name,
         role: job?.job_name ?? '연결된 JD 없음',
         fit: gradeToScore(report?.overall_grade),
-        stage: RESUME_STATUS_LABEL[resume.status],
-        status: report ? `${report.overall_grade} 등급` : status.label,
-        statusCode: report ? gradeToStatusCode(report.overall_grade) : status.code,
+        stage: status.label,
+        status: hasDoneGrade ? `${report.overall_grade} 등급` : status.label,
+        statusCode: hasDoneGrade ? gradeToStatusCode(report.overall_grade) : status.code,
       };
     }),
     insightCards: [
@@ -390,12 +421,12 @@ export function mapDashboard(data: DashboardSource): DashboardData {
 }
 
 export function mapAdmin(data: DashboardSource): AdminData {
-  const reportsByResume = new Map(data.analysis_reports.map((report) => [report.resume_id, report]));
+  const reportsByResume = latestReportsByResume(data.analysis_reports);
   const applicantScores = data.resumes.map((resume) => gradeToScore(reportsByResume.get(resume.id)?.overall_grade));
   const averageScore = average(applicantScores);
   const activeJobs = data.job_descriptions.filter((job) => job.status === 'on_going').length;
   const pendingReviews = data.resumes.filter((resume) => !resume.reviewed).length;
-  const processingResumes = data.resumes.filter((resume) => resume.status === 'processing').length;
+  const processingResumes = data.resumes.filter((resume) => isActiveAnalysis(reportsByResume.get(resume.id))).length;
   const creditPercent = creditToPercent(data.account.credit);
   const teams = toStringList(data.company_info.team_composition);
 
@@ -513,8 +544,8 @@ export function mapCoverLetterRows(
 ): CoverLetterRow[] {
   return data.map((resume) => {
     const job = findJob(jobDescriptions, resume);
-    const report = findReport(analysisReports, resume);
-    const status = mapResumeStatus(resume);
+    const report = findLatestReport(analysisReports, resume);
+    const status = mapAnalysisStatus(report);
 
     return {
       key: String(resume.id),
@@ -529,7 +560,7 @@ export function mapCoverLetterRows(
       updatedAtIso: resume.updated_at,
       reviewed: resume.reviewed,
       jdId: job ? String(job.id) : String(resume.job_description_id),
-      resumeStatus: resume.status,
+      resumeStatus: status.code,
     };
   });
 }

@@ -133,7 +133,6 @@ async function mockBackend(page) {
       award: [],
       training: [],
       other_activity: [],
-      status: 'done',
       reviewed: false,
       reviewed_at: '',
       created_at: '2026-01-03',
@@ -157,6 +156,8 @@ async function mockBackend(page) {
     concern: ['복잡한 데이터 시각화 경험은 추가 확인 필요', '장기 운영 경험 확인 필요'],
     check_point: Array.from({ length: 6 }, (_, index) => `확인 포인트 ${index + 1}: 실제 프로젝트에서 맡은 역할을 질문하세요.`),
     final_comment: '전반적으로 JD와 잘 맞는 지원자이며, 면접에서는 운영 화면 유지보수 경험을 깊게 확인하는 것이 좋습니다.',
+    status: 'done',
+    created_at: '2026-01-04',
   };
   const questions = Array.from({ length: 8 }, (_, index) => ({
     id: index + 1,

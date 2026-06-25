@@ -1,10 +1,20 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalysisReportPage } from './AnalysisReportPage';
 import type { JdItem } from '../api/adapters';
 import type { AnalysisReport, Resume } from '../data/backendTypes';
 import type { AnalysisReportItem } from '../hooks/useAnalysisReportPageData';
+
+const saveReport = vi.hoisted(() => vi.fn());
+const setSelectedReportId = vi.hoisted(() => vi.fn());
+const reloadData = vi.hoisted(() => vi.fn());
+
+vi.mock('../api/backendClient', () => ({
+  apiClient: {
+    saveReport,
+  },
+}));
 
 const resume: Resume = {
   id: 1,
@@ -19,7 +29,6 @@ const resume: Resume = {
   award: [],
   training: [],
   other_activity: [],
-  status: 'done',
   reviewed: false,
   reviewed_at: '',
   created_at: '',
@@ -64,6 +73,8 @@ const report: AnalysisReport = {
     { id: 3, resume_id: 1, question: '질문 3', answer: '답변 3', purpose: '의도 3' },
     { id: 4, resume_id: 1, question: '질문 4', answer: '답변 4', purpose: '의도 4' },
   ],
+  status: 'done',
+  created_at: '2026-06-24T00:00:00+09:00',
 };
 
 const selectedItem: AnalysisReportItem = {
@@ -71,6 +82,21 @@ const selectedItem: AnalysisReportItem = {
   resume,
   jd,
   questions: report.interview_question,
+};
+
+const firstResumeSecondReport: AnalysisReport = {
+  ...report,
+  id: 6,
+  overall_grade: 'B',
+  overall_summary: '두 번째 리포트 요약',
+  created_at: '2026-06-24T14:03:00+09:00',
+};
+
+const firstResumeSecondItem: AnalysisReportItem = {
+  report: firstResumeSecondReport,
+  resume,
+  jd,
+  questions: firstResumeSecondReport.interview_question,
 };
 
 const secondResume: Resume = {
@@ -166,16 +192,76 @@ const fourthItem: AnalysisReportItem = {
   questions: fourthReport.interview_question,
 };
 
+const processingResume: Resume = {
+  ...resume,
+  id: 5,
+  job_description_id: 50,
+  name: '이처리',
+};
+
+const processingJd: JdItem = {
+  ...jd,
+  id: '50',
+  title: '처리 JD',
+};
+
+const processingReport: AnalysisReport = {
+  ...report,
+  id: 5,
+  resume_id: 5,
+  overall_grade: '',
+  overall_summary: '',
+  candidate_summary: '',
+  competency_analysis: [],
+  fit_analysis: '',
+  motive: '',
+  collaboration: '',
+  strength: [],
+  concern: [],
+  check_point: [],
+  final_comment: '',
+  interview_question: [],
+  status: 'processing',
+  created_at: '2026-06-24T00:00:00+09:00',
+};
+
+const processingItem: AnalysisReportItem = {
+  report: processingReport,
+  resume: processingResume,
+  jd: processingJd,
+  questions: [],
+};
+
 vi.mock('../hooks/useAnalysisReportPageData', () => ({
   useAnalysisReportPageData: () => ({
-    reportItems: [selectedItem, secondItem, thirdItem, fourthItem],
+    reportItems: [selectedItem, firstResumeSecondItem, secondItem, thirdItem, fourthItem, processingItem],
+    reportTreeItems: [
+      { resume, jd, reports: [firstResumeSecondItem, selectedItem] },
+      { resume: secondResume, jd: secondJd, reports: [secondItem] },
+      { resume: thirdResume, jd: thirdJd, reports: [thirdItem] },
+      { resume: fourthResume, jd: fourthJd, reports: [fourthItem] },
+      { resume: processingResume, jd: processingJd, reports: [processingItem] },
+    ],
+    reloadData,
+    refreshing: false,
     selectedItem,
+    selectedReportId: '1',
     selectedReportResumeId: '1',
-    setSelectedReportResumeId: vi.fn(),
+    setSelectedReportId,
+    setSelectedReportResumeId: setSelectedReportId,
   }),
 }));
 
 describe('AnalysisReportPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    saveReport.mockResolvedValue({
+      error: false,
+      message: '분석 리포트를 저장했습니다.',
+      data: report,
+    });
+  });
+
   it('긴 리포트 배열 섹션은 일부만 먼저 보여주고 전체 보기로 펼친다', async () => {
     const user = userEvent.setup();
 
@@ -221,8 +307,55 @@ describe('AnalysisReportPage', () => {
 
     await user.type(screen.getByPlaceholderText('지원자, JD, 질문 검색'), 'Django');
 
-    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /홍길동/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /홍길동/ })).not.toBeInTheDocument();
+  });
+
+  it('지원자 하위에 여러 리포트를 트리로 보여주고 reportId 단위로 선택한다', async () => {
+    const user = userEvent.setup();
+
+    render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    const tree = screen.getByRole('tree', { name: '리포트 트리' });
+    const hongReports = within(tree).getByRole('group', { name: '홍길동 리포트' });
+
+    expect(within(tree).getAllByText('홍길동')).toHaveLength(1);
+    expect(within(hongReports).getByRole('button', { name: /리포트 1/ })).toBeInTheDocument();
+    expect(within(hongReports).getByRole('button', { name: /리포트 2/ })).toBeInTheDocument();
+
+    await user.click(within(hongReports).getByRole('button', { name: /리포트 1/ }));
+
+    expect(setSelectedReportId).toHaveBeenCalledWith('6');
+  });
+
+  it('완료된 리포트를 수정 저장할 때 report/modify payload에 허용 필드만 보낸다', async () => {
+    const user = userEvent.setup();
+
+    render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: /리포트 수정/ }));
+    const summaryInput = screen.getByLabelText('전체 평가 요약 수정');
+    await user.clear(summaryInput);
+    await user.type(summaryInput, '수정한 전체 요약');
+    await user.click(screen.getByRole('button', { name: /리포트 저장/ }));
+
+    expect(saveReport).toHaveBeenCalledTimes(1);
+    const payload = saveReport.mock.calls[0][0];
+    expect(payload).toEqual(expect.objectContaining({ id: 1, overall_summary: '수정한 전체 요약' }));
+    expect(payload).not.toEqual(expect.objectContaining({ resume_id: 1 }));
+    expect(payload).not.toEqual(expect.objectContaining({ status: 'done' }));
+    expect(payload).not.toEqual(expect.objectContaining({ delete: true }));
+    expect(reloadData).toHaveBeenCalled();
+  });
+
+  it('진행 중 리포트는 N/A 등급 대신 분석 상태를 표시한다', () => {
+    render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    const processingReports = screen.getByRole('group', { name: '이처리 리포트' });
+    const processingCard = within(processingReports).getByRole('button', { name: /분석 중/ });
+
+    expect(within(processingCard).getByText('분석 중')).toBeInTheDocument();
+    expect(within(processingCard).queryByText(/N\/A/)).not.toBeInTheDocument();
   });
 
   it('입력 기반 추천검색어를 여러 개 선택해 리포트 목록을 좁히고 해제한다', () => {
@@ -244,27 +377,27 @@ describe('AnalysisReportPage', () => {
     expect(searchInput).toHaveValue('A/B 등급');
     expect(screen.queryByRole('group', { name: '선택된 리포트 추천검색어' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'A/B 등급' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /홍길동/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /윤무질문/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /박운영/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /윤무질문/ })).toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /박운영/ })).not.toBeInTheDocument();
 
     fireEvent.change(searchInput, { target: { value: 'A/B 등급, 질' } });
     expect(screen.getByRole('button', { name: '질문 있음' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '질문 있음' }));
 
     expect(searchInput).toHaveValue('A/B 등급, 질문 있음');
-    expect(screen.getByRole('button', { name: /홍길동/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /윤무질문/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /박운영/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /윤무질문/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /박운영/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '질문 있음' }));
 
     expect(searchInput).toHaveValue('A/B 등급');
-    expect(screen.getByRole('button', { name: /홍길동/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /김백엔드/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /윤무질문/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /박운영/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /김백엔드/ })).toBeInTheDocument();
+    expect(screen.getByRole('treeitem', { name: /윤무질문/ })).toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /박운영/ })).not.toBeInTheDocument();
   });
 });
