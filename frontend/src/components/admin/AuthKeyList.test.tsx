@@ -127,6 +127,7 @@ describe('AuthKeyList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '외부 면접관 공유 지원서 접근 범위 열기' }));
 
+    expect(screen.getByText('JD 선택 시 현재 등록된 지원서만 접근 범위에 포함됩니다.')).toBeInTheDocument();
     expect(screen.getByText('일부 허용')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /프론트엔드 JD/ })).toBePartiallyChecked();
 

@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../../api/backendClient';
 import type { ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
+import { getStoredApiKey } from '../../utils/apiKeySession';
 import { useInvalidateAppData } from './useMutationHelpers';
 
 function alertSuccess<T>(showAlert: ShowAlert, response: ApiResponse<T>) {
@@ -20,6 +21,7 @@ function alertError(showAlert: ShowAlert, error: unknown) {
 
 export function useResumeMutations(showAlert: ShowAlert) {
   const invalidateAppData = useInvalidateAppData();
+  const apiKey = getStoredApiKey() ?? undefined;
 
   const addResume = useMutation({
     mutationFn: apiClient.addResume,
@@ -31,7 +33,7 @@ export function useResumeMutations(showAlert: ShowAlert) {
   });
 
   const saveResume = useMutation({
-    mutationFn: apiClient.saveResume,
+    mutationFn: (body: Parameters<typeof apiClient.saveResume>[0]) => apiClient.saveResume(body, apiKey),
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -40,7 +42,7 @@ export function useResumeMutations(showAlert: ShowAlert) {
   });
 
   const analyzeResume = useMutation({
-    mutationFn: apiClient.requestResumeAnalysis,
+    mutationFn: (resumeId: number) => apiClient.requestResumeAnalysis(resumeId, apiKey),
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -49,7 +51,7 @@ export function useResumeMutations(showAlert: ShowAlert) {
   });
 
   const deleteResume = useMutation({
-    mutationFn: apiClient.deleteResume,
+    mutationFn: (id: number) => apiClient.deleteResume(id, apiKey),
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();

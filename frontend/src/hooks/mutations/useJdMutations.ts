@@ -3,6 +3,7 @@ import { apiClient } from '../../api/backendClient';
 import { queryKeys } from '../../api/queryKeys';
 import type { AnalysisReport, ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
+import { getStoredApiKey } from '../../utils/apiKeySession';
 import { useInvalidateAppData } from './useMutationHelpers';
 
 type ChecklistAddPayload = {
@@ -36,6 +37,7 @@ function alertError(showAlert: ShowAlert, error: unknown) {
 export function useJdMutations(showAlert: ShowAlert) {
   const invalidateAppData = useInvalidateAppData();
   const queryClient = useQueryClient();
+  const apiKey = getStoredApiKey() ?? undefined;
   const invalidateChecklist = (jobDescriptionId: number | string) =>
     queryClient.invalidateQueries({ queryKey: queryKeys.checklist(jobDescriptionId) });
 
@@ -49,7 +51,8 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const saveJd = useMutation({
-    mutationFn: apiClient.saveJobDescription,
+    mutationFn: (body: Parameters<typeof apiClient.saveJobDescription>[0]) =>
+      apiClient.saveJobDescription(body, apiKey),
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -58,7 +61,7 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const deleteJd = useMutation({
-    mutationFn: apiClient.deleteJobDescription,
+    mutationFn: (id: number) => apiClient.deleteJobDescription(id, apiKey),
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -67,7 +70,7 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const analyzeJd = useMutation<ApiResponse<{ report: AnalysisReport; resume_id: number }>, unknown, number>({
-    mutationFn: apiClient.requestResumeAnalysis,
+    mutationFn: (resumeId) => apiClient.requestResumeAnalysis(resumeId, apiKey),
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -76,7 +79,7 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const generateChecklist = useMutation({
-    mutationFn: apiClient.generateJdChecklist,
+    mutationFn: (jdId: number | string) => apiClient.generateJdChecklist(jdId, apiKey),
     onSuccess: async (response, jdId) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(jdId);
@@ -85,7 +88,7 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const addChecklist = useMutation({
-    mutationFn: (payload: ChecklistAddPayload) => apiClient.addChecklist(payload),
+    mutationFn: (payload: ChecklistAddPayload) => apiClient.addChecklist(payload, apiKey),
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(payload.job_description_id);
@@ -95,7 +98,7 @@ export function useJdMutations(showAlert: ShowAlert) {
 
   const updateChecklist = useMutation({
     mutationFn: (payload: ChecklistUpdatePayload) =>
-      apiClient.updateChecklist({ id: payload.id, content: payload.content }),
+      apiClient.updateChecklist({ id: payload.id, content: payload.content }, apiKey),
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(payload.job_description_id);
@@ -104,7 +107,7 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const deleteChecklist = useMutation({
-    mutationFn: (payload: ChecklistDeletePayload) => apiClient.deleteChecklist(payload.id),
+    mutationFn: (payload: ChecklistDeletePayload) => apiClient.deleteChecklist(payload.id, apiKey),
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(payload.job_description_id);
