@@ -6075,6 +6075,13 @@ button,
   background: color-mix(in srgb, var(--surface-soft) 78%, var(--surface));
 }
 
+.authkey-access-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .authkey-access-group {
   display: grid;
   min-width: 0;
