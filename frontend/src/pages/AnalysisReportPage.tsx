@@ -10,6 +10,7 @@ import { SectionCard } from '../components/common/SectionCard';
 import type { AnalysisReport, InterviewQuestion } from '../data/backendTypes';
 import { useAnalysisReportPageData, type AnalysisReportItem } from '../hooks/useAnalysisReportPageData';
 import type { Navigate } from '../types/app';
+import { getStoredApiKey } from '../utils/apiKeySession';
 import { pageSectionGutter } from '../utils/layout';
 import {
   getSearchTextWithoutSuggestions,
@@ -315,6 +316,8 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
   const [reportSearchText, setReportSearchText] = useState('');
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
+  const apiKey = getStoredApiKey() ?? undefined;
+  const isApiKeyMode = Boolean(apiKey);
   const selectedReportSuggestions = useMemo(
     () => getSelectedSuggestionLabels(reportSearchText, REPORT_SEARCH_SUGGESTIONS),
     [reportSearchText],
@@ -422,7 +425,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
     setIsSavingReport(true);
 
     try {
-      await apiClient.saveReport(reportEditPayload(displaySelectedItem.report.id, values));
+      await apiClient.saveReport(reportEditPayload(displaySelectedItem.report.id, values), apiKey);
       await reloadData();
       setEditingReportId(null);
     } finally {
@@ -437,9 +440,11 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
         title="분석 리포트 / 질문 추천"
         description="지원자별 분석 리포트와 추천 면접 질문을 분리해서 확인합니다."
         actions={
-          <Button icon={<MessageOutlined />} disabled={!displaySelectedItem} onClick={() => navigate('/chat')}>
-            채팅으로 질문하기
-          </Button>
+          isApiKeyMode ? null : (
+            <Button icon={<MessageOutlined />} disabled={!displaySelectedItem} onClick={() => navigate('/chat')}>
+              채팅으로 질문하기
+            </Button>
+          )
         }
       />
       <Row className="section-row split-editor-layout-row" gutter={pageSectionGutter}>

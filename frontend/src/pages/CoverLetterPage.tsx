@@ -17,6 +17,7 @@ import { CoverLetterDeleteModal } from '../components/cover-letter/CoverLetterDe
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
 import { ResumeStructuredSummary } from '../components/cover-letter/ResumeStructuredSummary';
 import { InlineLoading } from '../components/common/InlineLoading';
+import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SearchSuggestions, type SearchSuggestion } from '../components/common/SearchSuggestions';
 import { SectionCard } from '../components/common/SectionCard';
@@ -25,6 +26,7 @@ import type { CoverLetterRow } from '../api/adapters';
 import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
 import type { Navigate, ShowAlert } from '../types/app';
+import { getStoredApiKey } from '../utils/apiKeySession';
 import { pageSectionGutter } from '../utils/layout';
 import {
   getSearchTextWithoutSuggestions,
@@ -318,6 +320,8 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId } =
     useCoverLetterPageData();
   const { addResume, analyzeResume, deleteResume, saveResume } = useResumeMutations(showAlert);
+  const isApiKeyMode = Boolean(getStoredApiKey());
+  const canCreateResume = !isApiKeyMode;
   const currentResume = useMemo(
     () => resumes.find((resume) => String(resume.id) === selectedResumeId) ?? null,
     [resumes, selectedResumeId],
@@ -362,6 +366,11 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   }, [form, initialValues]);
 
   const startCreateCoverLetter = () => {
+    if (!canCreateResume) {
+      showAlert({ type: 'info', message: 'API Key 모드에서는 새 자소서를 등록할 수 없습니다.' });
+      return;
+    }
+
     setIsCreatingCoverLetter(true);
     form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
   };
@@ -414,9 +423,14 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
 
       if (nextResume) {
         selectResume(String(nextResume.id));
-      } else {
+      } else if (canCreateResume) {
         setSelectedResumeId(null);
         setIsCreatingCoverLetter(true);
+        form.resetFields();
+        form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
+      } else {
+        setSelectedResumeId(null);
+        setIsCreatingCoverLetter(false);
         form.resetFields();
         form.setFieldsValue(toEmptyCoverLetterValues(selectedJdId));
       }
@@ -461,6 +475,11 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
       const response = await saveResume.mutateAsync({ id: editingResume.id, ...payload });
       setSelectedResumeId(String(response.data.id));
     } else {
+      if (!canCreateResume) {
+        showAlert({ type: 'info', message: 'API Key 모드에서는 새 자소서를 등록할 수 없습니다.' });
+        return;
+      }
+
       const response = await addResume.mutateAsync({ job_description_id: jobDescriptionId, ...payload });
       setSelectedResumeId(String(response.data.id));
       setSelectedJdId(String(response.data.job_description_id));
@@ -488,7 +507,12 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
         description="저장된 자소서를 확인하고, 선택한 JD에 맞춰 작성/수정 후 분석 요청을 진행합니다."
         actions={
           <Space wrap>
-            <Button icon={<SaveOutlined />} loading={saveResume.isPending || addResume.isPending} onClick={() => void saveCurrentResume()}>
+            <Button
+              icon={<SaveOutlined />}
+              loading={saveResume.isPending || addResume.isPending}
+              disabled={isApiKeyMode && !editingResume}
+              onClick={() => void saveCurrentResume()}
+            >
               저장
             </Button>
             <Button
@@ -508,9 +532,11 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
             className="scroll-card-body"
             title="자소서 목록"
             extra={
-              <Button size="small" icon={<PlusOutlined />} onClick={startCreateCoverLetter}>
-                새 자소서 작성
-              </Button>
+              canCreateResume ? (
+                <Button size="small" icon={<PlusOutlined />} onClick={startCreateCoverLetter}>
+                  새 자소서 작성
+                </Button>
+              ) : null
             }
           >
             {coverRows.length ? (
@@ -542,20 +568,28 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
               selectedResumeId={isCreatingCoverLetter ? null : selectedResumeId}
               onSelectResume={selectResume}
               onDeleteResume={requestDeleteResume}
+              canCreateResume={canCreateResume}
+              chatEnabled={!isApiKeyMode}
               emptyDescription={coverRows.length ? '조건에 맞는 자소서가 없습니다.' : undefined}
             />
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
           <SectionCard className="scroll-card-body" title="자소서 작성/수정">
-            <ResumeStructuredSummary resume={editingResume} />
-            <CoverLetterInputPanel
-              jdList={jdList}
-              form={form}
-              initialValues={initialValues}
-              mode={isEditMode ? 'edit' : 'create'}
-              setSelectedJdId={setSelectedJdId}
-            />
+            {isApiKeyMode && !editingResume ? (
+              <EmptyState description="왼쪽 목록에서 API Key로 허용된 자소서를 선택해 주세요." />
+            ) : (
+              <>
+                <ResumeStructuredSummary resume={editingResume} />
+                <CoverLetterInputPanel
+                  jdList={jdList}
+                  form={form}
+                  initialValues={initialValues}
+                  mode={isEditMode ? 'edit' : 'create'}
+                  setSelectedJdId={setSelectedJdId}
+                />
+              </>
+            )}
           </SectionCard>
         </Col>
       </Row>

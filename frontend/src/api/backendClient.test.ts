@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { server } from '../test/server';
 
 const resumeWithoutStatus = {
@@ -39,6 +39,22 @@ const queuedReport = {
   interview_question: [],
   status: 'onqueue',
   created_at: '2026-06-24T00:00:00+09:00',
+};
+
+const apiKeyJobDescription = {
+  id: 10,
+  job_name: '프론트엔드 개발자',
+  education_level: '학사',
+  major: '컴퓨터공학',
+  career_level: '3년 이상',
+  required_skill: ['React'],
+  preferred_skill: ['TypeScript'],
+  main_task: '서비스 프론트엔드 개발',
+  hiring_reason: '제품 고도화',
+  work_type: '정규직',
+  status: 'on_going',
+  created_at: '2026-06-24T00:00:00+09:00',
+  updated_at: '2026-06-24T01:00:00+09:00',
 };
 
 describe('backendClient', () => {
@@ -156,5 +172,94 @@ describe('backendClient', () => {
 
     expect(requestBody).toEqual({ id: 1, delete: true });
     expect(response.data).toEqual({ id: 1, job_description_id: 10, content: 'React 실무 경험 확인' });
+  });
+
+  test('API Key dashboard loads only accessible JD, resume, and report endpoints with API key header', async () => {
+    const apiKey = 'humour-api-key';
+    const observedHeaders: Record<string, string | null> = {};
+    const forbiddenEndpoint = vi.fn();
+
+    server.use(
+      http.post('/api/account/get/', () => {
+        forbiddenEndpoint('account/get');
+        return HttpResponse.json({ error: true, message: 'forbidden' }, { status: 500 });
+      }),
+      http.post('/api/compinfo/get/', () => {
+        forbiddenEndpoint('compinfo/get');
+        return HttpResponse.json({ error: true, message: 'forbidden' }, { status: 500 });
+      }),
+      http.post('/api/authkey/get/', () => {
+        forbiddenEndpoint('authkey/get');
+        return HttpResponse.json({ error: true, message: 'forbidden' }, { status: 500 });
+      }),
+      http.post('/api/jd/get/', ({ request }) => {
+        observedHeaders.jd = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [apiKeyJobDescription] });
+      }),
+      http.post('/api/resume/get/', ({ request }) => {
+        observedHeaders.resume = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [resumeWithoutStatus] });
+      }),
+      http.post('/api/report/get/', ({ request }) => {
+        observedHeaders.report = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [queuedReport] });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.getApiKeyDashboard(apiKey);
+
+    expect(forbiddenEndpoint).not.toHaveBeenCalled();
+    expect(observedHeaders).toEqual({
+      jd: apiKey,
+      resume: apiKey,
+      report: apiKey,
+    });
+    expect(response.data.job_descriptions).toHaveLength(1);
+    expect(response.data.resumes).toHaveLength(1);
+    expect(response.data.analysis_reports).toHaveLength(1);
+  });
+
+  test('API Key is sent with modify and analysis requests for allowed resources', async () => {
+    const apiKey = 'humour-api-key';
+    const observedHeaders: Record<string, string | null> = {};
+
+    server.use(
+      http.post('/api/jd/modify/', ({ request }) => {
+        observedHeaders.jdModify = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: { ...apiKeyJobDescription, job_name: '수정된 JD' } });
+      }),
+      http.post('/api/resume/modify/', ({ request }) => {
+        observedHeaders.resumeModify = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: resumeWithoutStatus });
+      }),
+      http.post('/api/report/modify/', ({ request }) => {
+        observedHeaders.reportModify = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: { ...queuedReport, overall_summary: '수정된 요약' } });
+      }),
+      http.post('/api/resume/get/', ({ request }) => {
+        observedHeaders.resumeGet = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [resumeWithoutStatus] });
+      }),
+      http.post('/api/resume/analyze/', ({ request }) => {
+        observedHeaders.resumeAnalyze = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: queuedReport });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await apiClient.saveJobDescription({ id: 10, job_name: '수정된 JD' }, apiKey);
+    await apiClient.deleteResume(1, apiKey);
+    await apiClient.saveReport({ id: 30, overall_summary: '수정된 요약' }, apiKey);
+    await apiClient.requestResumeAnalysis(1, apiKey);
+
+    expect(observedHeaders).toMatchObject({
+      jdModify: apiKey,
+      resumeModify: apiKey,
+      reportModify: apiKey,
+      resumeGet: apiKey,
+      resumeAnalyze: apiKey,
+    });
   });
 });
