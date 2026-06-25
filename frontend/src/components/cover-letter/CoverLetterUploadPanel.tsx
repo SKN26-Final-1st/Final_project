@@ -33,7 +33,7 @@ export function CoverLetterUploadPanel({
   return (
     <>
       <div className="cover-letter-save-hint">
-        <p className="list-panel-hint">자소서를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
+        {/* <p className="list-panel-hint">자소서를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p> */}
         <strong>{hasSavedResume ? '선택한 자소서를 수정하고 있습니다.' : '아직 선택된 자소서가 없습니다.'}</strong>
         <span>
           {hasSavedResume
