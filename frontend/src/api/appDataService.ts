@@ -81,3 +81,40 @@ export async function loadAppData(): Promise<AppData> {
     interviewQuestions,
   };
 }
+
+function mapDashboardSourceToAppData(
+  dashboardSource: DashboardSource,
+  authKeys: AuthKey[] = [],
+): AppData {
+  const account = dashboardSource.account;
+  const company = dashboardSource.company_info;
+  const jobDescriptions = dashboardSource.job_descriptions;
+  const resumes = dashboardSource.resumes;
+  const analysisReports = dashboardSource.analysis_reports;
+  const interviewQuestions = dashboardSource.interview_questions;
+  const firstJob = jobDescriptions[0];
+  const recruitmentPreview = mapRecruitmentPreview(company, firstJob);
+
+  return {
+    admin: mapAdmin(dashboardSource),
+    dashboard: mapDashboard(dashboardSource),
+    company: mapCompany(company),
+    jdList: mapJdList(jobDescriptions, resumes, analysisReports),
+    coverLetterDraft: mapCoverLetterDraft(resumes[0]),
+    coverLetterRows: mapCoverLetterRows(resumes, jobDescriptions, analysisReports),
+    analysisReport: mapAnalysisReport(analysisReports[0], resumes, jobDescriptions, interviewQuestions),
+    recruitmentPreview,
+    templateQuestions: mapTemplateQuestions(interviewQuestions),
+    userProfile: mapUserProfile(account, company),
+    authKeys,
+    resumes,
+    analysisReports,
+    interviewQuestions,
+  };
+}
+
+export async function loadApiKeyAppData(apiKey: string): Promise<AppData> {
+  const dashboard = await apiClient.getApiKeyDashboard(apiKey);
+
+  return mapDashboardSourceToAppData(dashboard.data);
+}
