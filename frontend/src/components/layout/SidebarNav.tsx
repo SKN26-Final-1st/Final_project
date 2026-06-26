@@ -25,7 +25,7 @@ export function SidebarNav(props: NavigationProps) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const displayName = authMode === 'apiKey' ? 'API Key 사용자' : profile?.displayName ?? '채용 담당자';
-  const email = authMode === 'apiKey' ? '제한 접근 모드' : profile?.email ?? 'recruiter@humour.ai';
+  const accountSubtitle = authMode === 'apiKey' ? '제한 접근 모드' : `계정 ID ${profile?.username ?? '-'}`;
 
   return (
     <nav
@@ -102,7 +102,7 @@ export function SidebarNav(props: NavigationProps) {
               </Avatar>
               <span className="sidebar-account-copy">
                 <strong>{displayName}</strong>
-                <small>{email}</small>
+                <small>{accountSubtitle}</small>
               </span>
               <SettingOutlined className="sidebar-account-cue" aria-hidden="true" />
             </button>

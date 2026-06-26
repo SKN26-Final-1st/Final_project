@@ -1,5 +1,4 @@
 import { Button, Col, Progress, Row, Statistic } from 'antd';
-import { palette } from '../../data/appConfig';
 import type { CompanyProfile } from '../../api/adapters';
 import type { Navigate } from '../../types/app';
 
@@ -24,7 +23,7 @@ export function CompanySummaryPanel({ company, navigate }: CompanySummaryPanelPr
           <Statistic title="직원 수" value={company.employeeCount} suffix="명" />
         </Col>
         <Col xs={24} md={8}>
-          <Progress percent={company.completion} strokeColor={palette.accent} />
+          <Progress percent={company.completion} strokeColor="var(--accent)" />
         </Col>
       </Row>
     </>

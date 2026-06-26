@@ -1,5 +1,4 @@
 import { Button, Progress } from 'antd';
-import { palette } from '../../data/appConfig';
 import type { ShowAlert } from '../../types/app';
 
 type CreditSummaryProps = {
@@ -15,7 +14,7 @@ export function CreditSummary({ creditPoints, creditPercent, showAlert }: Credit
         <span>분석 크레딧</span>
         <strong>{creditPoints}pt</strong>
       </div>
-      <Progress percent={creditPercent} strokeColor={palette.accent} />
+      <Progress percent={creditPercent} strokeColor="var(--accent)" />
       <Button
         size="small"
         type="primary"

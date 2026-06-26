@@ -8,8 +8,8 @@ import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
-import { palette, type AppRoute } from './data/appConfig';
-import { radiusTokens } from './data/themeTokens';
+import type { AppRoute } from './data/appConfig';
+import { radiusTokens, themePalette } from './data/themeTokens';
 import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthSession } from './hooks/useAuthSession';
@@ -63,33 +63,40 @@ export default function App() {
   }, [location.pathname]);
 
   const themeConfig = useMemo(
-    () => ({
-      algorithm: mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-      token: {
-        colorPrimary: palette.primary,
-        colorInfo: palette.primary,
-        colorSuccess: palette.accent,
-        colorBgBase: mode === 'dark' ? palette.text : palette.background,
-        colorTextBase: mode === 'dark' ? palette.card : palette.text,
-        fontFamily: '"Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif',
-        borderRadius: radiusTokens.md,
-      },
-      components: {
-        Card: {
-          borderRadiusLG: radiusTokens.lg,
+    () => {
+      const currentPalette = mode === 'dark' ? themePalette.dark : themePalette.light;
+
+      return {
+        algorithm: mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        token: {
+          colorPrimary: currentPalette.primary,
+          colorInfo: currentPalette.primary,
+          colorSuccess: currentPalette.accent,
+          colorBgBase: currentPalette.background,
+          colorBgContainer: currentPalette.card,
+          colorBorder: currentPalette.border,
+          colorTextBase: currentPalette.text,
+          colorTextSecondary: currentPalette.muted,
+          fontFamily: '"Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif',
+          borderRadius: radiusTokens.md,
         },
-        Button: {
-          borderRadius: radiusTokens.sm + 2,
-          controlHeight: 40,
+        components: {
+          Card: {
+            borderRadiusLG: radiusTokens.lg,
+          },
+          Button: {
+            borderRadius: radiusTokens.sm + 2,
+            controlHeight: 40,
+          },
+          Input: {
+            borderRadius: radiusTokens.sm + 2,
+          },
+          Select: {
+            borderRadius: radiusTokens.sm + 2,
+          },
         },
-        Input: {
-          borderRadius: radiusTokens.sm + 2,
-        },
-        Select: {
-          borderRadius: radiusTokens.sm + 2,
-        },
-      },
-    }),
+      };
+    },
     [mode],
   );
 

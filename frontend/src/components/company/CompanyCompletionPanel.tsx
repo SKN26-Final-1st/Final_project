@@ -1,6 +1,5 @@
 import { Divider, List, Progress } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
-import { palette } from '../../data/appConfig';
 import type { CompanyProfile } from '../../api/adapters';
 
 type CompanyCompletionPanelProps = {
@@ -10,7 +9,7 @@ type CompanyCompletionPanelProps = {
 export function CompanyCompletionPanel({ company }: CompanyCompletionPanelProps) {
   return (
     <>
-      <Progress percent={company.completion} strokeColor={palette.accent} />
+      <Progress percent={company.completion} strokeColor="var(--accent)" />
       <Divider />
       <List
         dataSource={company.employStyle}
