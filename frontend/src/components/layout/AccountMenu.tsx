@@ -20,7 +20,7 @@ export function AccountMenu({
 }: AccountMenuProps) {
   const isApiKeyMode = authMode === 'apiKey';
   const displayName = isApiKeyMode ? 'API Key 사용자' : profile?.displayName ?? '채용 담당자';
-  const email = isApiKeyMode ? '제한 접근 모드' : profile?.email ?? 'recruiter@humour.ai';
+  const accountSubtitle = isApiKeyMode ? '제한 접근 모드' : `계정 ID ${profile?.username ?? '-'}`;
   const creditPointText = `${profile?.credit ?? 0}pt`;
 
   const moveTo = (nextRoute: AppRoute) => {
@@ -37,7 +37,7 @@ export function AccountMenu({
         <div>
           <span>{isApiKeyMode ? 'API Key 로그인' : '마이페이지'}</span>
           <strong>{displayName}</strong>
-          <small>{email}</small>
+          <small>{accountSubtitle}</small>
         </div>
       </div>
       <div className="account-theme-row">
