@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -10,17 +11,10 @@ from .prompt import (
     FIT_CHECKLIST_USER_PROMPT,
     USER_QUERY_PROMPT,
 )
-from .masking import (
-    mask_company,
-    mask_jd,
-    merge_masking_results,
-    restore_masked_data,
-)
 
 
 MODEL_NAME = "gpt-4o-mini"
 CHECKLIST_COUNT = 10
-DEFAULT_DB_DATA = "Python/Java/Node, REST API, DB 설계, 인증/권한, 서버 배포 경험"
 
 class FitChecklistStructure(BaseModel):
     """회사와 JD에 대한 지원자 적합성 체크리스트 응답 구조입니다."""
@@ -107,13 +101,13 @@ def _create_structured_completion(system_prompt, user_prompt, response_format):
 
 
 def make_fit_checklist(
-    company_info: str,
-    jd_info: str,
+    company_info: Any,
+    jd_info: Any,
     db_data=None,
     checklist_count=CHECKLIST_COUNT,
     user_query: str = "",
 ) -> list[str]:
-    """마스킹된 회사/JD JSON 문자열을 바탕으로 적합성 체크리스트를 생성합니다."""
+    """회사/JD 정보를 바탕으로 적합성 체크리스트를 생성합니다."""
 
     checklist_context = {
         "company_info": None if _is_empty_input(company_info) else company_info,
@@ -153,17 +147,10 @@ def invoke(
     if isinstance(cnt, bool) or not isinstance(cnt, int) or cnt <= 0:
         raise ValueError("cnt는 1 이상의 정수여야 합니다.")
 
-    company_masking = mask_company(compinfo)
-    jd_masking = mask_jd(jdinfo)
-    generated = make_fit_checklist(
-        company_info=company_masking["outputdata"],
-        jd_info=jd_masking["outputdata"],
+    return make_fit_checklist(
+        company_info=compinfo,
+        jd_info=jdinfo,
         db_data=db_data,
         checklist_count=cnt,
         user_query=user_query,
     )
-    masking_result = merge_masking_results(
-        company_masking["masking_result"],
-        jd_masking["masking_result"],
-    )
-    return restore_masked_data(generated, masking_result)

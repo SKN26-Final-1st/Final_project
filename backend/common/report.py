@@ -1,20 +1,12 @@
 import json
 import os
 from pathlib import Path
-from typing import List
+from typing import Any, List
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from .feedback import run_feedback_loop
-from .masking import (
-    mask_company,
-    mask_data,
-    mask_jd,
-    mask_resume,
-    merge_masking_results,
-    restore_masked_data,
-)
 
 from .prompt import (
     CHECKLIST_FEEDBACK_CRITERIA,
@@ -31,8 +23,6 @@ from .prompt import (
 
 MODEL_NAME = "gpt-4o-mini"
 QUESTION_COUNT = 10
-CHECKLIST_COUNT = 10
-DEFAULT_DB_DATA = "Python/Java/Node, REST API, DB 설계, 인증/권한, 서버 배포 경험"
 MAX_FIT_VERIFICATION_ATTEMPTS = 3
 
 class InterviewQuestionAnswer(BaseModel):
@@ -158,12 +148,18 @@ def _is_empty_input(value):
     return value is None or value == "" or value == {} or value == []
 
 
-def _to_prompt_value(value):
-    """dict/list 입력은 JSON 문자열로, 그 외 입력은 문자열로 바꿔 프롬프트에 넣기 쉽게 만듭니다."""
+def _normalize_bool(value):
+    """LLM이나 외부 입력에서 온 bool 유사 값을 실제 bool로 표준화합니다."""
 
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False, indent=2)
-    return str(value)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y"}:
+            return True
+        if normalized in {"false", "0", "no", "n", ""}:
+            return False
+    return bool(value)
 
 
 def _normalize_checklist(checklist):
@@ -212,7 +208,7 @@ def _normalize_fit_checks(fit_checks):
             fit_checks = fit_checks["checks"]
         else:
             return [
-                {"content": str(content), "result": bool(result)}
+                {"content": str(content), "result": _normalize_bool(result)}
                 for content, result in fit_checks.items()
             ]
 
@@ -224,7 +220,7 @@ def _normalize_fit_checks(fit_checks):
             elif isinstance(item, dict):
                 content = item.get("content", item.get("checklist", item.get("question", "")))
                 result = item.get("result", item.get("is_checked", False))
-                normalized.append({"content": content, "result": bool(result)})
+                normalized.append({"content": content, "result": _normalize_bool(result)})
             else:
                 raise ValueError("체크 결과 리스트 항목은 dict 또는 ChecklistCheckItem이어야 합니다.")
         return normalized
@@ -265,9 +261,9 @@ def _create_structured_completion(system_prompt, user_prompt, response_format):
 
 
 def make_interview_questions(
-    resume_summary: str,
-    company_summary: str,
-    jd_summary: str,
+    resume_summary: Any,
+    company_summary: Any,
+    jd_summary: Any,
     checklist_checks,
     question_count=QUESTION_COUNT,
 ):
@@ -292,7 +288,7 @@ def make_interview_questions(
     return [item.model_dump() for item in parsed.questions]
 
 
-def check_resume_fit(resume_summary: str, checklist):
+def check_resume_fit(resume_summary: Any, checklist):
     """이력서 요약이 각 체크리스트 기준을 충족하는지 LLM으로 판정합니다."""
 
     checklist_items = _normalize_checklist(checklist)
@@ -316,7 +312,7 @@ def check_resume_fit(resume_summary: str, checklist):
 
 
 def evaluate_resume_fit_with_feedback(
-    resume_info: str,
+    resume_info: Any,
     fit_checks,
     max_attempts=MAX_FIT_VERIFICATION_ATTEMPTS,
 ):
@@ -352,7 +348,7 @@ def validate_resume_fit_with_feedback(
     return _normalize_fit_checks(result["outputdata"]["checklist"])
 
 
-def make_report(resume_summary: str, fit_checks):
+def make_report(resume_summary: Any, fit_checks):
     """이력서 요약과 체크리스트 판정 결과를 이용해 최종 평가 리포트를 생성합니다."""
 
     checklist_results = _normalize_fit_checks(fit_checks)
@@ -378,9 +374,9 @@ def make_report(resume_summary: str, fit_checks):
 
 
 def evaluate_interview_questions_with_feedback(
-    resume_info: str,
-    company_info: str,
-    jd_info: str,
+    resume_info: Any,
+    company_info: Any,
+    jd_info: Any,
     fit_checks,
     questions,
     max_attempts=3,
@@ -405,9 +401,9 @@ def evaluate_interview_questions_with_feedback(
 
 
 def evaluate_report_with_feedback(
-    resume_info: str,
-    company_info: str,
-    jd_info: str,
+    resume_info: Any,
+    company_info: Any,
+    jd_info: Any,
     fit_checks,
     report_data,
     max_attempts=3,
@@ -437,57 +433,43 @@ def invoke(
     checklist: list[str],
     resume_dict: dict,
 ):
-    """요약, 체크리스트, 적합성 판단, 면접 질문, 리포트 생성을 순서대로 실행하는 전체 파이프라인입니다."""
-
-    resume_masking = mask_resume(resume_dict)
-    company_masking = mask_company(company_dict)
-    jd_masking = mask_jd(jd_dict)
-    masking_result = merge_masking_results(
-        resume_masking["masking_result"],
-        company_masking["masking_result"],
-        jd_masking["masking_result"],
-    )
-
-    masked_resume = resume_masking["outputdata"]
-    masked_company = company_masking["outputdata"]
-    masked_jd = jd_masking["outputdata"]
-    masked_checklist = mask_data(checklist, masking_result)
+    """입력 데이터를 그대로 사용해 적합성 판단, 면접 질문, 리포트 생성을 순서대로 실행합니다."""
 
     fit_checks = check_resume_fit(
-        resume_summary=masked_resume,
-        checklist=masked_checklist,
+        resume_summary=resume_dict,
+        checklist=checklist,
     )
     fit_checks = validate_resume_fit_with_feedback(
-        resume_info=masked_resume,
+        resume_info=resume_dict,
         fit_checks=fit_checks,
     )
     questions = make_interview_questions(
-        resume_summary=masked_resume,
-        company_summary=masked_company,
-        jd_summary=masked_jd,
+        resume_summary=resume_dict,
+        company_summary=company_dict,
+        jd_summary=jd_dict,
         checklist_checks=fit_checks,
     )
     question_feedback = evaluate_interview_questions_with_feedback(
-        resume_info=masked_resume,
-        company_info=masked_company,
-        jd_info=masked_jd,
+        resume_info=resume_dict,
+        company_info=company_dict,
+        jd_info=jd_dict,
         fit_checks=fit_checks,
         questions=questions,
     )
     questions = question_feedback["outputdata"]["questions"]
 
     report = make_report(
-        resume_summary=masked_resume,
+        resume_summary=resume_dict,
         fit_checks=fit_checks,
     )
     report_feedback = evaluate_report_with_feedback(
-        resume_info=masked_resume,
-        company_info=masked_company,
-        jd_info=masked_jd,
+        resume_info=resume_dict,
+        company_info=company_dict,
+        jd_info=jd_dict,
         fit_checks=fit_checks,
         report_data=report,
     )
     report = report_feedback["outputdata"]
 
     report["question"] = questions
-    return restore_masked_data(report, masking_result)
+    return report
