@@ -350,6 +350,46 @@ async function getDashboardData(): Promise<DashboardPayload> {
   };
 }
 
+function buildApiKeyAccount(): Account {
+  return {
+    id: 0,
+    username: 'api-key-user',
+    account_hash: '',
+    name: 'API Key 사용자',
+    verification_question: '',
+    verification_answer: '',
+    credit: 0,
+    subscribe: false,
+    subscribe_expiration: '',
+  };
+}
+
+function buildApiKeyCompanyInfo(): CompanyInfo {
+  return {
+    id: 0,
+    company_name: 'API Key Workspace',
+    employee_count: 0,
+    team_composition: [],
+    company_description: 'API Key로 허용된 JD와 지원서를 조회합니다.',
+    employ_style: [],
+  };
+}
+
+async function getApiKeyDashboardData(apiKey: string): Promise<DashboardPayload> {
+  const jobDescriptions = await getJobDescriptions(apiKey);
+  const resumes = (await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id, apiKey)))).flat();
+  const analysisReports = (await Promise.all(resumes.map((resume) => getReportsForResume(resume.id, apiKey)))).flat();
+
+  return {
+    account: buildApiKeyAccount(),
+    company_info: buildApiKeyCompanyInfo(),
+    job_descriptions: jobDescriptions,
+    resumes,
+    analysis_reports: analysisReports,
+    interview_questions: getReportsQuestions(analysisReports),
+  };
+}
+
 function buildRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?: JobDescription) {
   if (!jobDescription) {
     return {
@@ -401,15 +441,19 @@ async function deprecatedRequestResumeAnalysisForJob(jdId: string): Promise<Resu
   };
 }
 
-async function requestResumeAnalysisById(resumeId: number): Promise<ResumeAnalysisPayload> {
-  const resumes = parseResumes(ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId })));
+async function requestResumeAnalysisById(resumeId: number, apiKey?: string): Promise<ResumeAnalysisPayload> {
+  const resumes = parseResumes(
+    ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }, { apiKey })),
+  );
   const resume = resumes.find((item) => item.id === resumeId) ?? resumes[0];
 
   if (!resume) {
     throw new Error('분석 요청할 지원서를 찾을 수 없습니다.');
   }
 
-  const report = parseAnalysisReport(await requestBackend<AnalysisReport>('resume/analyze', { id: resume.id }));
+  const report = parseAnalysisReport(
+    await requestBackend<AnalysisReport>('resume/analyze', { id: resume.id }, { apiKey }),
+  );
 
   return {
     jd_id: String(resume.job_description_id),
@@ -463,39 +507,52 @@ function unsupportedBackendFeature(featureName: string): never {
 export const apiClient = {
   getDashboard: async () => toApiResponse('대시보드 데이터를 불러왔습니다.', await getDashboardSource()),
 
+  getApiKeyDashboard: async (apiKey: string) =>
+    toApiResponse('API Key 접근 데이터를 불러왔습니다.', await getApiKeyDashboardData(apiKey)),
+
+  loginWithApiKey: async (apiKey: string) => {
+    try {
+      await getApiKeyDashboardData(apiKey);
+    } catch {
+      throw new Error('API Key가 유효하지 않거나 접근 권한이 없습니다.');
+    }
+
+    return toApiResponse('API Key로 로그인했습니다.', { authenticated: true });
+  },
+
   getCompanyProfile: async () =>
     toApiResponse('회사 정보를 불러왔습니다.', await getCompanyInfo()),
 
-  getJobDescriptions: async () =>
-    toApiResponse('JD 목록을 불러왔습니다.', await getJobDescriptions()),
+  getJobDescriptions: async (apiKey?: string) =>
+    toApiResponse('JD 목록을 불러왔습니다.', await getJobDescriptions(apiKey)),
 
-  getChecklist: async (jobDescriptionId: number) => {
+  getChecklist: async (jobDescriptionId: number, apiKey?: string) => {
     const body: ChecklistGetBody = { job_description_id: jobDescriptionId };
-    const data = parseChecklists(await requestBackend<Checklist[]>('checklist/get', body));
+    const data = parseChecklists(await requestBackend<Checklist[]>('checklist/get', body, { apiKey }));
 
     return toApiResponse('체크리스트를 불러왔습니다.', data);
   },
 
-  generateJdChecklist: async (jdId: number | string) => {
-    const data = parseChecklists(await requestBackend<Checklist[]>('jd/analyze', { id: Number(jdId) }));
+  generateJdChecklist: async (jdId: number | string, apiKey?: string) => {
+    const data = parseChecklists(await requestBackend<Checklist[]>('jd/analyze', { id: Number(jdId) }, { apiKey }));
 
     return toApiResponse('체크리스트를 생성했습니다.', data);
   },
 
-  addChecklist: async (body: ChecklistAddBody) => {
-    const data = parseChecklist(await requestBackend<Checklist>('checklist/add', body));
+  addChecklist: async (body: ChecklistAddBody, apiKey?: string) => {
+    const data = parseChecklist(await requestBackend<Checklist>('checklist/add', body, { apiKey }));
 
     return toApiResponse('체크리스트를 추가했습니다.', data);
   },
 
-  updateChecklist: async (body: ChecklistModifyBody) => {
-    const data = parseChecklist(await requestBackend<Checklist>('checklist/modify', body));
+  updateChecklist: async (body: ChecklistModifyBody, apiKey?: string) => {
+    const data = parseChecklist(await requestBackend<Checklist>('checklist/modify', body, { apiKey }));
 
     return toApiResponse('체크리스트를 수정했습니다.', data);
   },
 
-  deleteChecklist: async (id: number) => {
-    const data = parseChecklist(await requestBackend<Checklist>('checklist/modify', { id, delete: true }));
+  deleteChecklist: async (id: number, apiKey?: string) => {
+    const data = parseChecklist(await requestBackend<Checklist>('checklist/modify', { id, delete: true }, { apiKey }));
 
     return toApiResponse('체크리스트를 삭제했습니다.', data);
   },
@@ -582,14 +639,14 @@ export const apiClient = {
     return toApiResponse('JD를 등록했습니다.', data);
   },
 
-  saveJobDescription: async (body: JobDescriptionModifyBody) => {
-    const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', body));
+  saveJobDescription: async (body: JobDescriptionModifyBody, apiKey?: string) => {
+    const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', body, { apiKey }));
 
     return toApiResponse('JD를 저장했습니다.', data);
   },
 
-  deleteJobDescription: async (id: number) => {
-    const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', { id, delete: true }));
+  deleteJobDescription: async (id: number, apiKey?: string) => {
+    const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', { id, delete: true }, { apiKey }));
 
     return toApiResponse('JD를 삭제했습니다.', data ?? { id });
   },
@@ -605,14 +662,14 @@ export const apiClient = {
     return toApiResponse('지원서를 저장했습니다.', data);
   },
 
-  saveResume: async (body: ResumeModifyBody) => {
-    const data = parseResume(await requestBackend<Resume>('resume/modify', body));
+  saveResume: async (body: ResumeModifyBody, apiKey?: string) => {
+    const data = parseResume(await requestBackend<Resume>('resume/modify', body, { apiKey }));
 
     return toApiResponse('지원서를 수정했습니다.', data);
   },
 
-  deleteResume: async (id: number) => {
-    const data = parseResume(await requestBackend<Resume>('resume/modify', { id, delete: true }));
+  deleteResume: async (id: number, apiKey?: string) => {
+    const data = parseResume(await requestBackend<Resume>('resume/modify', { id, delete: true }, { apiKey }));
 
     return toApiResponse('지원서를 삭제했습니다.', data ?? { id });
   },
@@ -631,8 +688,8 @@ export const apiClient = {
     return toApiResponse('지원서 분석이 완료되었습니다.', data);
   },
 
-  requestResumeAnalysis: async (resumeId: number) => {
-    const data = await requestResumeAnalysisById(resumeId);
+  requestResumeAnalysis: async (resumeId: number, apiKey?: string) => {
+    const data = await requestResumeAnalysisById(resumeId, apiKey);
     return toApiResponse(getResumeAnalysisMessage(data.report), data);
   },
 
@@ -651,8 +708,8 @@ export const apiClient = {
     return toApiResponse('계정 수정사항을 저장했습니다.', { updated_at: new Date().toISOString() });
   },
 
-  saveReport: async (body: ReportModifyBody) => {
-    const data = parseAnalysisReport(await requestBackend<AnalysisReport>('report/modify', body));
+  saveReport: async (body: ReportModifyBody, apiKey?: string) => {
+    const data = parseAnalysisReport(await requestBackend<AnalysisReport>('report/modify', body, { apiKey }));
 
     return toApiResponse('분석 리포트를 저장했습니다.', data);
   },

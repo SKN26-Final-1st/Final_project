@@ -8,8 +8,8 @@ import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageError, PageLoading } from './components/common/PageState';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
-import { palette, type AppRoute } from './data/appConfig';
-import { radiusTokens } from './data/themeTokens';
+import type { AppRoute } from './data/appConfig';
+import { radiusTokens, themePalette } from './data/themeTokens';
 import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthSession } from './hooks/useAuthSession';
@@ -30,6 +30,9 @@ import { SharedReportPage } from './pages/SharedReportPage';
 import type { ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
 
+const API_KEY_ALLOWED_ROUTES: AppRoute[] = ['/jd', '/cover-letter', '/analysis-report'];
+const API_KEY_HOME_ROUTE: AppRoute = '/jd';
+
 export default function App() {
   const routerNavigate = useNavigate();
   const location = useLocation();
@@ -39,49 +42,68 @@ export default function App() {
   const [resetStep, setResetStep] = useState(0);
   const isAuth = authRoutes.includes(route);
   const isShared = route === '/shared';
-  const { authChecked, isAuthenticated, setIsAuthenticated } = useAuthSession(isShared);
-  const shouldLoadAppData = authChecked && isAuthenticated && !isAuth && !isShared;
-  const { data, loading, error, reload } = useAppData(shouldLoadAppData);
+  const {
+    apiKey,
+    authChecked,
+    authMode,
+    clearAuthSession,
+    isAuthenticated,
+    setApiKeySession,
+    setIsAuthenticated,
+  } = useAuthSession(isShared);
+  const isApiKeyMode = authMode === 'apiKey';
+  const isApiKeyAllowedRoute = API_KEY_ALLOWED_ROUTES.includes(route);
+  const appHomeRoute = isApiKeyMode ? API_KEY_HOME_ROUTE : '/dashboard';
+  const shouldLoadAppData =
+    authChecked && isAuthenticated && !isAuth && !isShared && (!isApiKeyMode || isApiKeyAllowedRoute);
+  const { data, loading, error, reload } = useAppData(shouldLoadAppData, authMode, apiKey);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
 
   const themeConfig = useMemo(
-    () => ({
-      algorithm: mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-      token: {
-        colorPrimary: palette.primary,
-        colorInfo: palette.primary,
-        colorSuccess: palette.accent,
-        colorBgBase: mode === 'dark' ? palette.text : palette.background,
-        colorTextBase: mode === 'dark' ? palette.card : palette.text,
-        fontFamily: '"Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif',
-        borderRadius: radiusTokens.md,
-      },
-      components: {
-        Card: {
-          borderRadiusLG: radiusTokens.lg,
+    () => {
+      const currentPalette = mode === 'dark' ? themePalette.dark : themePalette.light;
+
+      return {
+        algorithm: mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        token: {
+          colorPrimary: currentPalette.primary,
+          colorInfo: currentPalette.primary,
+          colorSuccess: currentPalette.accent,
+          colorBgBase: currentPalette.background,
+          colorBgContainer: currentPalette.card,
+          colorBorder: currentPalette.border,
+          colorTextBase: currentPalette.text,
+          colorTextSecondary: currentPalette.muted,
+          fontFamily: '"Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif',
+          borderRadius: radiusTokens.md,
         },
-        Button: {
-          borderRadius: radiusTokens.sm + 2,
-          controlHeight: 40,
+        components: {
+          Card: {
+            borderRadiusLG: radiusTokens.lg,
+          },
+          Button: {
+            borderRadius: radiusTokens.sm + 2,
+            controlHeight: 40,
+          },
+          Input: {
+            borderRadius: radiusTokens.sm + 2,
+          },
+          Select: {
+            borderRadius: radiusTokens.sm + 2,
+          },
         },
-        Input: {
-          borderRadius: radiusTokens.sm + 2,
-        },
-        Select: {
-          borderRadius: radiusTokens.sm + 2,
-        },
-      },
-    }),
+      };
+    },
     [mode],
   );
 
   const navigate = useCallback((nextRoute: AppRoute | string) => {
     void routerNavigate(nextRoute);
   }, [routerNavigate]);
-  const logout = useLogoutAction({ navigate, runApiAction, setIsAuthenticated });
+  const logout = useLogoutAction({ authMode, clearAuthSession, navigate, runApiAction, setIsAuthenticated });
 
   const themeSwitch = (
     <Tooltip title={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}>
@@ -106,6 +128,10 @@ export default function App() {
 
     if (!data) {
       return <PageError message="초기 데이터가 없습니다." onRetry={() => void reload()} />;
+    }
+
+    if (isApiKeyMode && !isApiKeyAllowedRoute) {
+      return <RouterNavigate to={API_KEY_HOME_ROUTE} replace />;
     }
 
     switch (route) {
@@ -188,7 +214,11 @@ export default function App() {
             runApiAction={runApiAction}
             onLoginSuccess={() => {
               setIsAuthenticated(true);
-              void reload().then(() => navigate('/dashboard'));
+              navigate('/dashboard');
+            }}
+            onApiKeyLoginSuccess={(nextApiKey) => {
+              setApiKeySession(nextApiKey);
+              navigate(API_KEY_HOME_ROUTE);
             }}
           />
         );
@@ -202,9 +232,12 @@ export default function App() {
       showAlert={showAlert}
     >
       <AppShell
+        allowedRoutes={isApiKeyMode ? API_KEY_ALLOWED_ROUTES : undefined}
+        authMode={authMode}
         route={route}
         mode={mode}
-        assistantFab={route === '/chat' ? undefined : <DocumentChatFab navigate={navigate} />}
+        assistantFab={isApiKeyMode || route === '/chat' ? undefined : <DocumentChatFab navigate={navigate} />}
+        homeRoute={appHomeRoute}
         themeSwitch={themeSwitch}
         creditPercent={data?.dashboard.creditPercent ?? 0}
         profile={data?.userProfile}
@@ -224,12 +257,16 @@ export default function App() {
           <FloatingAlert alert={alert} onClose={() => setAlert(null)} />
           {isShared ? (
             <SharedReportPage mode={mode} navigate={navigate} themeSwitch={themeSwitch} />
+          ) : isAuth && authChecked && isAuthenticated ? (
+            <RouterNavigate to={appHomeRoute} replace />
           ) : isAuth ? (
             renderAuthPage()
           ) : !authChecked ? (
             <PageLoading />
           ) : !isAuthenticated ? (
             <RouterNavigate to="/login" replace />
+          ) : isApiKeyMode && !isApiKeyAllowedRoute ? (
+            <RouterNavigate to={API_KEY_HOME_ROUTE} replace />
           ) : (
             protectedContent
           )}

@@ -13,6 +13,8 @@ type CoverLetterUploadPanelProps = {
   selectedResumeId: string | null;
   onSelectResume: (resumeId: string) => void;
   onDeleteResume: (resumeId: string) => void;
+  canCreateResume?: boolean;
+  chatEnabled?: boolean;
   emptyDescription?: string;
 };
 
@@ -24,6 +26,8 @@ export function CoverLetterUploadPanel({
   selectedResumeId,
   onSelectResume,
   onDeleteResume,
+  canCreateResume = true,
+  chatEnabled = true,
   emptyDescription = '저장된 자소서가 없습니다.',
 }: CoverLetterUploadPanelProps) {
   const isWarningStatus = (statusCode: CoverLetterRow['statusCode']) =>
@@ -33,12 +37,14 @@ export function CoverLetterUploadPanel({
   return (
     <>
       <div className="cover-letter-save-hint">
-        <p className="list-panel-hint">자소서를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p>
+        {/* <p className="list-panel-hint">자소서를 선택하면 오른쪽 작성/수정 폼에 내용이 표시됩니다.</p> */}
         <strong>{hasSavedResume ? '선택한 자소서를 수정하고 있습니다.' : '아직 선택된 자소서가 없습니다.'}</strong>
         <span>
           {hasSavedResume
             ? '왼쪽 목록에서 자소서를 선택하면 오른쪽 폼에 내용이 로드됩니다.'
-            : '새 자소서 작성 버튼으로 지원서를 저장한 뒤 분석을 요청할 수 있습니다.'}
+            : canCreateResume
+              ? '새 자소서 작성 버튼으로 지원서를 저장한 뒤 분석을 요청할 수 있습니다.'
+              : 'API Key로 허용된 지원서를 선택해 수정할 수 있습니다.'}
         </span>
       </div>
       {hasRows ? (
@@ -97,7 +103,7 @@ export function CoverLetterUploadPanel({
       ) : (
         <EmptyState description={emptyDescription} />
       )}
-      {analysisDone && (
+      {analysisDone && chatEnabled && (
         <Button className="mt-16" type="primary" block onClick={() => navigate('/chat')}>
           채팅 화면에서 리포트 확인
         </Button>

@@ -1,14 +1,18 @@
 import type { NavigationProps } from './navigationTypes';
 import { sidebarMenu } from './navigationUtils';
 
-type MenuItemsProps = Pick<NavigationProps, 'route' | 'navigate'> & {
+type MenuItemsProps = Pick<NavigationProps, 'allowedRoutes' | 'route' | 'navigate'> & {
   onNavigate?: () => void;
 };
 
-export function MenuItems({ route, navigate, onNavigate }: MenuItemsProps) {
+export function MenuItems({ allowedRoutes, route, navigate, onNavigate }: MenuItemsProps) {
+  const items = allowedRoutes?.length
+    ? sidebarMenu.filter((item) => allowedRoutes.includes(item.route))
+    : sidebarMenu;
+
   return (
     <>
-      {sidebarMenu.map((item) => {
+      {items.map((item) => {
         const isActive = route === item.route;
         return (
           <button

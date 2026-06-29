@@ -65,6 +65,7 @@ export function AuthKeyAccessTree({
 
       {isOpen && (
         <div className="authkey-access-panel">
+          <p className="authkey-access-note">JD 선택 시 현재 등록된 지원서만 접근 범위에 포함됩니다.</p>
           {groups.length ? (
             groups.map((group) => {
               const groupIds = group.resumes.map((resume) => resume.value);

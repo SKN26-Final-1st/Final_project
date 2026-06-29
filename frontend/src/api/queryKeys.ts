@@ -1,5 +1,6 @@
 export const queryKeys = {
-  appData: () => ['app-data'] as const,
+  appData: (authMode?: string, apiKeyFingerprint?: string) =>
+    authMode ? (['app-data', authMode, apiKeyFingerprint ?? 'default'] as const) : (['app-data'] as const),
   company: () => ['company'] as const,
   checklist: (jobDescriptionId: string | number) => ['checklist', String(jobDescriptionId)] as const,
   dashboard: () => ['dashboard'] as const,

@@ -10,11 +10,22 @@ import { getInitials } from './navigationUtils';
 export { MobileShellHeader };
 
 export function SidebarNav(props: NavigationProps) {
-  const { route, mode, creditPercent, profile, themeSwitch, navigate, showAlert } = props;
+  const {
+    allowedRoutes,
+    authMode,
+    homeRoute = '/dashboard',
+    route,
+    mode,
+    creditPercent,
+    profile,
+    themeSwitch,
+    navigate,
+    showAlert,
+  } = props;
   const [accountOpen, setAccountOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
-  const displayName = profile?.displayName ?? '채용 담당자';
-  const email = profile?.email ?? 'recruiter@humour.ai';
+  const displayName = authMode === 'apiKey' ? 'API Key 사용자' : profile?.displayName ?? '채용 담당자';
+  const accountSubtitle = authMode === 'apiKey' ? '제한 접근 모드' : `계정 ID ${profile?.username ?? '-'}`;
 
   return (
     <nav
@@ -30,9 +41,9 @@ export function SidebarNav(props: NavigationProps) {
             className="brand-button"
             onClick={(event) => {
               event.currentTarget.blur();
-              navigate('/dashboard');
+              navigate(homeRoute);
             }}
-            aria-label="대시보드로 이동"
+            aria-label="홈으로 이동"
           >
             <img
               className="brand-logo-full"
@@ -57,7 +68,7 @@ export function SidebarNav(props: NavigationProps) {
         </div>
         <div className="side-section">
           <span className="side-label">Main menu</span>
-          <MenuItems route={route} navigate={navigate} />
+          <MenuItems allowedRoutes={allowedRoutes} route={route} navigate={navigate} />
         </div>
         <div className="sidebar-account-wrap">
           <Popover
@@ -70,6 +81,7 @@ export function SidebarNav(props: NavigationProps) {
             content={
               <AccountMenu
                 creditPercent={creditPercent}
+                authMode={authMode}
                 profile={profile}
                 themeSwitch={themeSwitch}
                 navigate={navigate}
@@ -90,7 +102,7 @@ export function SidebarNav(props: NavigationProps) {
               </Avatar>
               <span className="sidebar-account-copy">
                 <strong>{displayName}</strong>
-                <small>{email}</small>
+                <small>{accountSubtitle}</small>
               </span>
               <SettingOutlined className="sidebar-account-cue" aria-hidden="true" />
             </button>

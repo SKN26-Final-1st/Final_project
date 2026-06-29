@@ -1,5 +1,5 @@
 import { Avatar, Progress } from 'antd';
-import { CreditCardOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { ApiOutlined, CreditCardOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import type { AppRoute } from '../../data/appConfig';
 import type { NavigationProps } from './navigationTypes';
 import { getInitials } from './navigationUtils';
@@ -9,6 +9,7 @@ type AccountMenuProps = Omit<NavigationProps, 'route' | 'mode'> & {
 };
 
 export function AccountMenu({
+  authMode,
   creditPercent,
   profile,
   themeSwitch,
@@ -17,8 +18,9 @@ export function AccountMenu({
   showAlert,
   onClose,
 }: AccountMenuProps) {
-  const displayName = profile?.displayName ?? '채용 담당자';
-  const email = profile?.email ?? 'recruiter@humour.ai';
+  const isApiKeyMode = authMode === 'apiKey';
+  const displayName = isApiKeyMode ? 'API Key 사용자' : profile?.displayName ?? '채용 담당자';
+  const accountSubtitle = isApiKeyMode ? '제한 접근 모드' : `계정 ID ${profile?.username ?? '-'}`;
   const creditPointText = `${profile?.credit ?? 0}pt`;
 
   const moveTo = (nextRoute: AppRoute) => {
@@ -33,9 +35,9 @@ export function AccountMenu({
           {getInitials(displayName)}
         </Avatar>
         <div>
-          <span>마이페이지</span>
+          <span>{isApiKeyMode ? 'API Key 로그인' : '마이페이지'}</span>
           <strong>{displayName}</strong>
-          <small>{email}</small>
+          <small>{accountSubtitle}</small>
         </div>
       </div>
       <div className="account-theme-row">
@@ -45,31 +47,43 @@ export function AccountMenu({
         </span>
         {themeSwitch}
       </div>
-      <div className="account-credit-panel">
-        <div>
-          <CreditCardOutlined />
-          <span>분석 크레딧</span>
-          <strong>{creditPointText}</strong>
+      {isApiKeyMode ? (
+        <div className="account-credit-panel">
+          <div>
+            <ApiOutlined />
+            <span>접근 가능 메뉴</span>
+            <strong>JD · 자소서 · 리포트</strong>
+          </div>
         </div>
-        <Progress percent={creditPercent} showInfo={false} />
-        <button
-          type="button"
-          className="account-credit-link"
-          onClick={() => {
-            onClose();
-            showAlert({ type: 'info', message: '크레딧 충전 문의 상태를 표시했습니다.' });
-          }}
-        >
-          충전 문의
-        </button>
-      </div>
-      <button type="button" className="account-menu-item" onClick={() => moveTo('/mypage')}>
-        <UserOutlined />
-        <span>
-          <strong>마이페이지 바로가기</strong>
-          <small>프로필과 보안 설정</small>
-        </span>
-      </button>
+      ) : (
+        <>
+          <div className="account-credit-panel">
+            <div>
+              <CreditCardOutlined />
+              <span>분석 크레딧</span>
+              <strong>{creditPointText}</strong>
+            </div>
+            <Progress percent={creditPercent} showInfo={false} />
+            <button
+              type="button"
+              className="account-credit-link"
+              onClick={() => {
+                onClose();
+                showAlert({ type: 'info', message: '크레딧 충전 문의 상태를 표시했습니다.' });
+              }}
+            >
+              충전 문의
+            </button>
+          </div>
+          <button type="button" className="account-menu-item" onClick={() => moveTo('/mypage')}>
+            <UserOutlined />
+            <span>
+              <strong>마이페이지 바로가기</strong>
+              <small>프로필과 보안 설정</small>
+            </span>
+          </button>
+        </>
+      )}
       <button
         type="button"
         className="account-menu-item danger"
