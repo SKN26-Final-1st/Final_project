@@ -123,6 +123,14 @@ class CompanyInfo(models.Model):
             "employ_style": _value_or_empty_list(self.employ_style),
         }
 
+    def to_masked_dict(self):
+        return {
+            "employee_count": _value_or_zero(self.employee_count),
+            "team_composition": _value_or_empty_list(self.team_composition),
+            "company_description": _value_or_empty_string(self.company_description),
+            "employ_style": _value_or_empty_list(self.employ_style),
+        }
+
 
 class AuthKey(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -229,6 +237,19 @@ class JobDescription(models.Model):
             "updated_at": _datetime_to_iso(self.updated_at),
         }
 
+    def to_masked_dict(self):
+        return {
+            "job_name": _value_or_empty_string(self.job_name),
+            "education_level": _value_or_empty_string(self.education_level),
+            "major": _value_or_empty_string(self.major),
+            "career_level": _value_or_empty_string(self.career_level),
+            "required_skill": _value_or_empty_list(self.required_skill),
+            "preferred_skill": _value_or_empty_list(self.preferred_skill),
+            "main_task": _value_or_empty_string(self.main_task),
+            "hiring_reason": _value_or_empty_string(self.hiring_reason),
+            "work_type": _value_or_empty_string(self.work_type)
+        }
+
 
 class Checklist(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -309,6 +330,19 @@ class Resume(models.Model):
             "reviewed_at": _datetime_to_iso(self.reviewed_at),
             "created_at": _datetime_to_iso(self.created_at),
             "updated_at": _datetime_to_iso(self.updated_at),
+        }
+
+    def to_masked_dict(self):
+        return {
+            "skill": _value_or_empty_list(self.skill),
+            "education_level": _value_or_empty_dict(self.education_level),
+            "experience": _value_or_empty_list(self.experience),
+            "self_intoduction": _value_or_empty_list(self.self_intoduction),
+            "certification": _value_or_empty_list(self.certification),
+            "language": _value_or_empty_list(self.language),
+            "award": _value_or_empty_list(self.award),
+            "training": _value_or_empty_list(self.training),
+            "other_activity": _value_or_empty_list(self.other_activity)
         }
 
 

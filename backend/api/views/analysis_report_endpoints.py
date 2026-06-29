@@ -67,9 +67,6 @@ def report_modify(request):
         if not report_id:
             return JsonResponse({"error": True, "message": error_code("Report id is required.", 401)}, status=400)
 
-        if "delete" in data:
-            return JsonResponse({"error": True, "message": error_code("Delete is not allowed.", 407)}, status=400)
-
         if request.user.is_authenticated:
             reports = AnalysisReport.objects.filter(resume__job_description__account=request.user)
         else:
@@ -96,9 +93,17 @@ def report_modify(request):
         if report.status == AnalysisReport.STATUS_PROCESSING:
             return JsonResponse({"error": True, "message": error_code("Report is processing.", 407)}, status=400)
 
+        if data.get("delete") is True:
+            report_data = report.to_dict()
+            report.delete()
+            return JsonResponse({"error": False, "data": report_data})
+
         report_fields = editable_model_fields(report, REPORT_BLOCKED_FIELDS)
 
         for key, value in data.items():
+            if key == "delete":
+                continue
+
             if key in REPORT_BLOCKED_FIELDS:
                 if key == "id":
                     continue
