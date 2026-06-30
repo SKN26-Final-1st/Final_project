@@ -44,7 +44,7 @@
 - JD 수정/삭제: `jd_modify`
 - 체크리스트 조회/수정: `checklist_get`, `checklist_modify`
 - 지원서 조회/수정/삭제: `resume_get`, `resume_modify`
-- 지원서 분석: `_get_analysis_inputs`, `resume_analyze`
+- 지원서 분석: `_get_analysis_resume`, `resume_analyze`
 - 분석 리포트 조회/수정: `report_get`, `report_modify`
 - 채팅: `chat`에서 `get_job_description_dicts`를 통해 인증
 
@@ -60,13 +60,13 @@ API 키 경로는 `authorized_resume`에 포함된 이력서와 해당 이력서
 - `AUTH_KEY_BLOCKED_FIELDS`: `id`, `account`, `account_id`, `value`
 - `JOB_DESCRIPTION_BLOCKED_FIELDS`: `id`, `account`, `account_id`, `created_at`, `updated_at`
 - `CHECKLIST_BLOCKED_FIELDS`: `id`, `job_description`, `job_description_id`
-- `RESUME_BLOCKED_FIELDS`: `id`, `created_at`, `updated_at`, `status`, `reviewed`, `reviewed_at`
-- `REPORT_BLOCKED_FIELDS`: `id`, `resume`, `resume_id`
+- `RESUME_BLOCKED_FIELDS`: `id`, `created_at`, `updated_at`, `reviewed`, `reviewed_at`
+- `REPORT_BLOCKED_FIELDS`: `id`, `resume`, `resume_id`, `status`
 
 ## 보안상 주의점
 
 - 비밀번호 재설정은 임시 비밀번호를 소문자 8자리로 생성해 응답에 직접 반환합니다. 운영 보안 요구사항에 맞는지는 별도 검토가 필요합니다. 근거: `backend/api/views/account_endpoints.py`
-- 로컬 환경에서는 상세 에러 메시지가 응답에 포함됩니다. 운영에서는 `RDS_HOSTNAME` 존재 여부로 상세 메시지를 숨깁니다. 근거: `backend/api/views/error_code.py`
+- 로컬 환경에서는 상세 에러 메시지가 응답에 포함됩니다. 운영에서는 `IS_REMOTE_HOST` 존재 여부로 상세 메시지를 숨깁니다. 근거: `backend/api/views/error_code.py`
 - `AuthKey.value`는 조회 API에서 마스킹되어 반환됩니다. 근거: `authkey_get` in `backend/api/views/auth_key_endpoints.py`
 
 ## 관련 문서
