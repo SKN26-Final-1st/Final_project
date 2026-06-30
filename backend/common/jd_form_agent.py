@@ -1,22 +1,22 @@
 import asyncio
 import json
-import os
-from pathlib import Path
 from typing import List
 
-from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 import sys
 
+try:
+    from .utils import load_env
+except ImportError:
+    from utils import load_env
+
+load_env()
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 # 환경 변수 로드 설정
-DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
-if not DATABASE_HOST:
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-
 LLM_MODEL = "gpt-4o-mini"
 TEMPERATURE = 0
 

@@ -1,316 +1,131 @@
-"""LLM으로 민감 구간을 추출하고 Python 정규식으로 문자열을 마스킹·복원합니다."""
-
-from copy import deepcopy
-import json
 import os
-from pathlib import Path
-import re
+import json
 
 from openai import OpenAI
+
+from typing import List
 from pydantic import BaseModel, Field
 
-from .prompt import (
-    COMPANY_SUMMARY_SYSTEM_PROMPT,
-    COMPANY_SUMMARY_USER_PROMPT,
-    JD_SUMMARY_SYSTEM_PROMPT,
-    JD_SUMMARY_USER_PROMPT,
-    RESUME_MASKING_SYSTEM_PROMPT,
-    RESUME_MASKING_USER_PROMPT,
-    RESUME_SUMMARY_SYSTEM_PROMPT,
-    RESUME_SUMMARY_USER_PROMPT,
-)
+from .utils import load_env
 
+load_env()
+
+class MaskingAnalysis(BaseModel):
+    comp_name: List[str] = Field(default_factory=list, description="마스킹 필요 회사·고객사·이전회사명")
+    person_name: List[str] = Field(default_factory=list, description="지원자 및 제3자 실명")
+    address: List[str] = Field(default_factory=list, description="주소·출신지역")
+    personal_info: List[str] = Field(default_factory=list, description="고유식별·연락처·차별위험·민감정보")
+    school_edu: List[str] = Field(default_factory=list, description="추상화 대상 학교·교육기관")
+    project_name: List[str] = Field(default_factory=list, description="프로젝트 실명")
+    jd_discrimination: List[str] = Field(default_factory=list, description="JD 내 차별조항(제거·경고)")
 
 MODEL_NAME = "gpt-4o-mini"
 
+masking_prompt = """
+당신은 한국 채용 데이터의 개인정보 마스킹 전문가입니다.
+입력으로 들어온 자유 텍스트(자기소개서, 채용공고(JD) 본문, 회사 소개,
+채용 사유, 메모 등)에서 "마스킹이 필요한 표현"을 찾아
+아래 7개 카테고리로 분류하여 추출하세요.
+(추출된 표현은 후처리에서 모두 마스킹 처리됩니다. 당신의 역할은 마스킹할
+스팬을 찾아내는 것이며, 어떻게 가릴지·삭제할지는 판단하지 않습니다.)
 
-class MaskingResultItem(BaseModel):
-    """민감 원문 한 개와 대응하는 고유 마스킹 토큰입니다."""
+[마스킹 카테고리]
+1. comp_name        : 회사/기관/고객사/이전 근무처 등 조직 식별명
+2. person_name      : 지원자 본인 및 제3자(교수·추천인·동료 등)의 실명
+3. address          : 주소 및 출신·거주 지역
+4. personal_info    : 고유식별정보·연락처·차별위험정보·민감정보
+5. school_edu       : 학교/교육기관/주최기관명
+6. project_name     : 내부·제3자 정보가 포함될 수 있는 프로젝트 실명
+7. jd_discrimination: JD 내 차별 소지 조항(성별·나이·외모·출신·혼인·가족)
 
-    original: str = Field(description="실제 입력에 존재하는 최소 민감 원문")
-    token: str = Field(description="민감 원문을 치환할 고유 마스킹 토큰")
+[카테고리 상세 기준]
 
+■ comp_name
+  - 포함: 현재/이전 회사명, 고객사명("A은행", "B카드"), JD 제목 속 회사명,
+          투자사·파트너사 등 식별 가능한 조직명.
+  - 제외: 일반 업종 표현("금융권", "대형 IT 기업")은 추출하지 않음(이미 비식별).
 
-class MaskingResultStructure(BaseModel):
-    """LLM이 찾은 최소 민감 원문과 치환 토큰 목록입니다."""
+■ person_name
+  - 포함: 지원자 본명, 자소서 속 교수·멘토·추천인·동료 등 제3자 실명,
+          메모/팀 구성 속 실명.
+  - 제외: 직책만 있고 이름이 없는 경우("CTO", "팀장")는 추출하지 않음.
 
-    masking_result: list[MaskingResultItem] = Field(
-        description="최소 민감 원문과 고유 토큰의 목록"
-    )
+■ address
+  - 포함: 도로명/지번 주소, 동·구 단위 출신지·거주지("서울 대방동", "부산 출신").
+  - 제외: 근무 희망 지역처럼 직무상 필요한 일반 지역 표현은 신중히 판단.
 
+■ personal_info  (가장 넓음 — 가능하면 subtype을 함께 표기)
+  - 고유식별: 주민등록번호, 여권번호, 운전면허번호, 외국인등록번호
+  - 연락처  : 이메일, 전화번호 (텍스트 내에 노출된 경우)
+  - 차별위험: 생년월일·나이, 성별, 병역("2021년 군 전역"),
+              혼인여부, 가족관계("2남 1녀 중 차남"), 출신지역, 재산
+  - 민감정보: 종교, 정치성향, 노조·정당 가입, 건강·장애 정보
+  - ※ 나이를 직접 유추시키는 표현(전역 연도, 졸업 연도+나이 등)도 포함.
 
-class ResumeStarAnalysisStructure(BaseModel):
-    """자기소개서 질문과 답변 한 건의 STAR 분석 결과입니다."""
+■ school_edu
+  - 포함: 대학·고교명, 부트캠프/교육기관("플레이데이터"),
+          공모전 주최사("삼성전자 주최 공모전"의 삼성전자).
 
-    answer: str = Field(description="자기소개서 답변의 간결한 STAR 분석문")
+■ project_name
+  - 포함: 내부 프로젝트 실명, 고객사 프로젝트명("차세대 시스템 구축").
 
+■ jd_discrimination
+  - 성별   : "남성 우대", "여성 우대", "군필자 우대"
+  - 나이   : "20대 선호", "30세 이하", "젊고 활기찬 분"
+  - 외모/신체: "사진 부착 필수", "키 170 이상", "용모 단정"
+  - 출신지역: "서울 거주자 우대", "지방 출신 환영"
+  - 혼인   : "미혼자 우대"
+  - 가족   : "부모 직업", "가족 학력/재산"
 
-def _load_backend_env():
-    """backend/.env의 환경 변수를 UTF-8로 읽어 런타임 환경에 보강합니다."""
+[추출 규칙]
+- 입력 텍스트에 등장한 "원문 표현 그대로" 추출한다(임의 정규화·번역 금지).
+- 동일 표현이 여러 번 나와도 리스트에는 한 번만 넣는다(중복 제거).
+- 해당 카테고리에 없으면 빈 리스트 []를 반환한다.
+- 이미 마스킹된 표현(예: "[MASK_COMPANY]", "금융권")은 추출하지 않는다.
+- 판단이 모호하면 누락보다 과추출을 택한다(마스킹은 보수적으로).
+- 추출 외의 설명·해설 문장은 출력하지 않는다.
+"""
 
-    if os.environ.get("OPENAI_API_KEY"):
-        return
+client = None
 
-    env_path = Path(__file__).resolve().parents[1] / ".env"
-    if not env_path.exists():
-        return
+def get_client():
+    global client
 
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    if client is not None: 
+        return client
+    
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    return client
 
+def invoke(data):
+    global masking_prompt
 
-def _get_openai_client():
-    """환경 변수의 API 키로 OpenAI 클라이언트를 생성합니다."""
+    ai_client = get_client()
 
-    _load_backend_env()
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY가 설정되어 있지 않습니다.")
-    return OpenAI(api_key=api_key)
+    if not isinstance(data, dict):
+        raise ValueError("masking invoke input must be a dict.")
 
-
-def _messages(system_prompt, user_prompt):
-    """OpenAI 호출용 system/user 메시지를 구성합니다."""
-
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
+    data_text = json.dumps(data, ensure_ascii=False, indent=2)
+    messages = [
+        {"role": "system", "content": masking_prompt},
+        {"role": "user", "content": data_text},
     ]
 
-
-def _create_structured_completion(system_prompt, user_prompt, response_format):
-    """Pydantic 스키마에 맞는 구조화 응답을 생성합니다."""
-
-    client = _get_openai_client()
-    messages = _messages(system_prompt, user_prompt)
-    parse_method = getattr(client.beta.chat.completions, "parse", None)
-
+    parse_method = getattr(ai_client.beta.chat.completions, "parse", None)
     if parse_method:
         response = parse_method(
             model=MODEL_NAME,
             messages=messages,
-            response_format=response_format,
+            response_format=MaskingAnalysis,
         )
-        return response.choices[0].message.parsed
+        return response.choices[0].message.parsed.model_dump()
 
-    response = client.chat.completions.create(
+    response = ai_client.chat.completions.create(
         model=MODEL_NAME,
         messages=messages,
         response_format={"type": "json_object"},
     )
-    return response_format.model_validate_json(response.choices[0].message.content)
 
-
-def serialize_input(data):
-    """입력 dict를 후속 LLM에 전달할 UTF-8 JSON 문자열로 직렬화합니다."""
-
-    if not isinstance(data, dict):
-        raise ValueError("마스킹 입력은 dict 형태여야 합니다.")
-    return json.dumps(data, ensure_ascii=False, indent=2)
-
-
-def _validate_masking_result(source_text, masking_result):
-    """매핑의 원문·토큰 타입, 입력 포함 여부와 토큰 고유성을 검증합니다."""
-
-    if not isinstance(masking_result, dict):
-        raise ValueError("masking_result는 dict 형태여야 합니다.")
-    if not all(
-        isinstance(original, str)
-        and original
-        and isinstance(token, str)
-        and token
-        for original, token in masking_result.items()
-    ):
-        raise ValueError("masking_result의 원문과 토큰은 빈 값이 아닌 문자열이어야 합니다.")
-    if len(set(masking_result.values())) != len(masking_result):
-        raise ValueError("서로 다른 민감 원문에는 고유한 토큰이 필요합니다.")
-
-    missing = [original for original in masking_result if original not in source_text]
-    if missing:
-        raise ValueError(f"masking_result 원문이 입력에 없습니다: {missing}")
-
-
-def apply_masking(source_text, masking_result):
-    """민감 원문을 re.escape 정규식으로 만들어 JSON 문자열 전체에서 치환합니다."""
-
-    if not isinstance(source_text, str):
-        raise ValueError("source_text는 문자열이어야 합니다.")
-    _validate_masking_result(source_text, masking_result)
-    if not masking_result:
-        return source_text
-
-    masked_text = mask_data(source_text, masking_result)
-
-    for original, token in masking_result.items():
-        if original in masked_text:
-            raise ValueError(f"민감 원문이 마스킹 결과에 남아 있습니다: {original}")
-        if token not in masked_text:
-            raise ValueError(f"마스킹 토큰이 결과에 반영되지 않았습니다: {token}")
-    return masked_text
-
-
-def mask_data(value, masking_result):
-    """이미 추출된 매핑을 문자열 또는 중첩 dict/list에 적용합니다."""
-
-    if isinstance(value, str):
-        if not masking_result:
-            return value
-        originals = sorted(masking_result, key=len, reverse=True)
-        pattern = re.compile("|".join(re.escape(original) for original in originals))
-        return pattern.sub(lambda match: masking_result[match.group(0)], value)
-    if isinstance(value, dict):
-        return {
-            key: mask_data(item, masking_result)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [mask_data(item, masking_result) for item in value]
-    return value
-
-
-def restore_masked_data(value, masking_result):
-    """문자열 또는 중첩 dict/list 안의 토큰을 민감 원문으로 역치환합니다."""
-
-    reverse_mapping = {token: original for original, token in masking_result.items()}
-    if len(reverse_mapping) != len(masking_result):
-        raise ValueError("복호화할 마스킹 토큰은 모두 고유해야 합니다.")
-
-    if isinstance(value, str):
-        restored = value
-        for token in sorted(reverse_mapping, key=len, reverse=True):
-            restored = restored.replace(token, reverse_mapping[token])
-        return restored
-    if isinstance(value, dict):
-        return {
-            key: restore_masked_data(item, masking_result)
-            for key, item in value.items()
-        }
-    if isinstance(value, list):
-        return [restore_masked_data(item, masking_result) for item in value]
-    return value
-
-
-def merge_masking_results(*results):
-    """여러 체인의 원문-토큰 매핑을 충돌 없이 하나로 합칩니다."""
-
-    merged = {}
-    used_tokens = set()
-    for result in results:
-        for original, token in result.items():
-            if original in merged and merged[original] != token:
-                raise ValueError(f"같은 원문에 서로 다른 토큰이 지정되었습니다: {original}")
-            if token in used_tokens and merged.get(original) != token:
-                raise ValueError(f"서로 다른 원문에 같은 토큰이 지정되었습니다: {token}")
-            merged[original] = token
-            used_tokens.add(token)
-    return merged
-
-
-def _extract_masking_result(source_dict, system_prompt, user_prompt):
-    """LLM에는 최소 민감 구간과 토큰 매핑만 요청합니다."""
-
-    source_text = serialize_input(source_dict)
-    parsed = _create_structured_completion(
-        system_prompt,
-        user_prompt.format(
-            company_json=source_text,
-            jd_json=source_text,
-            resume_json=source_text,
-        ),
-        MaskingResultStructure,
-    )
-    masking_items = parsed.model_dump()["masking_result"]
-    masking_result = {}
-    for item in masking_items:
-        original = item["original"]
-        token = item["token"]
-        if original in masking_result and masking_result[original] != token:
-            raise ValueError(f"같은 민감 원문에 서로 다른 토큰이 지정되었습니다: {original}")
-        masking_result[original] = token
-
-    _validate_masking_result(source_text, masking_result)
-    return source_text, masking_result
-
-
-def _apply_resume_star_analysis(resume_dict):
-    """지원서 복사본의 자기소개서 answer를 질문별 STAR 분석문으로 교체합니다."""
-
-    result = deepcopy(resume_dict)
-    introduction_key = next(
-        (
-            key
-            for key in ("self_intoduction", "self_introduction")
-            if key in result
-        ),
-        None,
-    )
-    if introduction_key is None or not result[introduction_key]:
-        return result
-
-    introductions = result[introduction_key]
-    if not isinstance(introductions, list):
-        raise ValueError(f"{introduction_key}은 list 형태여야 합니다.")
-
-    for index, item in enumerate(introductions):
-        if not isinstance(item, dict):
-            raise ValueError(f"{introduction_key}[{index}]는 dict 형태여야 합니다.")
-        analysis_input = {
-            "question": item.get("question", ""),
-            "answer": item.get("answer", ""),
-        }
-        parsed = _create_structured_completion(
-            RESUME_SUMMARY_SYSTEM_PROMPT,
-            RESUME_SUMMARY_USER_PROMPT.format(
-                resume_json=json.dumps(analysis_input, ensure_ascii=False, indent=2)
-            ),
-            ResumeStarAnalysisStructure,
-        )
-        item["answer"] = parsed.answer.strip()
-    return result
-
-
-def mask_company(company_dict):
-    """회사 민감 구간을 추출하고 Python 코드로 마스킹한 JSON 문자열을 반환합니다."""
-
-    source_text, masking_result = _extract_masking_result(
-        company_dict,
-        COMPANY_SUMMARY_SYSTEM_PROMPT,
-        COMPANY_SUMMARY_USER_PROMPT,
-    )
-    return {
-        "outputdata": apply_masking(source_text, masking_result),
-        "masking_result": masking_result,
-    }
-
-
-def mask_jd(jd_dict):
-    """JD 민감 구간을 추출하고 Python 코드로 마스킹한 JSON 문자열을 반환합니다."""
-
-    source_text, masking_result = _extract_masking_result(
-        jd_dict,
-        JD_SUMMARY_SYSTEM_PROMPT,
-        JD_SUMMARY_USER_PROMPT,
-    )
-    return {
-        "outputdata": apply_masking(source_text, masking_result),
-        "masking_result": masking_result,
-    }
-
-
-def mask_resume(resume_dict):
-    """자소서 STAR 분석 후 민감 구간을 추출해 마스킹한 JSON 문자열을 반환합니다."""
-
-    star_resume = _apply_resume_star_analysis(resume_dict)
-    source_text, masking_result = _extract_masking_result(
-        star_resume,
-        RESUME_MASKING_SYSTEM_PROMPT,
-        RESUME_MASKING_USER_PROMPT,
-    )
-    return {
-        "outputdata": apply_masking(source_text, masking_result),
-        "masking_result": masking_result,
-    }
+    return MaskingAnalysis.model_validate_json(
+        response.choices[0].message.content
+    ).model_dump()

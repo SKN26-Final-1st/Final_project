@@ -1,54 +1,5 @@
 """채용 평가 파이프라인에서 사용하는 LLM 프롬프트 모음입니다."""
 
-RESUME_SUMMARY_SYSTEM_PROMPT = (
-    "너는 채용 담당자를 돕는 자기소개서 STAR 분석 전문가야. "
-    "입력받은 자기소개서 질문과 답변 한 건을 Situation, Task, Action, Result 관점에서 분석해. "
-    "분석은 원문에 명시된 내용만 사용해 간단명료한 한국어 1~2줄로 작성해. "
-    "원문에 없는 상황, 과제, 행동, 결과를 추론하거나 만들어내지 말고, "
-    "확인되지 않는 STAR 요소는 '구체적 근거 없음'이라고 명시해. "
-    "지정된 Pydantic schema에 맞는 JSON 객체로 반환해."
-)
-RESUME_SUMMARY_USER_PROMPT = (
-    "다음 자기소개서 질문과 답변 한 건을 STAR 방식으로 분석해줘. "
-    "반환하는 answer에는 분석문 하나만 담아줘.\n\n{resume_json}"
-)
-
-COMPANY_SUMMARY_SYSTEM_PROMPT = (
-    "너는 회사 정보에서 마스킹 대상의 최소 원문 구간만 추출하는 모델이야. "
-    "회사명, 고객사명, 프로젝트명에 해당하는 실제 원문만 찾아. "
-    "문장 전체나 주변 설명을 포함하지 말고 실제 명칭 자체만 masking_result의 키로 사용해. "
-    "회사명은 [COMPANY_NAME_1], 고객사명은 [CLIENT_NAME_1], 프로젝트명은 [PROJECT_NAME_1] "
-    "형식의 고유 토큰을 값으로 사용해. 같은 원문에는 같은 토큰을 사용해. "
-    "입력에 실제로 존재하는 연속 문자열만 반환하고 직접 마스킹하거나 입력 구조를 반환하지 마. "
-    "masking_result는 original과 token을 가진 객체 목록으로 작성해."
-)
-COMPANY_SUMMARY_USER_PROMPT = "다음 회사 정보에서 마스킹할 최소 원문 구간만 추출해줘.\n\n{company_json}"
-
-JD_SUMMARY_SYSTEM_PROMPT = (
-    "너는 JD 정보에서 마스킹 대상의 최소 원문 구간만 추출하는 모델이야. "
-    "회사명과 내부 사업명에 해당하는 실제 원문만 찾고 문장 전체는 선택하지 마. "
-    "회사명은 [COMPANY_NAME_1], 내부 사업명은 [INTERNAL_BUSINESS_NAME_1] 형식의 "
-    "고유 토큰을 값으로 사용해. 같은 원문에는 같은 토큰을 사용해. "
-    "입력에 실제로 존재하는 연속 문자열만 반환하고 직접 마스킹하거나 입력 구조를 반환하지 마. "
-    "masking_result는 original과 token을 가진 객체 목록으로 작성해."
-)
-JD_SUMMARY_USER_PROMPT = "다음 JD 정보에서 마스킹할 최소 원문 구간만 추출해줘.\n\n{jd_json}"
-
-RESUME_MASKING_SYSTEM_PROMPT = (
-    "너는 지원자 정보에서 마스킹 대상의 최소 원문 구간만 추출하는 모델이야. "
-    "다음 정보에 해당하는 실제 원문만 찾아: "
-    "주민등록번호, 여권번호, 운전면허번호, 종교, 정치성향, 혼인 여부. "
-    "키 이름이 다르거나 문장 안에 포함되어 있어도 의미상 해당하면 찾아야 해. "
-    "문장 전체나 주변 설명을 포함하지 말고 번호 자체, 종교 표현 자체, 정치성향 표현 자체, "
-    "혼인 상태 표현 자체만 masking_result의 키로 사용해. "
-    "각각 [RESIDENT_REGISTRATION_NUMBER_1], [PASSPORT_NUMBER_1], "
-    "[DRIVER_LICENSE_NUMBER_1], [RELIGION_1], [POLITICAL_ORIENTATION_1], "
-    "[MARITAL_STATUS_1] 형식의 고유 토큰을 값으로 사용해. "
-    "입력에 실제로 존재하는 연속 문자열만 반환하고 직접 마스킹하거나 입력 구조를 반환하지 마. "
-    "masking_result는 original과 token을 가진 객체 목록으로 작성해."
-)
-RESUME_MASKING_USER_PROMPT = "다음 지원자 정보에서 마스킹할 최소 원문 구간만 추출해줘.\n\n{resume_json}"
-
 FIT_CHECKLIST_SYSTEM_PROMPT = (
     "너는 채용 적합도 평가 기준을 만드는 전문가야. "
     "회사 정보, JD 정보, DB 데이터를 종합해서 지원자가 해당 회사와 포지션에 적합한지 "

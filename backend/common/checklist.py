@@ -1,7 +1,6 @@
 import json
 import math
 import os
-from pathlib import Path
 from typing import Any
 
 from openai import OpenAI
@@ -16,27 +15,10 @@ from .prompt import (
     USER_QUERY_PROMPT,
 )
 
-
-def _load_backend_env():
-    """로컬 환경에서 backend/.env의 환경 변수를 런타임 환경에 보강합니다."""
-
-    if os.environ.get("RDS_HOSTNAME"):
-        return
-
-    env_path = Path(__file__).resolve().parents[1] / ".env"
-    if not env_path.exists():
-        return
-
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+from .utils import load_env
 
 
-_load_backend_env()
+load_env()
 
 
 MODEL_NAME = "gpt-4o-mini"

@@ -2,7 +2,6 @@
 
 import json
 import os
-from pathlib import Path
 from typing import Any
 
 from openai import OpenAI
@@ -12,6 +11,10 @@ from .prompt import (
     FEEDBACK_EVALUATION_SYSTEM_PROMPT,
     FEEDBACK_EVALUATION_USER_PROMPT,
 )
+
+from .utils import load_env
+
+load_env()
 
 
 MODEL_NAME = "gpt-4o-mini"
@@ -55,28 +58,9 @@ class FeedbackEvaluation(BaseModel):
     )
 
 
-def _load_backend_env():
-    """backend/.env의 환경 변수를 UTF-8로 읽어 런타임 환경에 보강합니다."""
-
-    if os.environ.get("OPENAI_API_KEY"):
-        return
-
-    env_path = Path(__file__).resolve().parents[1] / ".env"
-    if not env_path.exists():
-        return
-
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-
-
 def _get_openai_client():
     """피드백 평가에 사용할 OpenAI 클라이언트를 생성합니다."""
 
-    _load_backend_env()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY가 설정되어 있지 않습니다.")

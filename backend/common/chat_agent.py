@@ -1,22 +1,20 @@
 import json
 import os
-from pathlib import Path
 from typing import Literal, Union
+
 from pinecone import Pinecone
 from openai import OpenAI
 
-from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
+try:
+    from .utils import load_env
+except ImportError:
+    from utils import load_env
 
-if DATABASE_HOST:
-    pass
-
-if not DATABASE_HOST:
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_env()
 
 LLM_MODEL = "gpt-4o-mini"
 TEMPERATURE = 0

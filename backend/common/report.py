@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 from typing import Any, List
 
 from openai import OpenAI
@@ -19,6 +18,10 @@ from .prompt import (
     REPORT_SYSTEM_PROMPT,
     REPORT_USER_PROMPT,
 )
+
+from .utils import load_env
+
+load_env()
 
 
 MODEL_NAME = "gpt-4o-mini"
@@ -107,34 +110,9 @@ class ReportStructure(BaseModel):
     )
 
 
-def _load_backend_env():
-    """backend/.env 파일을 읽어 OpenAI API 키 같은 환경 변수를 런타임에 보강합니다."""
-
-    DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
-
-    if DATABASE_HOST:
-        return
-
-    if not DATABASE_HOST:
-        env_path = Path(__file__).resolve().parents[1] / ".env"
-        if not env_path.exists():
-            return
-
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            os.environ.setdefault(key, value)
-
-
 def _get_openai_client():
     """환경 변수에서 API 키를 확인한 뒤 OpenAI 클라이언트를 생성합니다."""
 
-    _load_backend_env()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY가 설정되어 있지 않습니다.")
