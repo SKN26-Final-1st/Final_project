@@ -2,8 +2,8 @@
 
 ## 요구 런타임
 
-- Python: GitHub Actions는 Python 3.12를 사용합니다. 근거: `.github/workflows/deploy-eb.yml`
-- Node.js: GitHub Actions는 Node.js 20을 사용합니다. 근거: `.github/workflows/deploy-eb.yml`
+- Python: 운영 배포 스크립트는 EC2에서 `python3.14`로 백엔드 가상환경을 생성합니다. 로컬은 Django 6을 지원하는 Python 런타임을 사용합니다. 근거: `.github/workflows/deploy.yml`
+- Node.js: GitHub Actions는 프론트 빌드에 Node.js 20을 사용합니다. 근거: `.github/workflows/deploy.yml`
 - 프론트 패키지 매니저: `npm`, lockfile은 `frontend/package-lock.json`입니다.
 
 ## 백엔드 의존성
@@ -17,6 +17,7 @@
 - `langchain-core`, `langchain-openai`, `langgraph`
 - `mysqlclient`
 - `pydantic`, `python-dotenv`, `typing-extensions`
+- `celery`, `redis`
 
 루트 `requirements.txt`는 `-r backend/requirements.txt`만 참조합니다.
 
@@ -69,11 +70,12 @@ VITE_USE_MOCK_API=true
 - `DJANGO_CSRF_TRUSTED_ORIGINS`
 - `DJANGO_CSRF_COOKIE_SECURE`
 - `DJANGO_SESSION_COOKIE_SECURE`
+- `IS_REMOTE_HOST`
 - `RDS_HOSTNAME`, `RDS_PORT`, `RDS_USERNAME`, `RDS_PASSWORD`, `RDS_DB_NAME`
 - `OPENAI_API_KEY`
 - `PINECONE_API_KEY`, `PINECONE_HOST`
 
-`RDS_HOSTNAME`이 없으면 로컬 SQLite를 사용하고, `backend/common`의 AI 모듈은 `backend/.env`를 읽습니다. 근거: `backend/config/settings.py`, `backend/common/report.py`, `backend/common/chat_agent.py`
+`IS_REMOTE_HOST`가 설정되면 MySQL/RDS 환경 변수로 DB에 연결하고, 없으면 로컬 SQLite를 사용합니다. `backend/common`의 AI 모듈은 `backend/.env`를 읽습니다. 근거: `backend/config/settings.py`, `backend/common/report.py`, `backend/common/chat_agent.py`
 
 ## 관련 문서
 
