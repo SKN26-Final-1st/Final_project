@@ -5,10 +5,11 @@
 `backend/config/settings.py`:
 
 - `AUTH_USER_MODEL = "api.Account"`로 커스텀 유저 모델을 사용합니다.
-- `RDS_HOSTNAME`이 있으면 MySQL, 없으면 SQLite를 사용합니다.
+- `IS_REMOTE_HOST`가 있으면 MySQL/RDS 환경 변수로 DB에 연결하고, 없으면 SQLite를 사용합니다.
 - `corsheaders`를 설치 앱과 middleware에 포함합니다.
 - 로컬 기본 CORS/CSRF origin은 `http://localhost:5173`, `http://127.0.0.1:5173`입니다.
 - `STATIC_ROOT = BASE_DIR / "staticfiles"`입니다.
+- Celery broker/result backend는 로컬 `redis://127.0.0.1:6379`를 사용합니다.
 
 `backend/config/urls.py`:
 
@@ -59,15 +60,16 @@
 - 최종 리포트 생성
 - 운영 API(`resume_analyze`)가 import하는 유일한 리포트 모듈
 
-`backend/common/report2.py`, `backend/common/report3.py`:
+`backend/api/tasks.py`:
 
-- `report.py`와 같은 public 함수 시그니처(`invoke`, `sum_resume` 등)를 유지한 프롬프트/후처리 실험 버전
-- API view에는 연결되지 않음
-- `report3.py`는 `make_report()`에서 체크리스트 충족 개수로 등급을 코드로 계산한 뒤 LLM 출력과 동기화
+- Celery worker 가용성 확인
+- `AnalysisReport.status`를 `processing`/`done`으로 전환
+- `CompanyInfo`, `JobDescription`, `Resume`, `Checklist`를 읽어 `report.py`에 전달
+- Celery worker가 없을 때 `resume_analyze`의 동기 fallback으로도 사용
 
 `backend/common/eval/`:
 
-- `middle_report_eval.ipynb`, `middle_report2_eval.ipynb`, `middle_report3_eval.ipynb`: 리포트 파이프라인 버전별 평가
+- `middle_report_eval.ipynb`, `middle_report2_eval.ipynb`, `middle_report3_eval.ipynb`: 리포트 파이프라인 평가 노트북
 - `chat_eval.ipynb`: 채팅 파이프라인 평가
 - `goldset_mock_data_fixed.csv`: 리포트 평가 골드셋
 
@@ -93,15 +95,12 @@
 
 ## 마이그레이션
 
-`backend/api/migrations/0001_squashed_0008_initial.py`가 기존 0001-0008을 squash합니다. 개별 migration 파일도 남아 있으므로 새 환경에서는 Django migration 상태를 확인해야 합니다.
+현재 tracked migration은 다음 두 개입니다.
 
-주요 변경:
+- `0001_initial.py`: `Account`, `CompanyInfo`, `AuthKey`, `JobDescription`, `Checklist`, `Resume`, `AnalysisReport` 초기 생성
+- `0002_analysisreport_status.py`: `AnalysisReport.status`, `AnalysisReport.created_at` 추가, `Resume.status` 제거
 
-- `Account.account_hash` 추가
-- `AuthKey.name`, `AuthKey.credit_limit`, 고유 `value` 추가
-- 기존 `Block` 모델 삭제 이력
-
-근거: `backend/api/migrations/0008_account_hash_authkey_fields.py`
+근거: `backend/api/migrations/0001_initial.py`, `backend/api/migrations/0002_analysisreport_status.py`
 
 ## 관련 문서
 

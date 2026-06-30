@@ -81,7 +81,6 @@ erDiagram
     json award
     json training
     json other_activity
-    string status
     bool reviewed
     datetime reviewed_at
     datetime created_at
@@ -104,6 +103,8 @@ erDiagram
     json check_point
     json interview_question
     text final_comment
+    string status
+    datetime created_at
   }
 ```
 
@@ -133,13 +134,13 @@ erDiagram
 - `on_going`
 - `closed`
 
-`Resume.status`:
+`AnalysisReport.status`:
 
 - `onqueue`
 - `processing`
 - `done`
 
-프론트 표시 라벨은 `frontend/src/api/adapters.ts`에서 매핑합니다.
+지원서 자체에는 현재 `status` 필드가 없습니다. 분석 진행 상태는 `AnalysisReport.status`에 저장됩니다. 프론트 표시 라벨은 `frontend/src/api/adapters.ts`에서 매핑합니다.
 
 ## 직렬화 규칙
 
