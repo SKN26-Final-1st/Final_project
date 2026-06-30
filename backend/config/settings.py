@@ -81,13 +81,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
-
-if DATABASE_HOST:
+if os.environ.get("IS_REMOTE_HOST"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.mysql",
-            "HOST": DATABASE_HOST,
+            "HOST": os.environ.get("RDS_HOSTNAME"),
             "PORT": os.environ.get("RDS_PORT", "3306"),
             "USER": os.environ.get("RDS_USERNAME"),
             "PASSWORD": os.environ.get("RDS_PASSWORD"),

@@ -15,7 +15,7 @@ ERROR_MESSAGES = {
 
 
 def is_local_environment():
-    return not bool(os.getenv("RDS_HOSTNAME"))
+    return not bool(os.environ.get("IS_REMOTE_HOST"))
 
 
 def _format_detail_messages(**details):

@@ -2,21 +2,17 @@ import argparse
 import asyncio
 import json
 import operator
-import os
-from pathlib import Path
 from typing import Annotated
 
-from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
 
-DATABASE_HOST = os.environ.get("RDS_HOSTNAME")
+try:
+    from .utils import load_env
+except ImportError:
+    from utils import load_env
 
-if DATABASE_HOST:
-    pass
-
-if not DATABASE_HOST:
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_env()
 
 try:
     from . import chat_agent as agents
