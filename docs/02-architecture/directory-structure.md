@@ -8,10 +8,8 @@
 ├── database/
 ├── docs/
 ├── frontend/
+├── .deploy/
 ├── .github/workflows/
-├── .platform/
-├── .elasticbeanstalk/
-├── Procfile
 ├── requirements.txt
 └── README.md
 ```
@@ -40,9 +38,11 @@ backend/
 ├── common/
 │   ├── chat_agent.py
 │   ├── chat_graph.py
+│   ├── checklist.py
+│   ├── feedback.py
+│   ├── masking.py
 │   ├── report.py
-│   ├── report2.py
-│   ├── report3.py
+│   ├── prompt.py
 │   ├── utils.py
 │   └── eval/
 │       ├── chat_eval.ipynb

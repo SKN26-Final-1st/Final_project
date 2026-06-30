@@ -34,7 +34,7 @@ flowchart LR
 - `backend/api/models.py`: 도메인 모델과 `to_dict()` 직렬화
 - `backend/api/views/`: 도메인별 POST 기반 API 핸들러 (`account_endpoints.py`, `resume_endpoints.py` 등)
 - `backend/common/report.py`: 지원서 분석 리포트/질문 생성(운영)
-- `backend/common/report2.py`, `backend/common/report3.py`: 프롬프트 실험 버전(API 미연결)
+- `backend/api/tasks.py`: Celery 작업과 동기 fallback으로 분석 리포트 저장
 - `backend/common/chat_graph.py`: 채팅 그래프 오케스트레이션
 - `backend/common/chat_agent.py`: LLM agent, Pinecone 검색, 프롬프트
 
@@ -46,11 +46,11 @@ flowchart LR
 
 ## 배포 계층
 
-- `Procfile`: `backend`에서 gunicorn 실행
-- `.platform/nginx/conf.d/elasticbeanstalk/00_application.conf`: `/api/`, `/admin/`, `/static/`, SPA 정적 파일 라우팅
-- `.platform/hooks/prebuild/01_mysqlclient_deps.sh`: Amazon Linux에서 `mysqlclient` 빌드 의존성 설치
-- `.platform/hooks/predeploy/01_collectstatic.sh`, `.platform/hooks/predeploy/02_migrate.sh`: 정적 파일 수집과 마이그레이션
-- `.github/workflows/deploy-eb.yml`: dev 브랜치 push 또는 수동 실행 시 빌드/검사/배포
+- `.github/workflows/deploy.yml`: `dev` 브랜치 push 또는 수동 실행 시 프론트/백엔드 배포
+- `.deploy/frontend.conf`: 프론트 EC2의 nginx 정적 파일 라우팅
+- `.deploy/backend.conf`: 백엔드 EC2의 nginx reverse proxy
+- `.deploy/gunicorn.service`: Django WSGI를 `127.0.0.1:8000`에서 실행하는 systemd unit
+- `.deploy/celery.service`: Valkey/Redis broker를 사용하는 Celery worker systemd unit
 
 ## 관련 문서
 
