@@ -14,18 +14,31 @@
 
 ## 입력 조회
 
-`_get_analysis_inputs(request, resume_id)`:
+`_get_analysis_resume(request, resume_id)`:
 
 1. 세션 사용자인 경우 `Resume`을 `job_description__account=request.user`로 제한합니다.
 2. 비로그인 사용자인 경우 `X-API-Key`를 조회합니다.
 3. API 키 경로는 `authorized_resume`에 포함된 resume id만 허용합니다.
-4. `CompanyInfo`가 없으면 생성합니다.
-5. `Resume.status`를 `processing`으로 바꿉니다.
-6. `resume.to_dict()`, `company_info.to_dict()`, `job_description.to_dict()`를 반환합니다.
+4. 조건에 맞는 `Resume` 객체를 반환하고, 없으면 `None`을 반환합니다.
+
+`resume_analyze(request)`:
+
+1. `{ id }`로 resume id를 받습니다.
+2. `_get_analysis_resume()`로 권한과 대상 지원서를 확인합니다.
+3. 빈 `AnalysisReport`를 `status=onqueue`로 먼저 생성합니다.
+4. Celery worker가 있으면 `enqueue_report_analyze.delay(report.id)`를 호출하고 queued 리포트를 즉시 반환합니다.
+5. Celery worker가 없거나 enqueue가 실패하면 `analyze_and_save_report(report.id)`를 동기로 실행합니다.
 
 ## LLM 분석
 
-`backend/common/report.py`의 `invoke(company_dict, jd_dict, checklist, resume_dict)`가 전체 분석을 수행합니다.
+`backend/api/tasks.py`의 `analyze_and_save_report(report_id)`가 DB에서 분석 입력을 모으고, `backend/common/report.py`의 `invoke(company_dict, jd_dict, checklist, resume_dict)`가 전체 LLM 분석을 수행합니다.
+
+입력 구성:
+
+- `CompanyInfo.to_masked_dict()`
+- `JobDescription.to_masked_dict()`
+- `Resume.to_masked_dict()`
+- 해당 JD의 `Checklist.content` 목록
 
 순서:
 
@@ -41,7 +54,7 @@
 - 리포트 파이프라인(운영): `gpt-4o-mini` — `backend/common/report.py`
 - 임베딩 노트북: `text-embedding-3-small`
 
-운영 API(`resume_analyze`)는 `report.py`만 사용합니다. 프롬프트 수정 실험용 `report2.py`, `report3.py`와 평가 노트북은 API에 연결되지 않습니다. 근거: `backend/api/views/resume_endpoints.py`, `backend/common/eval/middle_report*_eval.ipynb`
+운영 API(`resume_analyze`)는 `backend/api/tasks.py`를 거쳐 `report.py`만 사용합니다. 근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`
 
 ## 구조화 응답
 
@@ -56,16 +69,16 @@ OpenAI SDK의 `client.beta.chat.completions.parse`가 있으면 parse를 사용�
 
 ## 결과 저장
 
-`_save_analysis_result(resume_id, analysis_result)`:
+`_apply_analysis_result(report, report_data)`:
 
 1. LLM 결과에서 리포트 필드와 면접 질문 목록을 추출합니다.
-2. `AnalysisReport.objects.create()`로 새 리포트를 저장합니다. 면접 질문은 `interview_question` JSON 필드에 넣습니다.
-3. `Resume.status`를 `done`으로 변경합니다.
+2. 기존 `AnalysisReport` 행에 결과 필드를 채웁니다. 면접 질문은 `interview_question` JSON 필드에 넣습니다.
+3. `AnalysisReport.status`를 `done`으로 변경합니다.
 4. 저장된 `AnalysisReport.to_dict()`를 반환합니다.
 
 이전 버전의 `InterviewQuestion` 별도 테이블 upsert/bulk_create 흐름은 제거되었습니다.
 
-근거: `backend/api/views/resume_endpoints.py`, `backend/api/models.py`
+근거: `backend/api/tasks.py`, `backend/api/models.py`
 
 ## JD 체크리스트 생성 API
 

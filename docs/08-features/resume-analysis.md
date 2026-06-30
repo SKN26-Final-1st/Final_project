@@ -43,9 +43,10 @@
 백엔드 구현:
 
 - `resume_analyze` in `backend/api/views/resume_endpoints.py`
-- `_get_analysis_inputs()`
-- `report_service.invoke()`
-- `_save_analysis_result()`
+- `_get_analysis_resume()`
+- `is_celery_worker_available()`
+- `enqueue_report_analyze.delay(report.id)` 또는 동기 fallback `analyze_and_save_report(report.id)`
+- `report_service.invoke()` in `backend/api/tasks.py`
 
 ## 분석 결과 조회 화면
 
@@ -67,7 +68,7 @@
 저장 모델:
 
 - `AnalysisReport` (`interview_question` JSON 필드에 면접 질문 포함)
-- `Resume.status = done`
+- `AnalysisReport.status`: `onqueue`, `processing`, `done`
 
 프론트 표시:
 

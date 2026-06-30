@@ -69,19 +69,17 @@ Pydantic 모델:
 
 | 모듈 | 용도 | 모델 | 비고 |
 | --- | --- | --- | --- |
-| `report.py` | 운영 파이프라인 | `gpt-4o-mini` | `resume_analyze`가 호출 |
-| `report2.py` | 프롬프트 수정 실험 | `gpt-4o-mini` | 환각 방지·면접 질문 구조 등 프롬프트 강화 |
-| `report3.py` | `report2` 후속 실험 | `gpt-4o-mini` | `make_report()`에서 체크리스트 T/F 기반 등급을 코드로 확정하고 LLM 출력과 동기화 |
+| `report.py` | 운영 파이프라인 | `gpt-4o-mini` | `backend/api/tasks.py`가 호출 |
 
 평가 노트북(`backend/common/eval/`):
 
 - `middle_report_eval.ipynb` — 구버전 `report.py` 대비 Ver1/Ver2 평가
-- `middle_report2_eval.ipynb` — `report2.py` end-to-end 평가
-- `middle_report3_eval.ipynb` — `report3.py` end-to-end 평가
+- `middle_report2_eval.ipynb` — 과거 실험 버전 평가 노트북
+- `middle_report3_eval.ipynb` — 과거 실험 버전 평가 노트북
 - `chat_eval.ipynb` — 채팅 파이프라인 평가
 - `goldset_mock_data_fixed.csv` — 리포트 평가용 골드셋
 
-노트북은 로컬 Jupyter에서 OpenAI API 키가 필요합니다. 결과 CSV는 노트북 내부 경로에 저장되며 운영 DB와는 분리됩니다.
+현재 tracked 소스에는 `report2.py`, `report3.py`가 없으므로, `middle_report2_eval.ipynb`와 `middle_report3_eval.ipynb`를 재실행하려면 노트북 내부 import 경로와 필요한 실험 소스 복원이 먼저 필요합니다. 노트북은 로컬 Jupyter에서 OpenAI API 키가 필요합니다. 결과 CSV는 노트북 내부 경로에 저장되며 운영 DB와는 분리됩니다.
 
 ## 채팅 모델
 
