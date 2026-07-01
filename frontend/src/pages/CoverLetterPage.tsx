@@ -15,7 +15,6 @@ import {
 } from '../components/cover-letter/CoverLetterInputPanel';
 import { CoverLetterDeleteModal } from '../components/cover-letter/CoverLetterDeleteModal';
 import { CoverLetterUploadPanel } from '../components/cover-letter/CoverLetterUploadPanel';
-import { ResumeStructuredSummary } from '../components/cover-letter/ResumeStructuredSummary';
 import { InlineLoading } from '../components/common/InlineLoading';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
@@ -605,7 +604,6 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
                     }
                   />
                 ) : null}
-                <ResumeStructuredSummary resume={editingResume} />
                 <CoverLetterInputPanel
                   jdList={jdList}
                   form={form}
