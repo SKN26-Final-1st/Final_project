@@ -276,7 +276,7 @@ describe('AnalysisReportPage', () => {
     expect(screen.getByText('역량 3')).toBeInTheDocument();
   });
 
-  it('질문 추천은 질문만 compact하게 먼저 보이고 답변/의도는 상세에서 펼친다', async () => {
+  it('질문 카드를 클릭하면 카드 안에서 답변과 의도가 펼쳐진다', async () => {
     const user = userEvent.setup();
 
     render(<AnalysisReportPage navigate={vi.fn()} />);
@@ -287,11 +287,17 @@ describe('AnalysisReportPage', () => {
     expect(screen.getByText('질문 3')).toBeInTheDocument();
     expect(screen.queryByText('질문 4')).not.toBeInTheDocument();
     expect(screen.queryByText('답변 1')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /상세 보기/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /상세 보기/ }));
+    await user.click(screen.getByRole('button', { name: /질문 1/ }));
 
     expect(screen.getByText('답변 1')).toBeInTheDocument();
     expect(screen.getByText('의도 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /질문 1/ })).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(screen.getByRole('button', { name: /질문 1/ }));
+
+    expect(screen.queryByText('답변 1')).not.toBeInTheDocument();
   });
 
   it('리포트 목록을 검색하고 motive/collaboration 분석을 표시한다', async () => {
