@@ -113,6 +113,23 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         ? '먼저 자소서를 저장한 뒤 분석 요청해 주세요.'
         : undefined;
   const checklistQuery = useJdChecklist(!isCreateMode && selectedJd ? selectedJd.id : null);
+  const checklistItems = checklistQuery.data ?? [];
+  const checklistAnalysisDisabledReason =
+    selectedJd && analysisTargetResume && checklistQuery.isLoading
+      ? 'JD 체크리스트를 불러오는 중입니다.'
+      : selectedJd && analysisTargetResume && checklistQuery.isError
+        ? 'JD 체크리스트를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.'
+        : selectedJd && analysisTargetResume && checklistItems.length === 0
+          ? '지원서 분석 전에 JD 체크리스트를 먼저 생성해주세요.'
+          : undefined;
+  const combinedAnalysisDisabledReason = analysisDisabledReason ?? checklistAnalysisDisabledReason;
+  const canRequestAnalysis = Boolean(
+    !isCreateMode &&
+      selectedJd &&
+      analysisTargetResume &&
+      !analyzeJd.isPending &&
+      !checklistAnalysisDisabledReason,
+  );
   const filteredJdList = useMemo(() => {
     const filtered = jdList.filter((item) => {
       const matchesSearch = includesSearchText(
@@ -242,7 +259,15 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   };
 
   const requestAnalysis = async () => {
-    if (!analysisTargetResume) {
+    if (checklistAnalysisDisabledReason) {
+      showAlert({
+        type: 'warning',
+        message: checklistAnalysisDisabledReason,
+      });
+      return;
+    }
+
+    if (!analysisTargetResume || checklistAnalysisDisabledReason) {
       showAlert({
         type: 'warning',
         message: analysisDisabledReason ?? '분석할 지원자를 찾을 수 없습니다.',
@@ -288,8 +313,8 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
             <Button
               type="primary"
               icon={<FileSearchOutlined />}
-              disabled={isCreateMode || !selectedJd || !analysisTargetResume || analyzeJd.isPending}
-              title={analysisDisabledReason}
+              disabled={!canRequestAnalysis}
+              title={combinedAnalysisDisabledReason}
               onClick={() => void requestAnalysis()}
             >
               {analyzeJd.isPending ? <InlineLoading label="분석 중" /> : '지원서 분석 요청'}
@@ -360,7 +385,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
                     adding={addChecklist.isPending}
                     deleting={deleteChecklist.isPending}
                     generating={generateChecklist.isPending}
-                    items={checklistQuery.data ?? []}
+                    items={checklistItems}
                     jobDescriptionId={Number(selectedJd.id)}
                     loading={checklistQuery.isLoading}
                     updating={updateChecklist.isPending}

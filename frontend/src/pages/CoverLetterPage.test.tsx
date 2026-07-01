@@ -96,6 +96,11 @@ const coverRow: CoverLetterRow = {
 const coverLetterPageData = vi.hoisted(() => ({
   coverRows: [] as CoverLetterRow[],
 }));
+const checklistQueryState = vi.hoisted(() => ({
+  items: [{ id: 1, job_description_id: 10, content: 'React 경험 확인' }],
+  isLoading: false,
+  isError: false,
+}));
 
 vi.mock('../hooks/useCoverLetterPageData', () => ({
   useCoverLetterPageData: () => ({
@@ -118,10 +123,21 @@ vi.mock('../hooks/mutations/useResumeMutations', () => ({
   }),
 }));
 
+vi.mock('../hooks/useJdChecklist', () => ({
+  useJdChecklist: () => ({
+    data: checklistQueryState.items,
+    isLoading: checklistQueryState.isLoading,
+    isError: checklistQueryState.isError,
+  }),
+}));
+
 describe('CoverLetterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     coverLetterPageData.coverRows = [];
+    checklistQueryState.items = [{ id: 1, job_description_id: 10, content: 'React 경험 확인' }];
+    checklistQueryState.isLoading = false;
+    checklistQueryState.isError = false;
   });
 
   it('저장할 때 이력서 구조화 필드를 목업 JSON 구조로 정리한다', async () => {
@@ -291,5 +307,21 @@ describe('CoverLetterPage', () => {
     expect(searchInput).toHaveValue('분석 완료');
     expect(screen.getByLabelText('김백엔드 자소서 선택')).toBeInTheDocument();
     expect(screen.getByLabelText('이완료 자소서 선택')).toBeInTheDocument();
+  });
+
+  it('분석 완료 상태여도 채팅 화면에서 리포트 확인 버튼을 표시하지 않는다', () => {
+    coverLetterPageData.coverRows = [
+      {
+        ...coverRow,
+        status: '분석 완료',
+        statusCode: 'done',
+        resumeStatus: 'done',
+        score: 94,
+      },
+    ];
+
+    render(<CoverLetterPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: '채팅 화면에서 리포트 확인' })).not.toBeInTheDocument();
   });
 });

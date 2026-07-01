@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JdPage } from './JdPage';
 import type { JdItem } from '../api/adapters';
+import type { Resume } from '../data/backendTypes';
 
 const saveJdMutateAsync = vi.hoisted(() => vi.fn());
 const addJdMutateAsync = vi.hoisted(() => vi.fn());
@@ -16,9 +17,15 @@ const deleteJdMutateAsync = vi.hoisted(() => vi.fn());
 const jdPageData = vi.hoisted(() => ({
   selectedJd: null as JdItem | null,
   jdList: [] as JdItem[],
+  resumes: [] as Resume[],
 }));
 const checklistData = vi.hoisted(() => ({
   items: [{ id: 1, job_description_id: 1, content: 'React 실무 경험 확인' }],
+}));
+const defaultChecklistItems = checklistData.items;
+const checklistQueryState = vi.hoisted(() => ({
+  isLoading: false,
+  isError: false,
 }));
 
 function makeJdItem(overrides: Partial<JdItem> = {}): JdItem {
@@ -44,7 +51,7 @@ function makeJdItem(overrides: Partial<JdItem> = {}): JdItem {
 vi.mock('../hooks/useJdPageData', () => ({
   useJdPageData: () => ({
     jdList: jdPageData.jdList,
-    resumes: [],
+    resumes: jdPageData.resumes,
     selectedJdId: jdPageData.selectedJd?.id ?? null,
     selectedJd: jdPageData.selectedJd,
     setSelectedJdId: vi.fn(),
@@ -67,7 +74,8 @@ vi.mock('../hooks/mutations/useJdMutations', () => ({
 vi.mock('../hooks/useJdChecklist', () => ({
   useJdChecklist: () => ({
     data: checklistData.items,
-    isLoading: false,
+    isLoading: checklistQueryState.isLoading,
+    isError: checklistQueryState.isError,
   }),
 }));
 
@@ -76,6 +84,10 @@ describe('JdPage', () => {
     vi.clearAllMocks();
     jdPageData.selectedJd = makeJdItem();
     jdPageData.jdList = [jdPageData.selectedJd];
+    jdPageData.resumes = [];
+    checklistData.items = [...defaultChecklistItems];
+    checklistQueryState.isLoading = false;
+    checklistQueryState.isError = false;
     saveJdMutateAsync.mockResolvedValue({
       error: false,
       message: '저장되었습니다.',
@@ -171,6 +183,36 @@ describe('JdPage', () => {
     expect(generateChecklistMutateAsync).toHaveBeenCalledWith(1);
   });
 
+  it('체크리스트가 없는 JD는 지원서 분석 요청을 막는다', () => {
+    jdPageData.resumes = [
+      {
+        id: 9,
+        job_description_id: 1,
+        name: '홍길동',
+        skill: ['React'],
+        education_level: {},
+        experience: [],
+        self_intoduction: [],
+        certification: [],
+        language: [],
+        award: [],
+        training: [],
+        other_activity: [],
+        reviewed: false,
+        reviewed_at: '',
+        created_at: '',
+        updated_at: '',
+      },
+    ];
+    checklistData.items = [];
+
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    const analyzeButton = screen.getByRole('button', { name: /지원서 분석 요청/ });
+    expect(analyzeButton).toBeDisabled();
+    expect(analyzeButton).toHaveAttribute('title', '지원서 분석 전에 JD 체크리스트를 먼저 생성해주세요.');
+  });
+
   it('새 체크리스트 항목을 추가한다', async () => {
     const user = userEvent.setup();
 
@@ -227,10 +269,19 @@ describe('JdPage', () => {
     expect(updateChecklistMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('기존 체크리스트 항목을 삭제한다', async () => {
+  it('체크리스트 항목 삭제는 중앙 확인 모달에서 확인한 뒤 실행한다', async () => {
     const user = userEvent.setup();
 
     render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 삭제' }));
+
+    expect(screen.getByRole('dialog', { name: '체크리스트 항목을 삭제하시겠습니까?' })).toBeInTheDocument();
+    expect(screen.getByText(/이 JD의 이후 지원서 분석 기준에서 제외됩니다/)).toBeInTheDocument();
+    expect(screen.getByLabelText('삭제할 체크리스트 항목')).toHaveTextContent('React');
+
+    await user.click(screen.getByRole('button', { name: '취소' }));
+    expect(deleteChecklistMutateAsync).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'React 실무 경험 확인 삭제' }));
     await user.click(await screen.findByRole('button', { name: '삭제' }));

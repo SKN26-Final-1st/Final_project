@@ -133,6 +133,7 @@ type ResumeModifyBody = Partial<Omit<ResumeAddBody, 'job_description_id'>> & {
 
 type ReportModifyBody = Partial<Omit<AnalysisReport, 'resume_id' | 'status' | 'created_at'>> & {
   id: number;
+  delete?: boolean;
 };
 
 type QuestionModifyBody = Partial<Omit<InterviewQuestion, 'resume_id'>> & {
@@ -729,6 +730,14 @@ export const apiClient = {
     const data = parseAnalysisReport(await requestBackend<AnalysisReport>('report/modify', body, { apiKey }));
 
     return toApiResponse('분석 리포트를 저장했습니다.', data);
+  },
+
+  deleteReport: async (id: number, apiKey?: string) => {
+    const data = parseAnalysisReport(
+      await requestBackend<AnalysisReport>('report/modify', { id, delete: true }, { apiKey }),
+    );
+
+    return toApiResponse('분석 리포트를 삭제했습니다.', data);
   },
 
   saveQuestion: async (body: QuestionModifyBody) => {

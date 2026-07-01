@@ -273,4 +273,23 @@ describe('backendClient', () => {
       resumeAnalyze: apiKey,
     });
   });
+
+  test('deleteReport calls report/modify with delete true', async () => {
+    const observedBodies: unknown[] = [];
+
+    server.use(
+      http.post('/api/report/modify/', async ({ request }) => {
+        observedBodies.push(await request.json());
+        return HttpResponse.json({ error: false, data: queuedReport });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.deleteReport(30)).resolves.toMatchObject({
+      message: '분석 리포트를 삭제했습니다.',
+      data: expect.objectContaining({ id: 30 }),
+    });
+    expect(observedBodies).toContainEqual({ id: 30, delete: true });
+  });
 });

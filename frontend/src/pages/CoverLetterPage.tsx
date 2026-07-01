@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Form, Input, Row, Space } from 'antd';
+import { Alert, Button, Col, Form, Input, Row, Space } from 'antd';
 import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import {
   CoverLetterInputPanel,
@@ -24,6 +24,7 @@ import { SectionCard } from '../components/common/SectionCard';
 import type { Resume } from '../data/backendTypes';
 import type { CoverLetterRow } from '../api/adapters';
 import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
+import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { getStoredApiKey } from '../utils/apiKeySession';
@@ -327,10 +328,8 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
     [resumes, selectedResumeId],
   );
   const editingResume = isCreatingCoverLetter ? null : currentResume;
-  const currentCoverRow = useMemo(
-    () => coverRows.find((row) => row.key === selectedResumeId) ?? null,
-    [coverRows, selectedResumeId],
-  );
+  const checklistQuery = useJdChecklist(editingResume ? String(editingResume.job_description_id) : null);
+  const checklistItems = checklistQuery.data ?? [];
   const initialValues = useMemo(
     () =>
       isCreatingCoverLetter
@@ -340,8 +339,15 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   );
   const hasCurrentResume = Boolean(editingResume);
   const isEditMode = Boolean(editingResume);
-  const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter);
-  const analysisDone = currentCoverRow?.resumeStatus === 'done' || currentCoverRow?.statusCode === 'done';
+  const checklistAnalysisDisabledReason =
+    editingResume && checklistQuery.isLoading
+      ? 'JD 체크리스트를 불러오는 중입니다.'
+      : editingResume && checklistQuery.isError
+        ? 'JD 체크리스트를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.'
+        : editingResume && checklistItems.length === 0
+          ? '연결된 JD에 체크리스트가 없습니다.'
+          : undefined;
+  const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter && !checklistAnalysisDisabledReason);
   const selectedCoverSuggestions = useMemo(
     () => getSelectedSuggestionLabels(coverSearchText, COVER_SEARCH_SUGGESTIONS),
     [coverSearchText],
@@ -489,7 +495,10 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   };
 
   const requestAnalysis = async () => {
-    if (!editingResume) {
+    if (!editingResume || checklistAnalysisDisabledReason) {
+      if (checklistAnalysisDisabledReason) {
+        showAlert({ type: 'warning', message: checklistAnalysisDisabledReason });
+      }
       return;
     }
 
@@ -519,6 +528,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
               type="primary"
               icon={<FileSearchOutlined />}
               disabled={!canAnalyze || analyzeResume.isPending}
+              title={checklistAnalysisDisabledReason}
               onClick={() => void requestAnalysis()}
             >
               {analyzeResume.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}
@@ -563,13 +573,10 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
             <CoverLetterUploadPanel
               coverRows={filteredCoverRows}
               hasSavedResume={hasCurrentResume}
-              analysisDone={analysisDone}
-              navigate={navigate}
               selectedResumeId={isCreatingCoverLetter ? null : selectedResumeId}
               onSelectResume={selectResume}
               onDeleteResume={requestDeleteResume}
               canCreateResume={canCreateResume}
-              chatEnabled={!isApiKeyMode}
               emptyDescription={coverRows.length ? '조건에 맞는 자소서가 없습니다.' : undefined}
             />
           </SectionCard>
@@ -580,6 +587,24 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
               <EmptyState description="왼쪽 목록에서 API Key로 허용된 자소서를 선택해 주세요." />
             ) : (
               <>
+                {editingResume && checklistAnalysisDisabledReason ? (
+                  <Alert
+                    showIcon
+                    type={checklistQuery.isError ? 'error' : 'warning'}
+                    className="cover-letter-checklist-alert"
+                    message={checklistAnalysisDisabledReason}
+                    description={
+                      <div className="cover-letter-checklist-alert-body">
+                        <span>지원서 분석은 JD 체크리스트를 기준으로 진행됩니다.</span>
+                        {checklistItems.length === 0 && !checklistQuery.isLoading && !checklistQuery.isError ? (
+                          <Button size="small" onClick={() => navigate('/jd')}>
+                            JD 체크리스트 만들러 가기
+                          </Button>
+                        ) : null}
+                      </div>
+                    }
+                  />
+                ) : null}
                 <ResumeStructuredSummary resume={editingResume} />
                 <CoverLetterInputPanel
                   jdList={jdList}
