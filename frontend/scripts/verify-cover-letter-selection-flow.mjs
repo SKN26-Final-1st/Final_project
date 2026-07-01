@@ -69,6 +69,11 @@ function fulfillJson(route, body) {
   });
 }
 
+async function selfIntroductionAnswerValue(page) {
+  const selfIntroductionField = page.locator('.structured-resume-list-field').last();
+  return selfIntroductionField.locator('textarea').first().inputValue();
+}
+
 const server = startDevServer();
 
 try {
@@ -173,6 +178,12 @@ try {
     }
     if (path === 'report/get') return fulfillJson(route, { error: false, data: [] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
+    if (path === 'checklist/get') {
+      return fulfillJson(route, {
+        error: false,
+        data: [{ id: 1, job_description_id: 77, content: 'React experience' }],
+      });
+    }
     if (path === 'resume/analyze') {
       analysisPayload = route.request().postDataJSON();
       return fulfillJson(route, {
@@ -191,6 +202,8 @@ try {
           check_point: [],
           final_comment: 'Done',
           interview_question: [],
+          status: 'done',
+          created_at: '2026-01-01',
         },
       });
     }
@@ -234,7 +247,7 @@ try {
     );
   }
 
-  if ((await page.locator('#answer').inputValue()) !== 'Second applicant answer.') {
+  if ((await selfIntroductionAnswerValue(page)) !== 'Second applicant answer.') {
     throw new Error('Selected resume self introduction answer was not loaded.');
   }
 

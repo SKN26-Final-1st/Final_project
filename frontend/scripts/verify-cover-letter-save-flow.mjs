@@ -69,6 +69,25 @@ function fulfillJson(route, body) {
   });
 }
 
+async function fillSkill(page, value) {
+  const skillField = page.locator('.collapsible-editable-list-field').first();
+  const toggleButton = skillField.locator('.collapsible-editable-list-summary button');
+  if ((await toggleButton.getAttribute('aria-expanded')) !== 'true') {
+    await toggleButton.click();
+  }
+  await skillField.locator('.editable-string-list button').last().click();
+  await skillField.locator('.editable-string-list-row input').last().fill(value);
+}
+
+async function fillSelfIntroduction(page, question, answer) {
+  const selfIntroductionField = page.locator('.structured-resume-list-field').last();
+  if ((await selfIntroductionField.locator('.structured-resume-list-row').count()) === 0) {
+    await selfIntroductionField.locator('.structured-resume-list-stack > button').last().click();
+  }
+  await selfIntroductionField.locator('input').first().fill(question);
+  await selfIntroductionField.locator('textarea').first().fill(answer);
+}
+
 const server = startDevServer();
 
 try {
@@ -150,6 +169,8 @@ try {
     check_point: [],
     final_comment: 'Done',
     interview_question: [],
+    status: 'done',
+    created_at: '2026-01-01',
   };
 
   await page.route('**/api/**', async (route) => {
@@ -168,6 +189,12 @@ try {
     if (path === 'resume/get') return fulfillJson(route, { error: false, data: resumeStored ? [savedResume] : [] });
     if (path === 'report/get') return fulfillJson(route, { error: false, data: analysisCalls ? [generatedReport] : [] });
     if (path === 'authkey/get') return fulfillJson(route, { error: false, data: [] });
+    if (path === 'checklist/get') {
+      return fulfillJson(route, {
+        error: false,
+        data: [{ id: 1, job_description_id: 77, content: 'React experience' }],
+      });
+    }
     if (path === 'resume/add') {
       addCalls += 1;
       addPayload = route.request().postDataJSON();
@@ -203,10 +230,8 @@ try {
   }
 
   await page.locator('#name').fill('Hong Gil Dong');
-  await page.locator('#skill').fill('React');
-  await page.keyboard.press('Enter');
-  await page.locator('#question').fill('Motivation');
-  await page.locator('#answer').fill('I want to use my frontend experience.');
+  await fillSkill(page, 'React');
+  await fillSelfIntroduction(page, 'Motivation', 'I want to use my frontend experience.');
   await saveButton.click();
   await page.locator('.cover-letter-list').getByText('Hong Gil Dong').first().waitFor({ timeout: 10000 });
 
@@ -239,10 +264,8 @@ try {
   }
 
   await page.locator('#name').fill('New Applicant');
-  await page.locator('#skill').fill('TypeScript');
-  await page.keyboard.press('Enter');
-  await page.locator('#question').fill('Growth');
-  await page.locator('#answer').fill('I want to grow with the team.');
+  await fillSkill(page, 'TypeScript');
+  await fillSelfIntroduction(page, 'Growth', 'I want to grow with the team.');
   await saveButton.click();
   await page.waitForTimeout(500);
 
