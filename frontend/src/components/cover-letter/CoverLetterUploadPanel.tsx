@@ -2,32 +2,25 @@ import { Button, Tag, Tooltip } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { EmptyState } from '../common/PageState';
 import type { CoverLetterRow } from '../../api/adapters';
-import type { Navigate } from '../../types/app';
 import { statusTag } from '../../utils/statusTag';
 
 type CoverLetterUploadPanelProps = {
   coverRows: CoverLetterRow[];
   hasSavedResume: boolean;
-  analysisDone: boolean;
-  navigate: Navigate;
   selectedResumeId: string | null;
   onSelectResume: (resumeId: string) => void;
   onDeleteResume: (resumeId: string) => void;
   canCreateResume?: boolean;
-  chatEnabled?: boolean;
   emptyDescription?: string;
 };
 
 export function CoverLetterUploadPanel({
   coverRows,
   hasSavedResume,
-  analysisDone,
-  navigate,
   selectedResumeId,
   onSelectResume,
   onDeleteResume,
   canCreateResume = true,
-  chatEnabled = true,
   emptyDescription = '저장된 자소서가 없습니다.',
 }: CoverLetterUploadPanelProps) {
   const isWarningStatus = (statusCode: CoverLetterRow['statusCode']) =>
@@ -102,11 +95,6 @@ export function CoverLetterUploadPanel({
         </div>
       ) : (
         <EmptyState description={emptyDescription} />
-      )}
-      {analysisDone && chatEnabled && (
-        <Button className="mt-16" type="primary" block onClick={() => navigate('/chat')}>
-          채팅 화면에서 리포트 확인
-        </Button>
       )}
     </>
   );
