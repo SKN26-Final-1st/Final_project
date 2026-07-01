@@ -18,7 +18,7 @@ type SignupValues = {
   verification_answer: string;
 };
 
-export function SignupPage({ mode, navigate, themeSwitch, loadingKey, runApiAction, showAlert }: SignupPageProps) {
+export function SignupPage({ mode, navigate, loadingKey, runApiAction, showAlert }: SignupPageProps) {
   const [signupForm] = Form.useForm<SignupValues>();
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkedUsername, setCheckedUsername] = useState<string | null>(null);
@@ -76,7 +76,6 @@ export function SignupPage({ mode, navigate, themeSwitch, loadingKey, runApiActi
     <AuthScreen
       mode={mode}
       nav={navigate}
-      themeSwitch={themeSwitch}
       cardExtra={
         <button type="button" className="auth-text-link auth-card-return-link" onClick={() => navigate('/login')}>
           돌아가기
