@@ -21,7 +21,7 @@ LLM_MODEL = "gpt-4o-mini"
 TEMPERATURE = 0
 
 # ==========================================
-# [STEP 1] 각 필드별 LLM 추출 구조체 정의 (Pydantic - 할루시네이션 방지 규칙 적용)
+# [STEP 1] 각 필드별 LLM 추출 구조체 정의
 # ==========================================
 
 class JobNameStructure(BaseModel):
@@ -71,7 +71,7 @@ class WorkTypeStructure(BaseModel):
 
 
 # ==========================================
-# [STEP 2] 질문 폼 및 시스템 프롬프트 매핑 (할루시네이션 방지 가드레일 강화)
+# [STEP 2] 질문 폼 및 시스템 프롬프트 매핑
 # ==========================================
 
 QUESTIONS = {
@@ -174,7 +174,7 @@ async def invoke(column: str, answer: str = "") -> dict:
 
 async def run_jd_interactive_session():
     print("==================================================")
-    print("  🚀 [실시간 대화] HR 챗봇 채용 공고(JD) 입력 프로세스 시작 ")
+    print("  [실시간 대화] HR 챗봇 채용 공고(JD) 입력 프로세스 시작 ")
     print("  (안내: 질문에 맞는 답변을 입력하거나, 없으면 그냥 Enter를 누르세요!)")
     print("==================================================\n")
     
@@ -197,18 +197,18 @@ async def run_jd_interactive_session():
     for col in jd_columns_to_collect:
         bot_question = get_question(col)
         
-        # 💡 각 항목마다 올바른 처리가 끝날 때까지 반복하는 루프 가동!
+        # 각 항목마다 올바른 처리가 끝날 때까지 반복하는 루프 가동!
         while True:
-            print(f"🤖 챗봇 질문: {bot_question}")
+            print(f" 챗봇 질문: {bot_question}")
             
             # 사용자가 직접 키보드로 입력할 수 있도록 대기
-            user_answer = input("✍️ 나의 답변 (입력 후 Enter): ").strip()
+            user_answer = input(" 나의 답변 (입력 후 Enter): ").strip()
             print("-" * 50)
             
-            # 💡 [핵심 가드레일] 아무것도 입력하지 않고 그냥 엔터만 친 경우!
+            # [핵심 가드레일] 아무것도 입력하지 않고 그냥 엔터만 친 경우!
             # LLM 호출을 건너뛰고 코드가 직접 안전하게 빈 데이터로 인정하여 즉시 통과시킵니다.
             if not user_answer:
-                print("🎯 [공란 패스] 답변이 비어있어 해당 항목을 빈 값으로 저장하고 다음으로 넘어갑니다.\n")
+                print(" [공란 패스] 답변이 비어있어 해당 항목을 빈 값으로 저장하고 다음으로 넘어갑니다.\n")
                 if col in ["required_skill", "preferred_skill"]:
                     collected_jd_memory[col] = []
                 else:
@@ -217,7 +217,7 @@ async def run_jd_interactive_session():
                 
             # 3. 답변이 제대로 입력된 경우에만 AI 데이터 추출 및 구조화 실행
             try:
-                print("🔄 AI가 답변을 분석하여 JD 정형 데이터로 변환 중...")
+                print(" AI가 답변을 분석하여 JD 정형 데이터로 변환 중...")
                 parsed_result = await invoke(col, user_answer)
                 
                 # 추출된 실제 값 가져오기
@@ -226,18 +226,18 @@ async def run_jd_interactive_session():
                 # 순정 프롬프트 상태에서 엉뚱한 대답(노이즈)을 하여 결과가 비어버렸을 때의 예외 처리
                 # 단, '채용 배경(hiring_reason)'은 원래 빈 문자열이 정상일 수 있으므로 제외
                 if col != "hiring_reason" and (extracted_value == "" or extracted_value == []):
-                    print(f"❌ [추출 실패] 질문 내용과 문맥이 맞지 않는 답변입니다.")
-                    print(f"🔄 질문에 알맞은 내용을 다시 입력해 주시거나, 없으시면 그냥 Enter를 눌러주세요!\n")
+                    print(f" [추출 실패] 질문 내용과 문맥이 맞지 않는 답변입니다.")
+                    print(f" 질문에 알맞은 내용을 다시 입력해 주시거나, 없으시면 Enter를 눌러주세요!\n")
                     print("-" * 50)
                     continue # while 루프 처음으로 돌아가서 재질문 받기
                 
                 # 추출 성공 시 데이터를 collected_jd_memory 그릇에 차곡차곡 누적(기억)
                 collected_jd_memory.update(parsed_result)
-                print("🎯 [추출 성공] 데이터가 정상적으로 저장되었습니다.\n")
+                print(" [추출 성공] 데이터가 정상적으로 저장되었습니다.\n")
                 break # 성공했으므로 루프 탈출!
                 
             except Exception as e:
-                print(f"❌ 분석 중 에러 발생: {e}")
+                print(f" 분석 중 에러 발생: {e}")
                 # 예기치 못한 에러 발생 시 시스템 팅김 방지를 위한 예외 처리 후 탈출
                 collected_jd_memory[col] = [] if "skill" in col else ""
                 break
@@ -245,10 +245,10 @@ async def run_jd_interactive_session():
         print() # 가독성을 위한 한 줄 띄우기
 
     # ==========================================
-    # 🎉 [최종 단계] 챗봇이 기억한 전체 데이터 테이블 출력
+    # [최종 단계] 챗봇이 기억한 전체 데이터 테이블 출력
     # ==========================================
     print("==================================================")
-    print("  🏁 [입력 완료] AI가 기억한 최종 채용 공고(JD) 데이터 스냅샷")
+    print(" [입력 완료] AI가 기억한 최종 채용 공고(JD) 데이터 스냅샷")
     print("==================================================")
     
     # 딕셔너리 내부 한글과 리스트 기술 스택이 깨지지 않고 완벽하게 출력되도록 설정
@@ -256,7 +256,7 @@ async def run_jd_interactive_session():
     print(final_snapshot)
     
     print("==================================================")
-    print("  ✅ 모든 JD 데이터가 지정 양식(정형 데이터)으로 정제되었습니다.")
+    print(" 모든 JD 데이터가 지정 양식(정형 데이터)으로 정제되었습니다.")
 
 if __name__ == "__main__":
     # 윈도우 터미널 한글 깨짐 방지 설정
