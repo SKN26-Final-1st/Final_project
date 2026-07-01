@@ -15,7 +15,6 @@ type PasswordResetPageProps = AuthPageBaseProps & {
 export function PasswordResetPage({
   mode,
   navigate,
-  themeSwitch,
   loadingKey,
   runApiAction,
   resetStep,
@@ -24,14 +23,28 @@ export function PasswordResetPage({
   const [resetForm] = Form.useForm<{ username: string; verification_answer: string }>();
   const [verificationQuestion, setVerificationQuestion] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [checkingQuestion, setCheckingQuestion] = useState(false);
 
   const moveNext = async () => {
     if (resetStep === 0) {
       const { username } = await resetForm.validateFields(['username']);
-      await runApiAction('password-question', () => apiClient.getPasswordQuestion(username), (response) => {
+      setCheckingQuestion(true);
+      resetForm.setFields([{ name: 'username', errors: [] }]);
+
+      try {
+        const response = await apiClient.getPasswordQuestion(username);
         setVerificationQuestion(response.data.verification_question);
         setResetStep(1);
-      });
+      } catch {
+        resetForm.setFields([
+          {
+            name: 'username',
+            errors: ['입력한 아이디를 찾을 수 없습니다.'],
+          },
+        ]);
+      } finally {
+        setCheckingQuestion(false);
+      }
       return;
     }
 
@@ -72,26 +85,33 @@ export function PasswordResetPage({
     <AuthScreen
       mode={mode}
       nav={navigate}
-      themeSwitch={themeSwitch}
       cardExtra={
         <button type="button" className="auth-text-link auth-card-return-link" onClick={() => navigate('/login')}>
-          돌아가기
+          로그인으로
         </button>
       }
       title="단계형 재설정 플로우로 인증 화면 상태를 확인합니다."
       cardTitle="비밀번호 찾기"
       card={
-        <Form form={resetForm} layout="vertical">
+        <Form
+          form={resetForm}
+          layout="vertical"
+          onValuesChange={(changedValues) => {
+            if (Object.prototype.hasOwnProperty.call(changedValues, 'username')) {
+              resetForm.setFields([{ name: 'username', errors: [] }]);
+            }
+          }}
+        >
           <Steps size="small" current={resetStep} items={[{ title: 'ID' }, { title: '질문' }, { title: '변경' }]} />
           <div className="step-panel">{stepContents[resetStep]}</div>
           <Button
             type="primary"
             block
-            disabled={loadingKey === 'password-question' || loadingKey === 'password-reset'}
+            disabled={checkingQuestion || loadingKey === 'password-reset'}
             onClick={() => void moveNext()}
           >
-            {loadingKey === 'password-question' || loadingKey === 'password-reset' ? (
-              <InlineLoading label={loadingKey === 'password-question' ? '질문 확인 중' : '재설정 중'} />
+            {checkingQuestion || loadingKey === 'password-reset' ? (
+              <InlineLoading label={checkingQuestion ? '질문 확인 중' : '재설정 중'} />
             ) : resetStep === 0 ? (
               '질문 확인'
             ) : resetStep === 1 ? (

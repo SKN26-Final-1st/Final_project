@@ -133,6 +133,7 @@ type ResumeModifyBody = Partial<Omit<ResumeAddBody, 'job_description_id'>> & {
 
 type ReportModifyBody = Partial<Omit<AnalysisReport, 'resume_id' | 'status' | 'created_at'>> & {
   id: number;
+  delete?: boolean;
 };
 
 type QuestionModifyBody = Partial<Omit<InterviewQuestion, 'resume_id'>> & {
@@ -147,6 +148,10 @@ type ResumeAnalysisResult = {
 type ResumeAnalysisPayload = ResumeAnalysisResult & {
   jd_id: string;
   resume_id: number;
+};
+
+type PingPayload = {
+  ok: true;
 };
 
 function toTextList(value: unknown) {
@@ -300,6 +305,17 @@ async function signinRequest(body: {
   } catch (error) {
     throw new Error(getRequestErrorMessage(error, '회원가입에 실패했습니다.'));
   }
+}
+
+async function pingRequest(): Promise<PingPayload> {
+  const response = await httpClient.get<unknown>('/ping/');
+  const payload = response.data;
+
+  if (!payload || typeof payload !== 'object' || (payload as Partial<PingPayload>).ok !== true) {
+    throw new Error('백엔드 healthcheck 응답이 올바르지 않습니다.');
+  }
+
+  return { ok: true };
 }
 
 function ensureArray<T>(value: T[] | T | null | undefined): T[] {
@@ -505,6 +521,8 @@ function unsupportedBackendFeature(featureName: string): never {
 }
 
 export const apiClient = {
+  ping: async () => toApiResponse('백엔드 연결을 확인했습니다.', await pingRequest()),
+
   getDashboard: async () => toApiResponse('대시보드 데이터를 불러왔습니다.', await getDashboardSource()),
 
   getApiKeyDashboard: async (apiKey: string) =>
@@ -712,6 +730,14 @@ export const apiClient = {
     const data = parseAnalysisReport(await requestBackend<AnalysisReport>('report/modify', body, { apiKey }));
 
     return toApiResponse('분석 리포트를 저장했습니다.', data);
+  },
+
+  deleteReport: async (id: number, apiKey?: string) => {
+    const data = parseAnalysisReport(
+      await requestBackend<AnalysisReport>('report/modify', { id, delete: true }, { apiKey }),
+    );
+
+    return toApiResponse('분석 리포트를 삭제했습니다.', data);
   },
 
   saveQuestion: async (body: QuestionModifyBody) => {

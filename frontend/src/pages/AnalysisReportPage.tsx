@@ -3,6 +3,7 @@ import { Button, Col, Form, Input, Row, Space, Tabs, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, MessageOutlined, SaveOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/backendClient';
 import { CompactTextList } from '../components/common/CompactTextList';
+import { DestructiveConfirmModal } from '../components/common/DestructiveConfirmModal';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SearchSuggestions, type SearchSuggestion } from '../components/common/SearchSuggestions';
@@ -121,6 +122,10 @@ function gradeScore(grade: string) {
 
 function isReportPending(report: AnalysisReport) {
   return report.status === 'onqueue' || report.status === 'processing';
+}
+
+function isReportDeleteBlocked(report: AnalysisReport) {
+  return report.status === 'processing';
 }
 
 function reportListTag(report: AnalysisReport) {
@@ -243,8 +248,7 @@ function questionKey(question: InterviewQuestion, index: number) {
 
 function CompactQuestionList({ questions }: { questions: InterviewQuestion[] }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedKey, setSelectedKey] = useState(() => (questions[0] ? questionKey(questions[0], 0) : ''));
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [openQuestionKey, setOpenQuestionKey] = useState<string | null>(null);
 
   if (!questions.length) {
     return <p className="muted">추천 면접 질문이 없습니다.</p>;
@@ -252,32 +256,38 @@ function CompactQuestionList({ questions }: { questions: InterviewQuestion[] }) 
 
   const visibleQuestions = isExpanded ? questions : questions.slice(0, 3);
   const hiddenCount = Math.max(questions.length - visibleQuestions.length, 0);
-  const selectedVisibleIndex = visibleQuestions.findIndex(
-    (question, index) => questionKey(question, index) === selectedKey,
-  );
-  const effectiveSelectedIndex = selectedVisibleIndex >= 0 ? selectedVisibleIndex : 0;
-  const selectedQuestion = visibleQuestions[effectiveSelectedIndex];
+  const visibleQuestionKeys = new Set(visibleQuestions.map((question, index) => questionKey(question, index)));
+  const effectiveOpenKey = openQuestionKey && visibleQuestionKeys.has(openQuestionKey) ? openQuestionKey : null;
 
   return (
     <div className="analysis-report-question-compact">
       <div className="analysis-report-question-list">
         {visibleQuestions.map((item, index) => {
           const key = questionKey(item, index);
-          const active = index === effectiveSelectedIndex;
+          const active = key === effectiveOpenKey;
 
           return (
             <button
               className={`analysis-report-question ${active ? 'active' : ''}`}
               key={key}
               type="button"
-              aria-pressed={active}
-              onClick={() => {
-                setSelectedKey(key);
-                setIsDetailOpen(false);
-              }}
+              aria-expanded={active}
+              onClick={() => setOpenQuestionKey((current) => (current === key ? null : key))}
             >
               <span>질문</span>
               <strong>{item.question}</strong>
+              {active ? (
+                <span className="analysis-report-question-inline-detail">
+                  <span className="analysis-report-question-detail-label">예상 / 모범 답변</span>
+                  <span className="analysis-report-question-detail-copy">
+                    {item.answer || '답변이 없습니다.'}
+                  </span>
+                  <span className="analysis-report-question-detail-label">질문 의도</span>
+                  <span className="analysis-report-question-detail-copy">
+                    {item.purpose || '질문 의도가 없습니다.'}
+                  </span>
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -292,19 +302,6 @@ function CompactQuestionList({ questions }: { questions: InterviewQuestion[] }) 
           {isExpanded ? '접기' : `전체 보기 (+${hiddenCount})`}
         </Button>
       ) : null}
-      <div className="analysis-report-question-detail">
-        <Button size="small" onClick={() => setIsDetailOpen((current) => !current)}>
-          {isDetailOpen ? '상세 닫기' : '상세 보기'}
-        </Button>
-        {isDetailOpen ? (
-          <div className="analysis-report-question-detail-body">
-            <span>예상 / 모범 답변</span>
-            <p>{selectedQuestion.answer || '답변이 없습니다.'}</p>
-            <span>질문 의도</span>
-            <p>{selectedQuestion.purpose || '질문 의도가 없습니다.'}</p>
-          </div>
-        ) : null}
-      </div>
     </div>
   );
 }
@@ -316,6 +313,9 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
   const [reportSearchText, setReportSearchText] = useState('');
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
+  const [deleteTargetItem, setDeleteTargetItem] = useState<AnalysisReportItem | null>(null);
+  const [isDeletingReport, setIsDeletingReport] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
   const apiKey = getStoredApiKey() ?? undefined;
   const isApiKeyMode = Boolean(apiKey);
   const selectedReportSuggestions = useMemo(
@@ -430,6 +430,54 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
       setEditingReportId(null);
     } finally {
       setIsSavingReport(false);
+    }
+  };
+
+  const openDeleteReportModal = () => {
+    if (!displaySelectedItem || isReportDeleteBlocked(displaySelectedItem.report)) {
+      return;
+    }
+
+    setDeleteErrorMessage('');
+    setDeleteTargetItem(displaySelectedItem);
+  };
+
+  const closeDeleteReportModal = () => {
+    if (isDeletingReport) {
+      return;
+    }
+
+    setDeleteTargetItem(null);
+    setDeleteErrorMessage('');
+  };
+
+  const confirmDeleteReport = async () => {
+    if (!deleteTargetItem) {
+      return;
+    }
+
+    const deletedReportId = deleteTargetItem.report.id;
+    const nextReportItem = filteredReportItems.find((item) => item.report.id !== deletedReportId) ?? null;
+
+    setIsDeletingReport(true);
+    setDeleteErrorMessage('');
+
+    try {
+      await apiClient.deleteReport(deletedReportId, apiKey);
+      if (nextReportItem) {
+        setSelectedReportId(String(nextReportItem.report.id));
+      } else {
+        setSelectedReportId('');
+      }
+      await reloadData();
+      if (editingReportId === deletedReportId) {
+        setEditingReportId(null);
+      }
+      setDeleteTargetItem(null);
+    } catch (error) {
+      setDeleteErrorMessage(error instanceof Error ? error.message : '리포트 삭제에 실패했습니다.');
+    } finally {
+      setIsDeletingReport(false);
     }
   };
 
@@ -560,11 +608,16 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                       </Button>
                       <Button
                         danger
-                        disabled
+                        disabled={isReportDeleteBlocked(displaySelectedItem.report)}
                         icon={<DeleteOutlined />}
-                        title="현재 백엔드에서 리포트 삭제를 지원하지 않습니다."
+                        title={
+                          isReportDeleteBlocked(displaySelectedItem.report)
+                            ? '분석 중인 리포트는 삭제할 수 없습니다.'
+                            : undefined
+                        }
+                        onClick={openDeleteReportModal}
                       >
-                        삭제 불가
+                        리포트 삭제
                       </Button>
                     </Space>
                   )}
@@ -783,6 +836,41 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
           </SectionCard>
         </Col>
       </Row>
+      <DestructiveConfirmModal
+        open={Boolean(deleteTargetItem)}
+        title="리포트를 삭제하시겠습니까?"
+        description={
+          <>
+            삭제한 리포트와 질문 추천은 복구할 수 없습니다. 지원서와 JD 데이터는 삭제되지 않습니다.
+            {deleteErrorMessage ? <span className="destructive-confirm-error">{deleteErrorMessage}</span> : null}
+          </>
+        }
+        target={
+          deleteTargetItem
+            ? {
+                title: `${deleteTargetItem.resume?.name || '지원자 정보 없음'} · 리포트 #${deleteTargetItem.report.id}`,
+                description: deleteTargetItem.jd?.title || '연결 JD 없음',
+                extra: (
+                  <span className="analysis-report-delete-meta">
+                    <Tag>{deleteTargetItem.report.overall_grade || 'N/A'} 등급</Tag>
+                    <span>{formatReportTimestamp(deleteTargetItem.report.created_at)}</span>
+                  </span>
+                ),
+                ariaLabel: '삭제할 리포트',
+              }
+            : null
+        }
+        warning={{
+          title: '질문 추천도 함께 삭제됩니다.',
+          description: '리포트 안에 저장된 추천 질문 목록도 더 이상 표시되지 않습니다.',
+        }}
+        loading={isDeletingReport}
+        cancelLabel="취소"
+        confirmLabel="삭제"
+        confirmAriaLabel="삭제"
+        onCancel={closeDeleteReportModal}
+        onConfirm={() => void confirmDeleteReport()}
+      />
     </div>
   );
 }

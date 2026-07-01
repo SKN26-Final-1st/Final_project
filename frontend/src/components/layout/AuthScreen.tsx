@@ -7,7 +7,7 @@ import type { Navigate, ThemeMode } from '../../types/app';
 type AuthScreenProps = {
   mode: ThemeMode;
   nav: Navigate;
-  themeSwitch: ReactNode;
+  themeSwitch?: ReactNode;
   cardExtra?: ReactNode;
   title: string;
   cardTitle: string;
@@ -23,7 +23,7 @@ export function AuthScreen({ mode, nav, themeSwitch, cardExtra, title, cardTitle
         <button type="button" onClick={goLogin} className="auth-logo-button">
           <img src={mode === 'dark' ? '/assets/humour-logo-dark.png' : '/assets/humour-logo-light.png'} alt="HumouR" />
         </button>
-        <Space>{themeSwitch}</Space>
+        {themeSwitch ? <Space>{themeSwitch}</Space> : null}
       </header>
       <main className="auth-main">
         <section className="auth-copy">

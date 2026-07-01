@@ -22,7 +22,6 @@ type LoginPageProps = AuthPageBaseProps & {
 export function LoginPage({
   mode,
   navigate,
-  themeSwitch,
   loadingKey,
   runApiAction,
   onLoginSuccess,
@@ -32,7 +31,6 @@ export function LoginPage({
     <AuthScreen
       mode={mode}
       nav={navigate}
-      themeSwitch={themeSwitch}
       title="채용 데이터 입력부터 분석 리포트와 질의응답까지"
       cardTitle="로그인"
       card={

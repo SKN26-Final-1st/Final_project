@@ -16,7 +16,7 @@ python manage.py migrate
 python manage.py runserver 127.0.0.1:8000
 ```
 
-로컬 DB는 `RDS_HOSTNAME`이 없을 때 `backend/db.sqlite3`를 사용합니다. 근거: `backend/config/settings.py`
+로컬 DB는 `IS_REMOTE_HOST`가 없을 때 `backend/db.sqlite3`를 사용합니다. 근거: `backend/config/settings.py`
 
 ## 프론트엔드 실행
 
@@ -52,7 +52,7 @@ python manage.py check
 python manage.py test
 ```
 
-GitHub Actions도 같은 성격의 검사를 수행합니다. 근거: `.github/workflows/deploy-eb.yml`
+배포 워크플로는 프론트 `npm ci`/`npm run build`를 실행하고, 백엔드는 SSM으로 EC2에서 `python manage.py check`, `migrate`, `collectstatic`을 실행합니다. 로컬 `python manage.py test`는 수동 검사 명령으로 남아 있습니다. 근거: `.github/workflows/deploy.yml`
 
 ## 프론트 검증 스크립트
 

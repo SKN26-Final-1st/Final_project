@@ -2,10 +2,18 @@ import argparse
 import asyncio
 import json
 import operator
+import os
+import sys
+from pathlib import Path
 from typing import Annotated
 
+from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
+
+# 윈도우 터미널 한글 인코딩 보정
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 try:
     from .utils import load_env
@@ -18,6 +26,7 @@ try:
     from . import chat_agent as agents
 except ImportError:
     import chat_agent as agents
+
 
 def reduce_chats(left: list, right: list) -> list:
     """두 리스트를 하나로 합치고 중복된 메시지는 순서를 유지하며 제거합니다."""
@@ -89,16 +98,19 @@ async def fall_case_node(state: GraphState) -> GraphState:
 
 # ==================== 2단계-A: HR 대화 메모리 추출 노드 ====================
 
+
 async def context_extractor_node(state: GraphState) -> GraphState:
     llm_result = await agents.invoke_context_extractor_node(state["chats"])
     return {
         "memories": [
-            {"context": memory.context, "value": memory.value} for memory in llm_result.memories
+            {"context": memory.context, "value": memory.value}
+            for memory in llm_result.memories
         ]
     }
 
 
 # ==================== 2단계-B: HR 데이터 분석 노드 ====================
+
 
 async def hr_analyst_node(state: GraphState) -> GraphState:
     hr_response = await agents.invoke_hr_analyst_agent(
@@ -116,7 +128,10 @@ async def app_manual_rag_node(state: GraphState) -> GraphState:
         query,
         user_question,
     )
-    return {"retrieved_manual_docs": retrieved_docs, "app_manual_response": app_manual_response}
+    return {
+        "retrieved_manual_docs": retrieved_docs,
+        "app_manual_response": app_manual_response,
+    }
 
 
 async def summary_node(state: GraphState) -> GraphState:
@@ -124,22 +139,30 @@ async def summary_node(state: GraphState) -> GraphState:
     responses_to_merge = []
 
     if state.get("is_out_of_bounds") and state.get("out_of_bounds_response"):
-        responses_to_merge.append(f"[시스템 1 (범위 밖 질문 안내)]:\n{state['out_of_bounds_response']}")
+        responses_to_merge.append(
+            f"[시스템 1 (범위 밖 질문 안내)]:\n{state['out_of_bounds_response']}"
+        )
     if state.get("is_hr_case") and state.get("hr_response"):
-        responses_to_merge.append(f"[시스템 2 (HR 채용 통계 분석)]:\n{state['hr_response']}")
+        responses_to_merge.append(
+            f"[시스템 2 (HR 채용 통계 분석)]:\n{state['hr_response']}"
+        )
     if state.get("is_app_manual") and state.get("app_manual_response"):
-        responses_to_merge.append(f"[시스템 3 (앱 사용법 안내)]:\n{state['app_manual_response']}")
+        responses_to_merge.append(
+            f"[시스템 3 (앱 사용법 안내)]:\n{state['app_manual_response']}"
+        )
 
     if not responses_to_merge:
-        return {"response": "질문하신 내용에 대해 안내해 드릴 수 있는 내용을 찾지 못했습니다."}
+        return {
+            "response": "질문하신 내용에 대해 안내해 드릴 수 있는 내용을 찾지 못했습니다."
+        }
 
-    merge_input = f"사용자 원본 질문: {user_question}\n\n취합해야 할 개별 답변 목록:\n" + "\n\n".join(
-        responses_to_merge
+    merge_input = (
+        f"사용자 원본 질문: {user_question}\n\n취합해야 할 개별 답변 목록:\n"
+        + "\n\n".join(responses_to_merge)
     )
 
     response = await agents.invoke_summary_agent(merge_input)
     return {"response": response}
-
 
 
 def route_from_fall_case(state: GraphState) -> list[str]:
@@ -279,7 +302,12 @@ async def run_interactive_chat_async():
     print("명령어: /history, /reset, exit, quit, q\n")
 
     while True:
-        user_message = input("USER> ").strip()
+        try:
+            user_message = input("USER> ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\n종료합니다.")
+            break
+
         lowered_message = user_message.lower()
 
         if lowered_message in {"exit", "quit", "q"}:

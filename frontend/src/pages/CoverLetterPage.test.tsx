@@ -96,6 +96,11 @@ const coverRow: CoverLetterRow = {
 const coverLetterPageData = vi.hoisted(() => ({
   coverRows: [] as CoverLetterRow[],
 }));
+const checklistQueryState = vi.hoisted(() => ({
+  items: [{ id: 1, job_description_id: 10, content: 'React 경험 확인' }],
+  isLoading: false,
+  isError: false,
+}));
 
 vi.mock('../hooks/useCoverLetterPageData', () => ({
   useCoverLetterPageData: () => ({
@@ -118,10 +123,25 @@ vi.mock('../hooks/mutations/useResumeMutations', () => ({
   }),
 }));
 
+vi.mock('../components/cover-letter/ResumeStructuredSummary', () => ({
+  ResumeStructuredSummary: () => <div data-testid="resume-structured-summary">구조화 이력 요약</div>,
+}));
+
+vi.mock('../hooks/useJdChecklist', () => ({
+  useJdChecklist: () => ({
+    data: checklistQueryState.items,
+    isLoading: checklistQueryState.isLoading,
+    isError: checklistQueryState.isError,
+  }),
+}));
+
 describe('CoverLetterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     coverLetterPageData.coverRows = [];
+    checklistQueryState.items = [{ id: 1, job_description_id: 10, content: 'React 경험 확인' }];
+    checklistQueryState.isLoading = false;
+    checklistQueryState.isError = false;
   });
 
   it('저장할 때 이력서 구조화 필드를 목업 JSON 구조로 정리한다', async () => {
@@ -181,7 +201,7 @@ describe('CoverLetterPage', () => {
     });
   });
 
-  it('자소서 목록을 검색하고 선택한 resume 구조화 필드를 읽기 쉽게 보여준다', async () => {
+  it('자소서 작성/수정 카드에는 구조화 이력 요약을 표시하지 않는다', async () => {
     const user = userEvent.setup();
     coverLetterPageData.coverRows = [
       coverRow,
@@ -199,8 +219,7 @@ describe('CoverLetterPage', () => {
 
     render(<CoverLetterPage navigate={vi.fn()} showAlert={vi.fn()} />);
 
-    expect(screen.getByText('구조화 이력 요약')).toBeInTheDocument();
-    expect(screen.getByText('영어 · OPIC · IH')).toBeInTheDocument();
+    expect(screen.queryByTestId('resume-structured-summary')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 분석 상태 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 검토 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 JD 필터')).not.toBeInTheDocument();
@@ -291,5 +310,21 @@ describe('CoverLetterPage', () => {
     expect(searchInput).toHaveValue('분석 완료');
     expect(screen.getByLabelText('김백엔드 자소서 선택')).toBeInTheDocument();
     expect(screen.getByLabelText('이완료 자소서 선택')).toBeInTheDocument();
+  });
+
+  it('분석 완료 상태여도 채팅 화면에서 리포트 확인 버튼을 표시하지 않는다', () => {
+    coverLetterPageData.coverRows = [
+      {
+        ...coverRow,
+        status: '분석 완료',
+        statusCode: 'done',
+        resumeStatus: 'done',
+        score: 94,
+      },
+    ];
+
+    render(<CoverLetterPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: '채팅 화면에서 리포트 확인' })).not.toBeInTheDocument();
   });
 });

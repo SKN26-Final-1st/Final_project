@@ -46,6 +46,7 @@ const viteConfig = read('frontend/vite.config.ts');
 const backendClientContractSource = `${backendClient}\n${httpClient}`;
 
 const requiredBackendCalls = [
+  'ping',
   'csrf',
   'signin',
   'login',
@@ -112,6 +113,13 @@ assert(
 );
 
 assert(
+  /async function pingRequest\(\)[\s\S]*httpClient\.get<unknown>\(['"]\/ping\/['"]\)[\s\S]*ok\s*!==\s*true/.test(
+    backendClient,
+  ),
+  'ping must call /api/ping/ as a healthcheck and validate the raw { ok: true } response',
+);
+
+assert(
   /requestBackend<AnalysisReport>\(['"]resume\/analyze['"],\s*\{\s*id:\s*resume\.id\s*\}\)/.test(
     backendClient,
   ),
@@ -127,6 +135,7 @@ assert(
 );
 
 const realApiMethodNames = [
+  'ping',
   'getDashboard',
   'getCompanyProfile',
   'getJobDescriptions',

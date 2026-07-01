@@ -60,19 +60,26 @@ sequenceDiagram
   participant LLM as OpenAI
 
   UI->>API: POST /api/resume/analyze/ {id}
-  API->>DB: Resume, JobDescription, CompanyInfo 조회
-  API->>DB: Resume.status = processing
-  API->>Report: invoke(resume, company, jd)
+  API->>DB: Resume 권한 확인
+  API->>DB: AnalysisReport 생성 status=onqueue
+  alt Celery worker 사용 가능
+    API->>DB: enqueue_report_analyze.delay(report.id)
+    API-->>UI: AnalysisReport dict status=onqueue
+  else Celery worker 없음
+    API->>DB: analyze_and_save_report(report.id)
+  end
+  DB->>DB: Resume, JobDescription, CompanyInfo, Checklist 조회
+  DB->>DB: AnalysisReport.status = processing
+  DB->>Report: invoke(resume, company, jd, checklist)
   Report->>LLM: 지원서/회사/JD 요약
   Report->>LLM: 체크리스트 생성과 충족 판정
   Report->>LLM: 면접 질문과 리포트 생성
   Report-->>API: questions, report
-  API->>DB: AnalysisReport 생성 (interview_question 포함)
-  API->>DB: Resume.status = done
+  DB->>DB: AnalysisReport 저장 status=done, interview_question 포함
   API-->>UI: AnalysisReport dict
 ```
 
-근거: `backend/api/views/resume_endpoints.py`, `backend/common/report.py`
+근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`, `backend/common/report.py`
 
 프론트 `backendClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다. 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다.
 
