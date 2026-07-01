@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Button, Input, Popconfirm } from 'antd';
+import { Button, Input } from 'antd';
 import { FileSearchOutlined } from '@ant-design/icons';
+import { DestructiveConfirmModal } from '../common/DestructiveConfirmModal';
 import { InlineLoading } from '../common/InlineLoading';
 import type { Checklist } from '../../data/backendTypes';
 
@@ -56,6 +57,7 @@ export function JdChecklistPanel({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editError, setEditError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Checklist | null>(null);
 
   const submitNewChecklist = async () => {
     const content = normalizeContent(newContent);
@@ -93,6 +95,26 @@ export function JdChecklistPanel({
     setEditError('');
     await onUpdate({ id: item.id, job_description_id: jobDescriptionId, content });
     cancelEditing();
+  };
+
+  const cancelDelete = () => {
+    if (!deleting) {
+      setDeleteTarget(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    await onDelete({ id: deleteTarget.id, job_description_id: jobDescriptionId });
+
+    if (editingId === deleteTarget.id) {
+      cancelEditing();
+    }
+
+    setDeleteTarget(null);
   };
 
   return (
@@ -198,22 +220,16 @@ export function JdChecklistPanel({
                       >
                         수정
                       </Button>
-                      <Popconfirm
-                        title="체크리스트 항목을 삭제할까요?"
-                        okText="삭제"
-                        cancelText="취소"
-                        onConfirm={() => void onDelete({ id: item.id, job_description_id: jobDescriptionId })}
+                      <Button
+                        aria-label={`${item.content} 삭제`}
+                        danger
+                        size="small"
+                        disabled={deleting}
+                        loading={deleting && deleteTarget?.id === item.id}
+                        onClick={() => setDeleteTarget(item)}
                       >
-                        <Button
-                          aria-label={`${item.content} 삭제`}
-                          danger
-                          size="small"
-                          disabled={deleting}
-                          loading={deleting}
-                        >
-                          삭제
-                        </Button>
-                      </Popconfirm>
+                        삭제
+                      </Button>
                     </>
                   )}
                 </div>
@@ -222,8 +238,39 @@ export function JdChecklistPanel({
           })}
         </div>
       ) : (
-        <p className="muted">등록된 체크리스트가 없습니다. 분석 요청 또는 직접 추가로 항목을 만들 수 있습니다.</p>
+        <div className="jd-checklist-empty">
+          <strong>지원서 분석 전 필수 기준이 없습니다.</strong>
+          <p className="muted">지원서 분석은 JD 체크리스트를 기준으로 진행됩니다. 자동 생성하거나 직접 기준을 추가해주세요.</p>
+        </div>
       )}
+      <DestructiveConfirmModal
+        open={Boolean(deleteTarget)}
+        title="체크리스트 항목을 삭제하시겠습니까?"
+        description={
+          <>
+            삭제한 체크리스트는 복구할 수 없습니다. 이 JD의 이후 지원서 분석 기준에서 제외됩니다. 기존에
+            생성된 리포트는 자동으로 변경되지 않습니다.
+          </>
+        }
+        target={
+          deleteTarget
+            ? {
+                title: deleteTarget.content,
+                ariaLabel: '삭제할 체크리스트 항목',
+              }
+            : null
+        }
+        warning={{
+          title: '지원서 분석 기준에서 제외됩니다.',
+          description: '이 항목을 삭제해도 기존에 생성된 리포트 내용은 자동으로 다시 계산되지 않습니다.',
+        }}
+        loading={deleting}
+        cancelLabel="취소"
+        confirmLabel="삭제"
+        confirmAriaLabel="삭제"
+        onCancel={cancelDelete}
+        onConfirm={() => void confirmDelete()}
+      />
     </section>
   );
 }
