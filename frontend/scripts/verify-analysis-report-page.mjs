@@ -140,6 +140,8 @@ const report = {
       purpose: 'Validate frontend performance experience.',
     },
   ],
+  status: 'done',
+  created_at: '2026-01-01',
 };
 
 const server = startDevServer();
@@ -166,8 +168,8 @@ try {
   });
 
   await page.goto(`${baseUrl}/analysis-report`, { waitUntil: 'networkidle' });
-  await page.getByRole('heading', { name: '분석 리포트 / 질문 추천' }).waitFor({ timeout: 10000 });
-  const reportList = page.locator('.analysis-report-list');
+  await page.locator('.page-title h1').waitFor({ timeout: 10000 });
+  const reportList = page.locator('.analysis-report-tree');
   await reportList.getByText('Hong Gil Dong').waitFor({ timeout: 10000 });
   await reportList.getByText('Frontend Engineer').waitFor({ timeout: 10000 });
   if ((await reportList.getByText('Excellent frontend fit.').count()) > 0) {
@@ -177,8 +179,8 @@ try {
     throw new Error('Report list should remain limited to applicant name and JD title.');
   }
 
-  await page.getByRole('tab', { name: '분석 리포트' }).waitFor({ timeout: 10000 });
-  await page.getByRole('tab', { name: '질문 추천' }).waitFor({ timeout: 10000 });
+  await page.getByRole('tab').nth(0).waitFor({ timeout: 10000 });
+  await page.getByRole('tab').nth(1).waitFor({ timeout: 10000 });
   await page.locator('.analysis-report-detail').getByText('Excellent frontend fit.').waitFor({ timeout: 10000 });
   await page.locator('.analysis-report-detail').getByText('Candidate has strong React experience.').waitFor({ timeout: 10000 });
   await page.locator('.analysis-report-detail').getByText('React project experience').waitFor({ timeout: 10000 });
@@ -192,8 +194,9 @@ try {
     throw new Error('Interview questions should not be visible in the report tab.');
   }
 
-  await page.getByRole('tab', { name: '질문 추천' }).click();
+  await page.getByRole('tab').nth(1).click();
   await page.locator('.analysis-report-detail').getByText('How did you optimize React rendering?').waitFor({ timeout: 10000 });
+  await page.locator('.analysis-report-detail').getByText('How did you optimize React rendering?').click();
   await page.locator('.analysis-report-detail').getByText('Use memoization and component boundaries.').waitFor({ timeout: 10000 });
   await page.locator('.analysis-report-detail').getByText('Validate frontend performance experience.').waitFor({ timeout: 10000 });
   if (await page.locator('.analysis-report-detail').getByText('Excellent frontend fit.').isVisible()) {

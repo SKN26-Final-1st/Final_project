@@ -172,8 +172,10 @@ try {
 
   await page.locator('#job_name').fill('Frontend Engineer');
   await page.locator('#career_level').fill('3년 이상');
-  await page.locator('#required_skill').fill('React');
-  await page.keyboard.press('Enter');
+  const requiredSkillField = page.locator('.jd-editor-form .collapsible-editable-list-field').first();
+  await requiredSkillField.locator('.collapsible-editable-list-summary button').click();
+  await requiredSkillField.locator('.editable-string-list button').last().click();
+  await requiredSkillField.locator('input').first().fill('React');
   await page.getByRole('button', { name: /JD 등록/ }).click();
   await page.getByText('Frontend Engineer').waitFor({ timeout: 10000 });
   await page.locator('.jd-card-delete-button').waitFor({ timeout: 10000 });

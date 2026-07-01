@@ -225,8 +225,7 @@ export function ResumeStructuredSummary({ resume }: ResumeStructuredSummaryProps
   return (
     <section className="resume-structured-summary">
       <div className="resume-structured-summary-head">
-        <h3>구조화 이력 요약</h3>
-        <span className="muted">저장된 JSON 필드를 읽기 쉽게 정리했습니다.</span>
+        <h3>자기소개서 요약</h3>
       </div>
       <div className="resume-structured-skills">
         <span>기술 스택</span>

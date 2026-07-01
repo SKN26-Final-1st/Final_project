@@ -123,6 +123,10 @@ vi.mock('../hooks/mutations/useResumeMutations', () => ({
   }),
 }));
 
+vi.mock('../components/cover-letter/ResumeStructuredSummary', () => ({
+  ResumeStructuredSummary: () => <div data-testid="resume-structured-summary">구조화 이력 요약</div>,
+}));
+
 vi.mock('../hooks/useJdChecklist', () => ({
   useJdChecklist: () => ({
     data: checklistQueryState.items,
@@ -197,7 +201,7 @@ describe('CoverLetterPage', () => {
     });
   });
 
-  it('자소서 목록을 검색하고 선택한 resume 구조화 필드를 읽기 쉽게 보여준다', async () => {
+  it('자소서 작성/수정 카드에는 구조화 이력 요약을 표시하지 않는다', async () => {
     const user = userEvent.setup();
     coverLetterPageData.coverRows = [
       coverRow,
@@ -215,8 +219,7 @@ describe('CoverLetterPage', () => {
 
     render(<CoverLetterPage navigate={vi.fn()} showAlert={vi.fn()} />);
 
-    expect(screen.getByText('구조화 이력 요약')).toBeInTheDocument();
-    expect(screen.getByText('영어 · OPIC · IH')).toBeInTheDocument();
+    expect(screen.queryByTestId('resume-structured-summary')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 분석 상태 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 검토 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('자소서 JD 필터')).not.toBeInTheDocument();
