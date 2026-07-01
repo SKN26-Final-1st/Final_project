@@ -78,7 +78,7 @@ export function SignupPage({ mode, navigate, loadingKey, runApiAction, showAlert
       nav={navigate}
       cardExtra={
         <button type="button" className="auth-text-link auth-card-return-link" onClick={() => navigate('/login')}>
-          돌아가기
+          로그인으로
         </button>
       }
       title="회사와 지원자 데이터를 한곳에서 관리하는 채용 보조 시스템"
