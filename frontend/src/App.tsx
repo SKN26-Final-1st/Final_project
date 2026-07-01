@@ -42,6 +42,7 @@ export default function App() {
   const [resetStep, setResetStep] = useState(0);
   const isAuth = authRoutes.includes(route);
   const isShared = route === '/shared';
+  const renderedThemeMode: ThemeMode = isAuth ? 'light' : mode;
   const {
     apiKey,
     authChecked,
@@ -64,10 +65,10 @@ export default function App() {
 
   const themeConfig = useMemo(
     () => {
-      const currentPalette = mode === 'dark' ? themePalette.dark : themePalette.light;
+      const currentPalette = renderedThemeMode === 'dark' ? themePalette.dark : themePalette.light;
 
       return {
-        algorithm: mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        algorithm: renderedThemeMode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           colorPrimary: currentPalette.primary,
           colorInfo: currentPalette.primary,
@@ -97,7 +98,7 @@ export default function App() {
         },
       };
     },
-    [mode],
+    [renderedThemeMode],
   );
 
   const navigate = useCallback((nextRoute: AppRoute | string) => {
@@ -182,9 +183,8 @@ export default function App() {
       case '/signup':
         return (
           <SignupPage
-            mode={mode}
+            mode={renderedThemeMode}
             navigate={navigate}
-            themeSwitch={themeSwitch}
             loadingKey={loadingKey}
             runApiAction={runApiAction}
             showAlert={showAlert}
@@ -193,9 +193,8 @@ export default function App() {
       case '/password-reset':
         return (
           <PasswordResetPage
-            mode={mode}
+            mode={renderedThemeMode}
             navigate={navigate}
-            themeSwitch={themeSwitch}
             loadingKey={loadingKey}
             runApiAction={runApiAction}
             resetStep={resetStep}
@@ -207,9 +206,8 @@ export default function App() {
       default:
         return (
           <LoginPage
-            mode={mode}
+            mode={renderedThemeMode}
             navigate={navigate}
-            themeSwitch={themeSwitch}
             loadingKey={loadingKey}
             runApiAction={runApiAction}
             onLoginSuccess={() => {
@@ -253,7 +251,7 @@ export default function App() {
   const pageContent = (
     <XProvider theme={themeConfig}>
       <AntApp>
-        <div className="app-root" data-theme={mode}>
+        <div className="app-root" data-theme={renderedThemeMode}>
           <FloatingAlert alert={alert} onClose={() => setAlert(null)} />
           {isShared ? (
             <SharedReportPage mode={mode} navigate={navigate} themeSwitch={themeSwitch} />

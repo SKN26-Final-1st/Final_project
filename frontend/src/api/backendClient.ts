@@ -149,6 +149,10 @@ type ResumeAnalysisPayload = ResumeAnalysisResult & {
   resume_id: number;
 };
 
+type PingPayload = {
+  ok: true;
+};
+
 function toTextList(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -300,6 +304,17 @@ async function signinRequest(body: {
   } catch (error) {
     throw new Error(getRequestErrorMessage(error, '회원가입에 실패했습니다.'));
   }
+}
+
+async function pingRequest(): Promise<PingPayload> {
+  const response = await httpClient.get<unknown>('/ping/');
+  const payload = response.data;
+
+  if (!payload || typeof payload !== 'object' || (payload as Partial<PingPayload>).ok !== true) {
+    throw new Error('백엔드 healthcheck 응답이 올바르지 않습니다.');
+  }
+
+  return { ok: true };
 }
 
 function ensureArray<T>(value: T[] | T | null | undefined): T[] {
@@ -505,6 +520,8 @@ function unsupportedBackendFeature(featureName: string): never {
 }
 
 export const apiClient = {
+  ping: async () => toApiResponse('백엔드 연결을 확인했습니다.', await pingRequest()),
+
   getDashboard: async () => toApiResponse('대시보드 데이터를 불러왔습니다.', await getDashboardSource()),
 
   getApiKeyDashboard: async (apiKey: string) =>
