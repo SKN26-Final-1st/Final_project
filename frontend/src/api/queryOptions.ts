@@ -1,7 +1,15 @@
 import { queryOptions } from '@tanstack/react-query';
-import { loadApiKeyAppData, loadAppData } from './appDataService';
+import { loadApiKeyAppData, loadAppData, type AppData } from './appDataService';
 import { queryKeys } from './queryKeys';
 import { getApiKeyFingerprint, getCurrentAuthMode, getStoredApiKey, type AuthMode } from '../utils/apiKeySession';
+
+const ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS = 3000;
+
+function hasActiveAnalysisReport(data: AppData | undefined) {
+  return Boolean(
+    data?.analysisReports.some((report) => report.status === 'onqueue' || report.status === 'processing'),
+  );
+}
 
 export function appDataQueryOptions(
   enabled = true,
@@ -24,5 +32,7 @@ export function appDataQueryOptions(
       return loadAppData();
     },
     enabled,
+    refetchInterval: (query) =>
+      hasActiveAnalysisReport(query.state.data) ? ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS : false,
   });
 }
