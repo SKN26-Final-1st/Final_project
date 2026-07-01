@@ -3,7 +3,7 @@ import { apiClient } from '../../api/backendClient';
 import type { ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
 import { getStoredApiKey } from '../../utils/apiKeySession';
-import { useInvalidateAppData } from './useMutationHelpers';
+import { getMutationErrorMessage, useInvalidateAppData } from './useMutationHelpers';
 
 function alertSuccess<T>(showAlert: ShowAlert, response: ApiResponse<T>) {
   showAlert({
@@ -15,7 +15,7 @@ function alertSuccess<T>(showAlert: ShowAlert, response: ApiResponse<T>) {
 function alertError(showAlert: ShowAlert, error: unknown) {
   showAlert({
     type: 'error',
-    message: error instanceof Error ? error.message : 'API 요청이 실패했습니다.',
+    message: getMutationErrorMessage(error, 'API 요청에 실패했습니다.'),
   });
 }
 
