@@ -10,6 +10,7 @@ urlpatterns = [
     path("login/", views.account_login),
     path("logout/", views.account_logout),
     path("chat/", views.chat),
+    path("jd_chat/", views.jd_chat),
     path("checkuser/", views.check_user),
     path("passqestion/", views.password_question),
     path("passreset/", views.password_reset),
