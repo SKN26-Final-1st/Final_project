@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Literal, Union
+from typing import Union
 
 from pinecone import Pinecone
 from openai import OpenAI
@@ -21,12 +21,25 @@ LLM_MODEL = "gpt-4o-mini"
 TEMPERATURE = 0
 
 
+################################################################
+#                      helper
+################################################################
+
+
 def _get_chat_role(chat: dict) -> str:
     return str(chat.get("role", "")).lower()
 
 
 def _get_chat_message(chat: dict) -> str:
     return str(chat.get("message", ""))
+
+
+def _make_chat_llm():
+    return ChatOpenAI(model=LLM_MODEL, temperature=TEMPERATURE)
+
+
+def _make_structured_llm(structure_model):
+    return _make_chat_llm().with_structured_output(structure_model)
 
 
 async def invoke_llm_async(llm, prompt: str, chats: list[dict]):
@@ -42,7 +55,9 @@ async def invoke_llm_async(llm, prompt: str, chats: list[dict]):
     return await llm.ainvoke(messages)
 
 
-# ==================== 1단계: 질문 분류 노드 ====================
+################################################################
+#                      fall_case_node
+################################################################
 
 class FallCaseStructure(BaseModel):
     is_out_of_bounds: bool
@@ -89,12 +104,14 @@ async def invoke_fall_case_node(chats: list[dict]) -> FallCaseStructure:
     global fall_case_model
 
     if fall_case_model is None:
-        fall_case_model = ChatOpenAI(
-            model=LLM_MODEL,
-            temperature=TEMPERATURE,
-        ).with_structured_output(FallCaseStructure)
+        fall_case_model = _make_structured_llm(FallCaseStructure)
 
     return await invoke_llm_async(fall_case_model, fall_case_prompt, chats)
+
+
+################################################################
+#                      context_extractor_node
+################################################################
 
 
 class MemoryItem(BaseModel):
@@ -121,24 +138,17 @@ async def invoke_context_extractor_node(chats: list[dict]) -> ContextExtractorSt
     global context_extractor_model
 
     if context_extractor_model is None:
-        context_extractor_model = ChatOpenAI(
-            model=LLM_MODEL,
-            temperature=TEMPERATURE,
-        ).with_structured_output(ContextExtractorStructure)
+        context_extractor_model = _make_structured_llm(ContextExtractorStructure)
 
     return await invoke_llm_async(context_extractor_model, context_extractor_prompt, chats)
 
 
-answer_llm = None
+################################################################
+#                      hr_analyst_node
+################################################################
 
 
-def get_answer_llm():
-    global answer_llm
-
-    if answer_llm is None:
-        answer_llm = ChatOpenAI(model=LLM_MODEL, temperature=TEMPERATURE)
-
-    return answer_llm
+hr_analyst_model = None
 
 hr_analyst_prompt = """
 당신은 자사 채용 데이터베이스(JD) 및 이전 대화 맥락을 직접 분석하고 통계를 내어 답변하는 HR 분석 챗봇입니다.
@@ -155,6 +165,11 @@ async def invoke_hr_analyst_agent(
     job_descriptions: list[dict] | None = None,
     extracted_memories: list[dict] | None = None,
 ) -> str:
+    global hr_analyst_model
+
+    if hr_analyst_model is None:
+        hr_analyst_model = _make_chat_llm()
+
     job_descriptions = job_descriptions or []
     extracted_memories = extracted_memories or []
 
@@ -164,17 +179,28 @@ async def invoke_hr_analyst_agent(
 
     user_prompt = f"사용자 질문:\n{search_query}\n\n자사 채용 데이터베이스:\n{json.dumps(job_descriptions, ensure_ascii=False, indent=2)}"
 
-    llm_response = await get_answer_llm().ainvoke(
+    llm_response = await hr_analyst_model.ainvoke(
         [SystemMessage(content=hr_analyst_prompt), HumanMessage(content=user_prompt)]
     )
     return llm_response.content
 
 
-# ==================== 2단계-C: 앱 가이드 문서 RAG 검색 노드 ====================
+################################################################
+#                      app_manual_rag_node
+################################################################
 
+
+app_manual_rag_model = None
 pinecone_client = None
 pinecone_index = None
 embedding_client = None
+
+
+app_manual_rag_prompt = """
+당신은 우리 애플리케이션 사용법을 안내하는 상담 챗봇입니다.
+검색된 사용설명서 문서를 근거로 짧고 정확하게 답변하세요.
+이모티콘과 이모지는 사용하지 마세요.
+"""
 
 
 def get_embedding_client():
@@ -211,25 +237,28 @@ def search_app_manual(query: str, top_k: int = 2) -> list[str]:
     return [r["metadata"]["content"] for r in result["matches"]]
 
 
-app_manual_rag_prompt = """
-당신은 우리 애플리케이션 사용법을 안내하는 상담 챗봇입니다.
-검색된 사용설명서 문서를 근거로 짧고 정확하게 답변하세요.
-이모티콘과 이모지는 사용하지 마세요.
-"""
-
-
 async def invoke_app_manual_rag_agent(query: str, user_question: str) -> tuple[str, list[str]]:
+    global app_manual_rag_model
+
+    if app_manual_rag_model is None:
+        app_manual_rag_model = _make_chat_llm()
+
     retrieved_docs = search_app_manual(query)
 
     user_prompt = f"사용자 질문:\n{user_question}\n\n검색된 사용설명서 문서:\n{json.dumps(retrieved_docs, ensure_ascii=False, indent=2)}"
 
-    llm_response = await get_answer_llm().ainvoke(
+    llm_response = await app_manual_rag_model.ainvoke(
         [SystemMessage(content=app_manual_rag_prompt), HumanMessage(content=user_prompt)]
     )
     return llm_response.content, retrieved_docs
 
 
-# ==================== 3단계: 답변 최종 요약 및 병합 노드 ====================
+################################################################
+#                      summary_node
+################################################################
+
+
+summary_model = None
 
 summary_prompt = """
 당신은 답변 요약 및 병합 전문가입니다.
@@ -243,7 +272,12 @@ summary_prompt = """
 """
 
 async def invoke_summary_agent(merge_input: str) -> str:
-    llm_response = await get_answer_llm().ainvoke(
+    global summary_model
+
+    if summary_model is None:
+        summary_model = _make_chat_llm()
+
+    llm_response = await summary_model.ainvoke(
         [SystemMessage(content=summary_prompt), HumanMessage(content=merge_input)]
     )
     return llm_response.content
