@@ -24,6 +24,8 @@ MAX_RESPONSE_ATTEMPTS = 3
 
 
 class FeedbackMetric(BaseModel):
+    """피드백 평가 기준별 점수와 판단 이유를 담는 스키마입니다."""
+
     """평가 기준 한 항목의 점수와 판단 사유입니다."""
 
     name: str = Field(description="평가 기준 이름")
@@ -32,6 +34,8 @@ class FeedbackMetric(BaseModel):
 
 
 class EvidenceFeedback(BaseModel):
+    """근거 데이터와 출력 사이에서 발견된 문제와 수정 제안을 담는 스키마입니다."""
+
     """근거 데이터와 생성 결과 사이에서 발견한 문제와 수정 제안입니다."""
 
     target: str = Field(description="문제가 발견된 출력 위치 또는 항목")
@@ -41,6 +45,8 @@ class EvidenceFeedback(BaseModel):
 
 
 class FeedbackEvaluation(BaseModel):
+    """한 번의 피드백 평가 결과와 corrected_output을 담는 공통 응답 스키마입니다."""
+
     """한 회차의 품질 점수, 안정 지표, 피드백과 수정 결과입니다."""
 
     corrected_output: dict[str, Any] = Field(
@@ -223,6 +229,7 @@ def evaluate_output(
     evaluation_criteria,
     previous_feedback=None,
 ):
+    # 기준 데이터와 생성 결과를 비교해 점수, 수정본, 다음 피드백 지시를 만듭니다.
     """검증 기준과 생성 결과를 비교해 점수, 근거 피드백, 수정 결과를 생성합니다."""
 
     if not isinstance(reference_data, dict):
@@ -256,6 +263,8 @@ def run_feedback_loop(
     max_attempts=DEFAULT_MAX_ATTEMPTS,
     evaluator=None,
 ):
+    # 외부 생성 단계들이 공통으로 쓰는 피드백 루프 진입점입니다.
+    # 반복 제어는 feedback_graph.py의 LangGraph가 담당합니다.
     """생성 결과가 점수와 안정 조건을 충족할 때까지 공통 피드백 루프를 수행합니다."""
 
     if isinstance(min_score, bool) or not isinstance(min_score, int) or not 0 <= min_score <= 100:
@@ -266,55 +275,13 @@ def run_feedback_loop(
         raise ValueError("initial_output은 dict 형태여야 합니다.")
 
     evaluator = evaluator or evaluate_output
-    current_output = initial_output
-    feedback_history = []
-    last_evaluation_data = None
+    from .feedback_graph import invoke_feedback_graph
 
-    for attempt in range(1, max_attempts + 1):
-        evaluation = evaluator(
-            reference_data=reference_data,
-            output_data=current_output,
-            evaluation_criteria=evaluation_criteria,
-            previous_feedback=feedback_history,
-        )
-        evaluation_data = evaluation.model_dump()
-        last_evaluation_data = evaluation_data
-        corrected_output = evaluation_data["corrected_output"]
-        output_unchanged = corrected_output == current_output
-        feedback_history.append(
-            {
-                "attempt": attempt,
-                "overall_score": evaluation_data["overall_score"],
-                "stability_score": evaluation_data["stability_score"],
-                "is_stable": evaluation_data["is_stable"],
-                "metrics": evaluation_data["metrics"],
-                "evidence_feedback": evaluation_data["evidence_feedback"],
-                "feedback_query": evaluation_data["feedback_query"],
-            }
-        )
-
-        if (
-            output_unchanged
-            and evaluation_data["is_stable"]
-            and evaluation_data["overall_score"] >= min_score
-        ):
-            return {
-                "outputdata": corrected_output,
-                "evidence_feedback": feedback_history,
-                "overall_score": evaluation_data["overall_score"],
-                "stability_score": evaluation_data["stability_score"],
-                "is_stable": True,
-                "attempts": attempt,
-            }
-
-        current_output = corrected_output
-
-    # 최대 횟수까지 안정 기준을 충족하지 못해도 마지막 수정 결과로 다음 단계를 진행한다.
-    return {
-        "outputdata": current_output,
-        "evidence_feedback": feedback_history,
-        "overall_score": last_evaluation_data["overall_score"],
-        "stability_score": last_evaluation_data["stability_score"],
-        "is_stable": False,
-        "attempts": max_attempts,
-    }
+    return invoke_feedback_graph(
+        reference_data=reference_data,
+        initial_output=initial_output,
+        evaluation_criteria=evaluation_criteria,
+        min_score=min_score,
+        max_attempts=max_attempts,
+        evaluator=evaluator,
+    )

@@ -11,6 +11,8 @@ from .utils import load_env
 load_env()
 
 class MaskingAnalysis(BaseModel):
+    """LLM이 추출해야 하는 마스킹 대상 카테고리별 목록입니다."""
+
     comp_name: List[str] = Field(default_factory=list, description="마스킹 필요 회사·고객사·이전회사명")
     person_name: List[str] = Field(default_factory=list, description="지원자 및 제3자 실명")
     address: List[str] = Field(default_factory=list, description="주소·출신지역")
@@ -89,6 +91,8 @@ masking_prompt = """
 client = None
 
 def get_client():
+    """마스킹 분석에 사용할 OpenAI 클라이언트를 지연 생성해 재사용합니다."""
+
     global client
 
     if client is not None: 
@@ -98,6 +102,8 @@ def get_client():
     return client
 
 def invoke(data):
+    """원본 채용 데이터를 받아 마스킹해야 할 표현 목록(mask_result)을 생성합니다."""
+
     global masking_prompt
 
     ai_client = get_client()

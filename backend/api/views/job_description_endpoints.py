@@ -140,6 +140,8 @@ def jd_modify(request):
 
 
 def _get_jd_analysis_inputs(request, job_description_id):
+    """체크리스트 생성에 필요한 회사/JD 입력과 남은 생성 개수를 준비합니다."""
+
     job_description_queryset = accessible_job_descriptions(request)
     try:
         job_description = job_description_queryset.select_related("account").get(id=job_description_id)
@@ -158,6 +160,8 @@ def _get_jd_analysis_inputs(request, job_description_id):
 
 
 def _save_generated_checklists(job_description_id, contents):
+    """생성된 체크리스트 문자열을 남은 개수만큼 DB에 저장합니다."""
+
     with transaction.atomic():
         try:
             job_description = JobDescription.objects.select_for_update().get(id=job_description_id)
@@ -184,6 +188,8 @@ def _save_generated_checklists(job_description_id, contents):
 
 
 async def _jd_analyze_async(request):
+    """JD 분석 API 본문입니다. checklist_service.invoke()로 체크리스트 LangGraph를 실행합니다."""
+
     if request.method != "POST":
         return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
 
