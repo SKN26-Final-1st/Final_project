@@ -3,7 +3,7 @@ from celery import current_app
 from django.conf import settings
 from django.db import transaction
 
-from common import report as report_service
+from common import analysis_graph
 
 from .models import AnalysisReport, CompanyInfo
 
@@ -11,7 +11,7 @@ _CELERY_WORKER_AVAILABLE = None
 
 
 def _build_interview_question(report_data):
-    """report_service.invoke() 결과의 question 필드를 DB 저장용 interview_question으로 정리합니다."""
+    """analysis_graph.invoke() 결과의 question 필드를 DB 저장용 interview_question으로 정리합니다."""
 
     question_items = report_data.get("question") or []
     return [
@@ -92,7 +92,7 @@ def analyze_and_save_report(report_id):
     except AnalysisReport.DoesNotExist:
         return None
 
-    analysis_result = report_service.invoke(
+    analysis_result = analysis_graph.invoke(
         company_dict=inputs["company"],
         jd_dict=inputs["jd"],
         checklist=inputs["checklist"],
