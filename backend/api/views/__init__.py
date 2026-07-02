@@ -11,7 +11,7 @@ from .account_endpoints import (
 )
 from .analysis_report_endpoints import report_get, report_modify
 from .auth_key_endpoints import authkey_add, authkey_get, authkey_modify
-from .chat_endpoints import chat
+from .chat_endpoints import chat, jd_chat
 from .checklist_endpoints import checklist_add, checklist_get, checklist_modify
 from .company_info_endpoints import compinfo_get, compinfo_modify
 from .job_description_endpoints import jd_add, jd_analyze, jd_get, jd_modify
@@ -29,6 +29,7 @@ __all__ = [
     "authkey_get",
     "authkey_modify",
     "chat",
+    "jd_chat",
     "check_user",
     "checklist_add",
     "checklist_get",
