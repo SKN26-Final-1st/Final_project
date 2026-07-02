@@ -25,6 +25,8 @@ MODEL_NAME = "gpt-4o-mini"
 CHECKLIST_COUNT = 10
 
 class FitChecklistStructure(BaseModel):
+    """체크리스트 생성 LLM 응답을 list[str] 형태로 고정하는 스키마입니다."""
+
     """회사와 JD에 대한 지원자 적합성 체크리스트 응답 구조입니다."""
 
     checklist: list[str] = Field(
@@ -33,6 +35,8 @@ class FitChecklistStructure(BaseModel):
 
 
 class SearchQueryStructure(BaseModel):
+    """회사/JD 정보를 RAG 검색용 한 문장 쿼리로 받기 위한 스키마입니다."""
+
     """회사와 JD 정보를 RAG 검색에 사용할 한 문장 쿼리로 요약한 응답 구조입니다."""
 
     query: str = Field(
@@ -95,6 +99,7 @@ def make_fit_checklist(
     checklist_count=CHECKLIST_COUNT,
     user_query: str = "",
 ) -> list[str]:
+    # 체크리스트 생성 프롬프트를 실제로 호출하는 핵심 생성 함수입니다.
     """회사/JD 정보를 바탕으로 적합성 체크리스트를 생성합니다."""
 
     checklist_context = {
@@ -127,6 +132,7 @@ def extract_query(
     compinfo: dict,
     jdinfo: dict,
 ) -> str:
+    # Pinecone 검색 전에 회사/JD 맥락을 임베딩 검색 문장으로 요약합니다.
     """회사 정보와 JD 정보를 종합해서 RAG 임베딩 검색용 쿼리를 생성한다."""
 
     query_context = {
@@ -152,6 +158,8 @@ embedding_client = None
 
 
 def get_embedding_client():
+    """RAG 검색 쿼리를 벡터화할 OpenAI embedding 클라이언트를 재사용합니다."""
+
     global embedding_client
 
     if embedding_client is None:
@@ -161,6 +169,8 @@ def get_embedding_client():
 
 
 def get_pinecone_index():
+    """체크리스트 참고 데이터를 조회할 Pinecone index 핸들을 재사용합니다."""
+
     global pinecone_client, pinecone_index
 
     if pinecone_index is None:
@@ -171,6 +181,8 @@ def get_pinecone_index():
 
 
 def search_embedding(query: str, cnt: int = 5) -> list[str]:
+    """검색 쿼리로 필수/우대 조건 namespace에서 참고 체크리스트를 가져옵니다."""
+
     if isinstance(cnt, bool) or not isinstance(cnt, int) or cnt <= 0:
         raise ValueError("cnt는 1 이상의 정수여야 합니다.")
 
@@ -210,19 +222,17 @@ def invoke(
     cnt: int = CHECKLIST_COUNT,
     user_query: str = ""
 ) -> list[str]:
+    # API 계층에서 호출하는 체크리스트 생성 진입점입니다. 실제 순서는 checklist_graph가 관리합니다.
     """회사 정보와 JD 정보를 받아 적합성 체크리스트 문자열 목록을 반환합니다."""
 
     if isinstance(cnt, bool) or not isinstance(cnt, int) or cnt <= 0:
         raise ValueError("cnt는 1 이상의 정수여야 합니다.")
 
-    query = extract_query(compinfo, jdinfo)
+    from .checklist_graph import invoke_checklist_graph
 
-    db_data = search_embedding(query, cnt)
-
-    return make_fit_checklist(
-        company_info=compinfo,
-        jd_info=jdinfo,
-        db_data=db_data,
-        checklist_count=cnt,
+    return invoke_checklist_graph(
+        compinfo=compinfo,
+        jdinfo=jdinfo,
+        cnt=cnt,
         user_query=user_query,
     )

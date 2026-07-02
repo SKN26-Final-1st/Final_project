@@ -29,6 +29,8 @@ QUESTION_COUNT = 10
 MAX_FIT_VERIFICATION_ATTEMPTS = 3
 
 class InterviewQuestionAnswer(BaseModel):
+    """면접 질문 1개에 필요한 질문, 모범 답안, 평가 의도를 담는 스키마입니다."""
+
     """면접 질문 한 개에 필요한 질문, 예상 답변, 질문 의도를 담는 구조입니다."""
 
     question: str = Field(
@@ -43,6 +45,8 @@ class InterviewQuestionAnswer(BaseModel):
 
 
 class InterviewQuestionsStructure(BaseModel):
+    """면접 질문 생성 LLM 응답을 questions 배열로 고정하는 스키마입니다."""
+
     """LLM이 생성한 여러 면접 질문을 리스트 형태로 받기 위한 응답 스키마입니다."""
 
     questions: List[InterviewQuestionAnswer] = Field(
@@ -51,6 +55,8 @@ class InterviewQuestionsStructure(BaseModel):
 
 
 class ChecklistCheckItem(BaseModel):
+    """체크리스트 1개 항목의 원문과 충족 여부를 담는 스키마입니다."""
+
     """체크리스트 한 문항과 이력서 요약 기준 충족 여부를 함께 표현합니다."""
 
     content: str = Field(
@@ -62,6 +68,8 @@ class ChecklistCheckItem(BaseModel):
 
 
 class ChecklistCheckStructure(BaseModel):
+    """체크리스트 전체 T/F 판정 결과를 담는 스키마입니다."""
+
     """체크리스트 전체에 대한 충족/미충족 판단 결과를 묶어 받는 구조입니다."""
 
     checklist: List[ChecklistCheckItem] = Field(
@@ -70,6 +78,8 @@ class ChecklistCheckStructure(BaseModel):
 
 
 class ReportStructure(BaseModel):
+    """최종 채용 평가 리포트의 필드 구조를 고정하는 스키마입니다."""
+
     """최종 채용 평가 리포트에 들어갈 등급, 요약, 분석 항목을 정의합니다."""
 
     overall_grade: str = Field(
@@ -245,6 +255,7 @@ def make_interview_questions(
     checklist_checks,
     question_count=QUESTION_COUNT,
 ):
+    # 검증된 체크리스트 결과와 회사/JD/이력서 정보를 바탕으로 면접 질문 10개를 생성합니다.
     """이력서, 회사, JD, 적합성 체크 결과를 종합해 면접 질문과 예상 답변을 생성합니다."""
 
     interview_context = {
@@ -267,6 +278,8 @@ def make_interview_questions(
 
 
 def check_resume_fit(resume_summary: Any, checklist):
+    # 이력서 요약이 각 체크리스트 항목을 충족하는지 LLM으로 1차 판정합니다.
+
     """이력서 요약이 각 체크리스트 기준을 충족하는지 LLM으로 판정합니다."""
 
     checklist_items = _normalize_checklist(checklist)
@@ -294,6 +307,7 @@ def evaluate_resume_fit_with_feedback(
     fit_checks,
     max_attempts=MAX_FIT_VERIFICATION_ATTEMPTS,
 ):
+    # 체크리스트 T/F 판정이 근거와 일치하는지 피드백 루프로 검증합니다.
     """체크리스트 T/F 결과를 공통 피드백 모듈로 점수화하고 안정화합니다."""
 
     checklist_results = _normalize_fit_checks(fit_checks)
@@ -316,6 +330,7 @@ def validate_resume_fit_with_feedback(
     fit_checks,
     max_attempts=MAX_FIT_VERIFICATION_ATTEMPTS,
 ):
+    # 기존 호출부 호환을 위해 보정된 checklist 배열만 반환하는 래퍼입니다.
     """기존 파이프라인을 위해 안정화된 체크리스트 배열만 반환합니다."""
 
     result = evaluate_resume_fit_with_feedback(
@@ -327,6 +342,8 @@ def validate_resume_fit_with_feedback(
 
 
 def make_report(resume_summary: Any, fit_checks):
+    # 검증된 체크리스트 결과를 바탕으로 최종 분석 리포트를 생성합니다.
+
     """이력서 요약과 체크리스트 판정 결과를 이용해 최종 평가 리포트를 생성합니다."""
 
     checklist_results = _normalize_fit_checks(fit_checks)
@@ -359,6 +376,7 @@ def evaluate_interview_questions_with_feedback(
     questions,
     max_attempts=3,
 ):
+    # 생성된 질문 10개가 근거형/번외형 구성과 중복 기준을 만족하는지 검증합니다.
     """10개 면접 질문의 근거성, 번외 질문 구성과 중복 여부를 평가·안정화합니다."""
 
     if not isinstance(questions, list):
@@ -386,6 +404,7 @@ def evaluate_report_with_feedback(
     report_data,
     max_attempts=3,
 ):
+    # 생성된 리포트가 체크리스트 결과와 지원자 근거를 일관되게 반영했는지 검증합니다.
     """최종 리포트의 체크리스트 반영률과 원본 정보 일치성을 평가·안정화합니다."""
 
     if not isinstance(report_data, dict):
@@ -411,43 +430,14 @@ def invoke(
     checklist: list[str],
     resume_dict: dict,
 ):
+    # Celery/API에서 호출하는 리포트 분석 진입점입니다. 실제 순서는 analysis_graph가 관리합니다.
     """입력 데이터를 그대로 사용해 적합성 판단, 면접 질문, 리포트 생성을 순서대로 실행합니다."""
 
-    fit_checks = check_resume_fit(
-        resume_summary=resume_dict,
+    from .analysis_graph import invoke_analysis_graph
+
+    return invoke_analysis_graph(
+        company_dict=company_dict,
+        jd_dict=jd_dict,
         checklist=checklist,
+        resume_dict=resume_dict,
     )
-    fit_checks = validate_resume_fit_with_feedback(
-        resume_info=resume_dict,
-        fit_checks=fit_checks,
-    )
-    questions = make_interview_questions(
-        resume_summary=resume_dict,
-        company_summary=company_dict,
-        jd_summary=jd_dict,
-        checklist_checks=fit_checks,
-    )
-    question_feedback = evaluate_interview_questions_with_feedback(
-        resume_info=resume_dict,
-        company_info=company_dict,
-        jd_info=jd_dict,
-        fit_checks=fit_checks,
-        questions=questions,
-    )
-    questions = question_feedback["outputdata"]["questions"]
-
-    report = make_report(
-        resume_summary=resume_dict,
-        fit_checks=fit_checks,
-    )
-    report_feedback = evaluate_report_with_feedback(
-        resume_info=resume_dict,
-        company_info=company_dict,
-        jd_info=jd_dict,
-        fit_checks=fit_checks,
-        report_data=report,
-    )
-    report = report_feedback["outputdata"]
-
-    report["question"] = questions
-    return report
