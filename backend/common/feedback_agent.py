@@ -1,4 +1,4 @@
-"""생성 결과를 근거 데이터와 비교해 점수화하고 안정화하는 공통 피드백 루프입니다."""
+"""생성 결과를 근거 데이터와 비교해 점수화하는 피드백 평가 agent입니다."""
 
 import json
 import os
@@ -11,57 +11,18 @@ from .prompt import (
     FEEDBACK_EVALUATION_SYSTEM_PROMPT,
     FEEDBACK_EVALUATION_USER_PROMPT,
 )
-
 from .utils import load_env
 
 load_env()
 
-
-MODEL_NAME = "gpt-4o-mini"
-DEFAULT_MAX_ATTEMPTS = 3
-DEFAULT_MIN_SCORE = 90
+LLM_MODEL = "gpt-4o-mini"
+TEMPERATURE = 0
 MAX_RESPONSE_ATTEMPTS = 3
 
 
-class FeedbackMetric(BaseModel):
-    """피드백 평가 기준별 점수와 판단 이유를 담는 스키마입니다."""
-
-    """평가 기준 한 항목의 점수와 판단 사유입니다."""
-
-    name: str = Field(description="평가 기준 이름")
-    score: int = Field(ge=0, le=100, description="평가 기준 충족 점수")
-    reason: str = Field(description="점수 판단 사유")
-
-
-class EvidenceFeedback(BaseModel):
-    """근거 데이터와 출력 사이에서 발견된 문제와 수정 제안을 담는 스키마입니다."""
-
-    """근거 데이터와 생성 결과 사이에서 발견한 문제와 수정 제안입니다."""
-
-    target: str = Field(description="문제가 발견된 출력 위치 또는 항목")
-    evidence: str = Field(description="검증 기준 데이터에서 확인한 근거")
-    feedback: str = Field(description="문제 또는 판정에 대한 설명")
-    suggested_correction: str = Field(description="권장 수정 내용")
-
-
-class FeedbackEvaluation(BaseModel):
-    """한 번의 피드백 평가 결과와 corrected_output을 담는 공통 응답 스키마입니다."""
-
-    """한 회차의 품질 점수, 안정 지표, 피드백과 수정 결과입니다."""
-
-    corrected_output: dict[str, Any] = Field(
-        description="입력 출력 형식을 유지하면서 피드백을 반영한 결과"
-    )
-    overall_score: int = Field(ge=0, le=100, description="전체 품질 점수")
-    stability_score: int = Field(ge=0, le=100, description="결과의 안정성 점수")
-    is_stable: bool = Field(description="추가 수정이 필요 없는 안정 상태 여부")
-    metrics: list[FeedbackMetric] = Field(description="평가 기준별 점수 목록")
-    evidence_feedback: list[EvidenceFeedback] = Field(
-        description="근거 기반 문제와 수정 제안 목록"
-    )
-    feedback_query: str = Field(
-        description="다음 생성 또는 재검증 호출에 전달할 수정 지시"
-    )
+################################################################
+#                      helper
+################################################################
 
 
 def _get_openai_client():
@@ -73,7 +34,7 @@ def _get_openai_client():
     return OpenAI(api_key=api_key)
 
 
-def _messages(system_prompt, user_prompt):
+def _messages(system_prompt: str, user_prompt: str) -> list[dict[str, str]]:
     """OpenAI 호출용 메시지 배열을 구성합니다."""
 
     return [
@@ -82,7 +43,7 @@ def _messages(system_prompt, user_prompt):
     ]
 
 
-def _first_value(item, keys, default=""):
+def _first_value(item: dict[str, Any], keys, default=""):
     """여러 후보 키 중 처음 발견한 값을 반환합니다."""
 
     for key in keys:
@@ -180,19 +141,18 @@ def _normalize_feedback_payload(payload):
     return normalized
 
 
-def _create_structured_completion(system_prompt, user_prompt, response_format):
+def _create_json_completion(system_prompt: str, user_prompt: str, response_format):
     """자유형 corrected_output을 허용하는 JSON 응답을 생성한 뒤 Pydantic으로 검증합니다."""
 
     client = _get_openai_client()
     messages = _messages(system_prompt, user_prompt)
 
-    # corrected_output은 체크리스트·질문·리포트마다 구조가 달라진다.
-    # OpenAI Structured Output은 자유형 dict의 additionalProperties를 허용하지 않으므로
-    # JSON mode로 받은 뒤 Pydantic에서 공통 필드를 검증한다.
+    # corrected_output은 체크리스트, 질문, 리포트마다 구조가 달라진다.
+    # strict structured output 대신 JSON mode 후 Pydantic으로 공통 필드만 검증한다.
     last_error = None
     for _ in range(MAX_RESPONSE_ATTEMPTS):
         response = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=LLM_MODEL,
             messages=messages,
             response_format={"type": "json_object"},
         )
@@ -205,7 +165,7 @@ def _create_structured_completion(system_prompt, user_prompt, response_format):
             last_error = error
             messages.extend(
                 [
-                    {"role": "assistant", "content": content},
+                    {"role": "assistant", "content": content or ""},
                     {
                         "role": "user",
                         "content": (
@@ -223,15 +183,11 @@ def _create_structured_completion(system_prompt, user_prompt, response_format):
     )
 
 
-def evaluate_output(
+def _validate_evaluation_input(
     reference_data,
     output_data,
     evaluation_criteria,
-    previous_feedback=None,
 ):
-    # 기준 데이터와 생성 결과를 비교해 점수, 수정본, 다음 피드백 지시를 만듭니다.
-    """검증 기준과 생성 결과를 비교해 점수, 근거 피드백, 수정 결과를 생성합니다."""
-
     if not isinstance(reference_data, dict):
         raise ValueError("reference_data는 dict 형태여야 합니다.")
     if not isinstance(output_data, dict):
@@ -241,6 +197,61 @@ def evaluate_output(
     if not all(isinstance(item, str) and item.strip() for item in evaluation_criteria):
         raise ValueError("evaluation_criteria의 각 항목은 빈 값이 아닌 문자열이어야 합니다.")
 
+
+################################################################
+#                      feedback_evaluation_node
+################################################################
+
+
+class FeedbackMetric(BaseModel):
+    """평가 기준 한 항목의 점수와 판단 사유입니다."""
+
+    name: str = Field(description="평가 기준 이름")
+    score: int = Field(ge=0, le=100, description="평가 기준 충족 점수")
+    reason: str = Field(description="점수 판단 사유")
+
+
+class EvidenceFeedback(BaseModel):
+    """근거 데이터와 생성 결과 사이에서 발견한 문제와 수정 제안입니다."""
+
+    target: str = Field(description="문제가 발견된 출력 위치 또는 항목")
+    evidence: str = Field(description="검증 기준 데이터에서 확인한 근거")
+    feedback: str = Field(description="문제 또는 판정에 대한 설명")
+    suggested_correction: str = Field(description="권장 수정 내용")
+
+
+class FeedbackEvaluation(BaseModel):
+    """한 회차의 품질 점수, 안정 지표, 피드백과 수정 결과입니다."""
+
+    corrected_output: dict[str, Any] = Field(
+        description="입력 출력 형식을 유지하면서 피드백을 반영한 결과"
+    )
+    overall_score: int = Field(ge=0, le=100, description="전체 품질 점수")
+    stability_score: int = Field(ge=0, le=100, description="결과의 안정성 점수")
+    is_stable: bool = Field(description="추가 수정이 필요 없는 안정 상태 여부")
+    metrics: list[FeedbackMetric] = Field(description="평가 기준별 점수 목록")
+    evidence_feedback: list[EvidenceFeedback] = Field(
+        description="근거 기반 문제와 수정 제안 목록"
+    )
+    feedback_query: str = Field(
+        description="다음 생성 또는 재검증 호출에 전달할 수정 지시"
+    )
+
+
+feedback_evaluation_node = None
+
+feedback_evaluation_prompt = FEEDBACK_EVALUATION_SYSTEM_PROMPT
+
+
+def invoke_feedback_evaluation_node(
+    reference_data,
+    output_data,
+    evaluation_criteria,
+    previous_feedback=None,
+) -> FeedbackEvaluation:
+    """검증 기준과 생성 결과를 비교해 점수, 근거 피드백, 수정 결과를 생성합니다."""
+
+    _validate_evaluation_input(reference_data, output_data, evaluation_criteria)
     context = {
         "reference_data": reference_data,
         "output_data": output_data,
@@ -248,40 +259,9 @@ def evaluate_output(
         "previous_feedback": previous_feedback or [],
     }
     context_json = json.dumps(context, ensure_ascii=False, indent=2)
-    return _create_structured_completion(
-        FEEDBACK_EVALUATION_SYSTEM_PROMPT,
-        FEEDBACK_EVALUATION_USER_PROMPT.format(context_json=context_json),
+    user_prompt = FEEDBACK_EVALUATION_USER_PROMPT.format(context_json=context_json)
+    return _create_json_completion(
+        feedback_evaluation_prompt,
+        user_prompt,
         FeedbackEvaluation,
-    )
-
-
-def run_feedback_loop(
-    reference_data,
-    initial_output,
-    evaluation_criteria,
-    min_score=DEFAULT_MIN_SCORE,
-    max_attempts=DEFAULT_MAX_ATTEMPTS,
-    evaluator=None,
-):
-    # 외부 생성 단계들이 공통으로 쓰는 피드백 루프 진입점입니다.
-    # 반복 제어는 feedback_graph.py의 LangGraph가 담당합니다.
-    """생성 결과가 점수와 안정 조건을 충족할 때까지 공통 피드백 루프를 수행합니다."""
-
-    if isinstance(min_score, bool) or not isinstance(min_score, int) or not 0 <= min_score <= 100:
-        raise ValueError("min_score는 0~100 사이의 정수여야 합니다.")
-    if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts <= 0:
-        raise ValueError("max_attempts는 1 이상의 정수여야 합니다.")
-    if not isinstance(initial_output, dict):
-        raise ValueError("initial_output은 dict 형태여야 합니다.")
-
-    evaluator = evaluator or evaluate_output
-    from .feedback_graph import invoke_feedback_graph
-
-    return invoke_feedback_graph(
-        reference_data=reference_data,
-        initial_output=initial_output,
-        evaluation_criteria=evaluation_criteria,
-        min_score=min_score,
-        max_attempts=max_attempts,
-        evaluator=evaluator,
     )

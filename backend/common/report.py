@@ -6,7 +6,7 @@ from typing import Any, List
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from .feedback import run_feedback_loop
+from . import feedback_graph
 
 from .prompt import (
     CHECKLIST_FEEDBACK_CRITERIA,
@@ -449,7 +449,7 @@ def evaluate_resume_fit_with_feedback(
     if not checklist_results:
         raise ValueError("재검증할 체크리스트 결과가 필요합니다.")
 
-    return run_feedback_loop(
+    return feedback_graph.invoke(
         reference_data={"resume_info": resume_info},
         initial_output={"checklist": checklist_results},
         evaluation_criteria=CHECKLIST_FEEDBACK_CRITERIA,
@@ -515,7 +515,7 @@ def evaluate_interview_questions_with_feedback(
     if not isinstance(questions, list):
         raise ValueError("questions는 list 형태여야 합니다.")
 
-    return run_feedback_loop(
+    return feedback_graph.invoke(
         reference_data={
             "resume_info": resume_info,
             "company_info": company_info,
@@ -543,7 +543,7 @@ def evaluate_report_with_feedback(
     if not isinstance(report_data, dict):
         raise ValueError("report_data는 dict 형태여야 합니다.")
 
-    return run_feedback_loop(
+    return feedback_graph.invoke(
         reference_data={
             "resume_info": resume_info,
             "company_info": company_info,

@@ -1,9 +1,22 @@
-"""LangGraph implementation of the common feedback loop."""
+"""LangGraph orchestration for the common feedback loop."""
 
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
+
+from . import feedback_agent as agents
+
+DEFAULT_MAX_ATTEMPTS = 3
+DEFAULT_MIN_SCORE = 90
+
+
+################################################################
+#                      state definition
+################################################################
+
+
+FeedbackRoute = Literal["evaluate", "finalize"]
 
 
 class FeedbackGraphState(TypedDict, total=False):
@@ -22,10 +35,15 @@ class FeedbackGraphState(TypedDict, total=False):
     passed: bool
 
 
-def evaluate_node(state: FeedbackGraphState) -> FeedbackGraphState:
-    """현재 출력물을 평가하고, 필요하면 corrected_output으로 다음 반복 상태를 만듭니다."""
+################################################################
+#                      node definition
+################################################################
 
-    evaluator = state["evaluator"]
+
+def evaluate_node(state: FeedbackGraphState) -> FeedbackGraphState:
+    """현재 출력물을 평가하고 corrected_output으로 다음 반복 상태를 만듭니다."""
+
+    evaluator = state.get("evaluator") or agents.invoke_feedback_evaluation_node
     feedback_history = list(state.get("feedback_history", []))
     attempt = state.get("attempt", 0) + 1
     current_output = state["current_output"]
@@ -66,18 +84,8 @@ def evaluate_node(state: FeedbackGraphState) -> FeedbackGraphState:
     }
 
 
-def route_after_evaluate(state: FeedbackGraphState) -> str:
-    """통과 조건 또는 최대 반복 횟수에 따라 재평가/종료 경로를 결정합니다."""
-
-    if state.get("passed"):
-        return "finalize"
-    if state.get("attempt", 0) >= state["max_attempts"]:
-        return "finalize"
-    return "evaluate"
-
-
 def finalize_node(state: FeedbackGraphState) -> FeedbackGraphState:
-    """피드백 루프의 최종 출력 형식을 기존 run_feedback_loop 반환값과 맞춥니다."""
+    """피드백 루프의 최종 출력 형식을 graph invoke 반환값으로 맞춥니다."""
 
     last_evaluation_data = state["last_evaluation_data"]
     final_result = {
@@ -89,6 +97,29 @@ def finalize_node(state: FeedbackGraphState) -> FeedbackGraphState:
         "attempts": state.get("attempt", 0),
     }
     return {"final_result": final_result}
+
+
+################################################################
+#                      conditional edge
+################################################################
+
+
+def route_after_evaluate(state: FeedbackGraphState) -> FeedbackRoute:
+    """통과 조건 또는 최대 반복 횟수에 따라 재평가/종료 경로를 결정합니다."""
+
+    if state.get("passed"):
+        return "finalize"
+    if state.get("attempt", 0) >= state["max_attempts"]:
+        return "finalize"
+    return "evaluate"
+
+
+################################################################
+#                      graph builder
+################################################################
+
+
+graph_instance = None
 
 
 def build_feedback_graph():
@@ -113,18 +144,50 @@ def build_feedback_graph():
     return builder.compile()
 
 
-feedback_graph = build_feedback_graph()
+def get_graph():
+    """컴파일된 피드백 그래프 singleton을 반환합니다."""
+
+    global graph_instance
+
+    if graph_instance is None:
+        graph_instance = build_feedback_graph()
+
+    return graph_instance
 
 
-def invoke_feedback_graph(
+def _validate_invoke_input(initial_output, min_score, max_attempts):
+    if (
+        isinstance(min_score, bool)
+        or not isinstance(min_score, int)
+        or not 0 <= min_score <= 100
+    ):
+        raise ValueError("min_score는 0~100 사이의 정수여야 합니다.")
+    if (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or max_attempts <= 0
+    ):
+        raise ValueError("max_attempts는 1 이상의 정수여야 합니다.")
+    if not isinstance(initial_output, dict):
+        raise ValueError("initial_output은 dict 형태여야 합니다.")
+
+
+################################################################
+#                      invoke
+################################################################
+
+
+def invoke(
     reference_data,
     initial_output,
     evaluation_criteria,
-    min_score,
-    max_attempts,
-    evaluator,
+    min_score=DEFAULT_MIN_SCORE,
+    max_attempts=DEFAULT_MAX_ATTEMPTS,
+    evaluator=None,
 ) -> dict[str, Any]:
     """외부에서 공통 피드백 그래프를 호출할 때 사용하는 진입점입니다."""
+
+    _validate_invoke_input(initial_output, min_score, max_attempts)
 
     state: FeedbackGraphState = {
         "reference_data": reference_data,
@@ -132,12 +195,14 @@ def invoke_feedback_graph(
         "evaluation_criteria": evaluation_criteria,
         "min_score": min_score,
         "max_attempts": max_attempts,
-        "evaluator": evaluator,
         "feedback_history": [],
         "attempt": 0,
         "passed": False,
     }
-    result = feedback_graph.invoke(
+    if evaluator is not None:
+        state["evaluator"] = evaluator
+
+    result = get_graph().invoke(
         state,
         config={"recursion_limit": max_attempts + 5},
     )
