@@ -1,5 +1,6 @@
 import json
 import os
+from copy import deepcopy
 from typing import Any, List
 
 from openai import OpenAI
@@ -28,6 +29,24 @@ MODEL_NAME = "gpt-4o-mini"
 QUESTION_COUNT = 10
 MAX_FIT_VERIFICATION_ATTEMPTS = 3
 
+
+STAR_ANALYSIS_SYSTEM_PROMPT = (
+    "너는 채용 평가를 위한 자기소개서 STAR 분석가야. "
+    "각 자기소개서 답변을 Situation, Task, Action, Result로 나누어 한국어로 작성해. "
+    "s, t, a, r 각각은 1문장 이내로 간결해야 한다. "
+    "purpose에는 해당 자기소개서 문항과 답변으로 평가할 수 있는 역량 또는 평가 의도를 1문장으로 작성해. "
+    "입력에 없는 경험, 수치, 성과, 회사명, 인명은 만들지 말고, 마스킹 토큰은 원문 그대로 유지해. "
+    "또한 original_quality에는 STAR 분석 전 원문 자기소개서가 전반적으로 얼마나 구조적이고 구체적으로 작성되었는지, "
+    "경험 맥락·행동·결과가 얼마나 명확한지 1~2문장으로 평가해. "
+    "원문이 부족한데 STAR 분석 결과만 좋아 보일 수 있는 위험도 함께 언급해."
+)
+STAR_ANALYSIS_USER_PROMPT = (
+    "다음 자기소개서 문항과 답변을 각각 STAR 관점으로 분석해줘. "
+    "analyses는 입력 항목 수와 같은 개수여야 하고, index는 입력 index와 같아야 해. "
+    "마지막에 original_quality도 반드시 작성해.\n\n"
+    "{context_json}"
+)
+
 class InterviewQuestionAnswer(BaseModel):
     """면접 질문 1개에 필요한 질문, 모범 답안, 평가 의도를 담는 스키마입니다."""
 
@@ -41,6 +60,28 @@ class InterviewQuestionAnswer(BaseModel):
     )
     purpose: str = Field(
         description="이 질문으로 확인하려는 평가 의도"
+    )
+
+
+class SelfIntroStarAnalysisItem(BaseModel):
+    """자기소개서 답변 1개에 대한 STAR 분석 결과입니다."""
+
+    index: int = Field(description="입력 자기소개서 항목의 index")
+    s: str = Field(description="Situation: 답변에 드러난 상황 또는 배경")
+    t: str = Field(description="Task: 지원자가 해결해야 했던 과제 또는 목표")
+    a: str = Field(description="Action: 지원자가 실제로 취한 행동")
+    r: str = Field(description="Result: 행동의 결과 또는 변화")
+    purpose: str = Field(description="해당 자기소개서 문항과 답변으로 평가할 수 있는 역량 또는 평가 의도")
+
+
+class SelfIntroStarAnalysisStructure(BaseModel):
+    """자기소개서 답변 목록에 대한 STAR 분석 응답 스키마입니다."""
+
+    analyses: List[SelfIntroStarAnalysisItem] = Field(
+        description="입력 자기소개서 항목 수와 같은 STAR 분석 결과 목록"
+    )
+    original_quality: str = Field(
+        description="STAR 분석 전 자기소개서 원문의 전반적인 작성 품질과 과대평가 위험"
     )
 
 
@@ -246,6 +287,105 @@ def _create_structured_completion(system_prompt, user_prompt, response_format):
         response_format={"type": "json_object"},
     )
     return response_format.model_validate_json(response.choices[0].message.content)
+
+
+def _get_self_intro_key(resume_summary):
+    """지원서 dict에서 자기소개서 필드명을 찾습니다."""
+
+    if not isinstance(resume_summary, dict):
+        return None
+    if isinstance(resume_summary.get("self_intoduction"), list):
+        return "self_intoduction"
+    if isinstance(resume_summary.get("self_introduction"), list):
+        return "self_introduction"
+    return None
+
+
+def _extract_self_intro_items(self_intro):
+    """자기소개서 배열에서 문항/답변 쌍을 STAR 분석 입력 형태로 정리합니다."""
+
+    items = []
+    for index, item in enumerate(self_intro):
+        if isinstance(item, dict):
+            answer = item.get("answer") or item.get("content") or item.get("description") or ""
+            question = item.get("question") or item.get("title") or ""
+        else:
+            answer = str(item)
+            question = ""
+
+        if str(answer).strip():
+            items.append(
+                {
+                    "index": index,
+                    "question": question,
+                    "answer": answer,
+                }
+            )
+    return items
+
+
+def analyze_resume_self_intro_with_star(resume_summary: Any):
+    """자기소개서 답변란을 {s, t, a, r} 분석 결과로 대체한 지원서 dict를 반환합니다."""
+
+    self_intro_key = _get_self_intro_key(resume_summary)
+    if not self_intro_key:
+        return resume_summary
+
+    self_intro = resume_summary.get(self_intro_key) or []
+    star_inputs = _extract_self_intro_items(self_intro)
+    if not star_inputs:
+        return resume_summary
+
+    context_json = json.dumps({"self_introduction": star_inputs}, ensure_ascii=False, indent=2)
+    parsed = _create_structured_completion(
+        STAR_ANALYSIS_SYSTEM_PROMPT,
+        STAR_ANALYSIS_USER_PROMPT.format(context_json=context_json),
+        SelfIntroStarAnalysisStructure,
+    )
+    analysis_by_index = {
+        item.index: (
+            {
+                "s": item.s.strip(),
+                "t": item.t.strip(),
+                "a": item.a.strip(),
+                "r": item.r.strip(),
+            },
+            item.purpose.strip(),
+        )
+        for item in parsed.analyses
+        if (
+            isinstance(item.index, int)
+            and any((item.s.strip(), item.t.strip(), item.a.strip(), item.r.strip(), item.purpose.strip()))
+        )
+    }
+
+    updated_resume = deepcopy(resume_summary)
+    updated_self_intro = deepcopy(self_intro)
+    for index, (star_analysis, purpose) in analysis_by_index.items():
+        if index < 0 or index >= len(updated_self_intro):
+            continue
+
+        item = updated_self_intro[index]
+        if isinstance(item, dict):
+            if "answer" in item:
+                item["answer"] = star_analysis
+            elif "content" in item:
+                item["content"] = star_analysis
+            elif "description" in item:
+                item["description"] = star_analysis
+            else:
+                item["answer"] = star_analysis
+            item["purpose"] = purpose
+        else:
+            updated_self_intro[index] = {
+                "question": "",
+                "answer": star_analysis,
+                "purpose": purpose,
+            }
+
+    updated_resume[self_intro_key] = updated_self_intro
+    updated_resume["original_quality"] = parsed.original_quality.strip()
+    return updated_resume
 
 
 def make_interview_questions(

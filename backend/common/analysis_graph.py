@@ -13,6 +13,7 @@ class AnalysisGraphState(TypedDict, total=False):
     jd_dict: dict
     checklist: list[str]
     resume_dict: dict
+    star_resume_dict: dict
     fit_checks: list[dict[str, Any]]
     questions: list[dict[str, Any]]
     report: dict[str, Any]
@@ -20,6 +21,20 @@ class AnalysisGraphState(TypedDict, total=False):
     question_feedback: dict[str, Any]
     report_feedback: dict[str, Any]
     result: dict[str, Any]
+
+
+def star_analysis_node(state: AnalysisGraphState) -> AnalysisGraphState:
+    """자기소개서 답변란을 {s, t, a, r} 분석 결과로 대체하고 원문 품질을 추가합니다."""
+
+    from . import report as report_service
+
+    star_resume_dict = report_service.analyze_resume_self_intro_with_star(
+        state["resume_dict"]
+    )
+    return {
+        "resume_dict": star_resume_dict,
+        "star_resume_dict": star_resume_dict,
+    }
 
 
 def check_resume_fit_node(state: AnalysisGraphState) -> AnalysisGraphState:
@@ -126,6 +141,7 @@ def build_analysis_graph():
 
     builder = StateGraph(AnalysisGraphState)
 
+    builder.add_node("star_analysis", star_analysis_node)
     builder.add_node("check_resume_fit", check_resume_fit_node)
     builder.add_node("fit_feedback", fit_feedback_node)
     builder.add_node("interview_questions", interview_questions_node)
@@ -134,7 +150,8 @@ def build_analysis_graph():
     builder.add_node("report_feedback", report_feedback_node)
     builder.add_node("finalize", finalize_node)
 
-    builder.add_edge(START, "check_resume_fit")
+    builder.add_edge(START, "star_analysis")
+    builder.add_edge("star_analysis", "check_resume_fit")
     builder.add_edge("check_resume_fit", "fit_feedback")
     builder.add_edge("fit_feedback", "interview_questions")
     builder.add_edge("interview_questions", "question_feedback")
