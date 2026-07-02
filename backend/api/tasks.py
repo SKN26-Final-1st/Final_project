@@ -11,6 +11,8 @@ _CELERY_WORKER_AVAILABLE = None
 
 
 def _build_interview_question(report_data):
+    """report_service.invoke() 결과의 question 필드를 DB 저장용 interview_question으로 정리합니다."""
+
     question_items = report_data.get("question") or []
     return [
         {
@@ -24,6 +26,8 @@ def _build_interview_question(report_data):
 
 
 def _apply_analysis_result(report, report_data):
+    """분석 그래프 결과를 AnalysisReport 모델 필드에 매핑합니다."""
+
     report.overall_grade = report_data.get("overall_grade", "")
     report.overall_summary = report_data.get("overall_summary", "")
     report.candidate_summary = report_data.get("candidate_summary", "")
@@ -61,6 +65,8 @@ def is_celery_worker_available():
 
 
 def analyze_and_save_report(report_id):
+    """Celery/동기 fallback에서 실행되는 리포트 생성 전체 작업입니다."""
+
     try:
         with transaction.atomic():
             report = (
@@ -106,4 +112,6 @@ def analyze_and_save_report(report_id):
 
 @shared_task
 def enqueue_report_analyze(report_id):
+    """Celery worker가 실행하는 분석 리포트 생성 task입니다."""
+
     return analyze_and_save_report(report_id)
