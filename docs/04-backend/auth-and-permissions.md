@@ -42,10 +42,11 @@
 
 - JD 목록 조회: `get_job_description_dicts`, `jd_get`
 - JD 수정/삭제: `jd_modify`
+- JD 기반 체크리스트 생성: `jd_analyze`
 - 체크리스트 조회/수정: `checklist_get`, `checklist_modify`
 - 지원서 조회/수정/삭제: `resume_get`, `resume_modify`
 - 지원서 분석: `_get_analysis_resume`, `resume_analyze`
-- 분석 리포트 조회/수정: `report_get`, `report_modify`
+- 분석 리포트 조회/수정/삭제: `report_get`, `report_modify`
 - 채팅: `chat`에서 `get_job_description_dicts`를 통해 인증
 
 API 키 경로는 `authorized_resume`에 포함된 이력서와 해당 이력서가 연결된 JD만 접근할 수 있도록 필터링합니다. 근거: `backend/api/views/utils.py`, `backend/api/views/resume_endpoints.py`

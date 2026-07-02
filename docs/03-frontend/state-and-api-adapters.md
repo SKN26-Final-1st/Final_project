@@ -7,7 +7,7 @@
 - `mode`: light/dark 테마
 - `alert`, `loadingKey`: `useApiAction()` — 전역 토스트와 중복 액션 방지
 - `resetStep`: 비밀번호 재설정 단계
-- `authChecked`, `isAuthenticated`: `useAuthSession()` — 세션 확인
+- `authChecked`, `isAuthenticated`, `authMode`, `apiKey`: `useAuthSession()` — 세션 또는 API Key 접근 확인
 
 도메인별 선택 상태, 채팅 입력, mutation 호출은 `App.tsx`에 두지 않습니다. `frontend/scripts/verify-state-management-refactor.mjs`가 이 분리를 정적으로 검증합니다.
 
@@ -21,7 +21,7 @@
 | `useAppDataQuery` | `frontend/src/hooks/useAppDataQuery.ts` | TanStack Query 래퍼, `appDataQueryOptions` 연결 |
 | `useJdPageData` | `frontend/src/hooks/useJdPageData.ts` | JD 목록·선택 JD (`selectedJdIdOverride`) |
 | `useCoverLetterPageData` | `frontend/src/hooks/useCoverLetterPageData.ts` | 지원서 행, JD·지원서 선택 (`selectedJdId`, `selectedResumeId`) |
-| `useAnalysisReportPageData` | `frontend/src/hooks/useAnalysisReportPageData.ts` | 리포트 목록, `?resumeId=` URL 선택 |
+| `useAnalysisReportPageData` | `frontend/src/hooks/useAnalysisReportPageData.ts` | 리포트 목록, `?reportId=` URL 선택과 `?resumeId=` 레거시 선택 |
 | `useChatPageData` | `frontend/src/hooks/useChatPageData.ts` | 채팅 컨텍스트용 리포트·JD·질문 slice |
 | `useAdminPageData` | `frontend/src/hooks/useAdminPageData.ts` | 관리자 요약, AuthKey 목록 |
 | `DocumentChatProvider` / `useDocumentChatState` | `frontend/src/hooks/useDocumentChatState.ts` | FAB·`/chat` 공유 채팅 메시지·입력·전송 |
@@ -57,6 +57,10 @@ flowchart TD
 
 인증 라우트(`/login`, `/signup`, `/password-reset`)와 공유 화면(`/shared`)에서는 `useAppData(false)`로 대시보드 로딩을 건너뜁니다.
 
+API Key 모드에서는 `appDataQueryOptions()`가 query key에 `authMode`와 API key fingerprint를 포함하고 `loadApiKeyAppData(apiKey)`를 호출합니다. 일반 세션 모드는 `loadAppData()`를 사용합니다.
+
+`queryOptions.ts`는 `AnalysisReport.status`가 `onqueue` 또는 `processing`인 항목이 있으면 3초 간격(`ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS = 3000`)으로 `appData`를 재조회합니다.
+
 ## API 클라이언트
 
 `frontend/src/api/backendClient.ts`는 Django API만 호출합니다. Axios 인스턴스와 CSRF 쿠키 처리는 `frontend/src/api/httpClient.ts`에 분리되어 있습니다.
@@ -68,6 +72,7 @@ flowchart TD
 - `X-API-Key`는 `requestBackend()` / `requestAction()` 호출 시 `{ apiKey }` 옵션을 넘긴 경우에만 붙습니다. `VITE_API_KEY` 환경 변수는 현재 `httpClient.ts`에서 읽지 않습니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`
 - Django 응답이 `{ error, data, message }` 형태가 아니어도 `normalizePayload()`로 감쌉니다.
 - `getDashboard()`는 account/company/JD/resume/report API를 조합합니다. 면접 질문은 백엔드의 `report.interview_question`에서 `getReportQuestions()`로 변환합니다.
+- `getApiKeyDashboard()`는 API Key가 접근 가능한 JD/resume/report만 조합하고 계정·회사 정보는 제한 모드용 기본값을 사용합니다.
 - backend API가 없는 후순위 기능은 `unsupportedBackendFeature()`로 명시적 오류를 던집니다.
 - 주요 엔티티 응답은 `frontend/src/api/backendSchemas.ts`의 Zod 스키마(`parseAccount`, `parseResumes` 등)로 런타임 검증합니다.
 

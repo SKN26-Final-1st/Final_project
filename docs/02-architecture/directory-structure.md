@@ -8,6 +8,8 @@
 ├── database/
 ├── docs/
 ├── frontend/
+├── outputs/
+├── runpod/
 ├── .deploy/
 ├── .github/workflows/
 ├── requirements.txt
@@ -39,13 +41,20 @@ backend/
 │   ├── chat_agent.py
 │   ├── chat_graph.py
 │   ├── checklist.py
+│   ├── checklist_graph.py
+│   ├── analysis_graph.py
 │   ├── feedback.py
+│   ├── feedback_graph.py
+│   ├── jd_form_agent.py
+│   ├── comp_form_agent.py
 │   ├── masking.py
 │   ├── report.py
 │   ├── prompt.py
 │   ├── utils.py
 │   └── eval/
 │       ├── chat_eval.ipynb
+│       ├── RAG_eval.py
+│       ├── e2e_eval.py
 │       ├── goldset_mock_data_fixed.csv
 │       ├── middle_report_eval.ipynb
 │       ├── middle_report2_eval.ipynb
@@ -59,7 +68,7 @@ backend/
 └── requirements.txt
 ```
 
-`api`는 Django 도메인 앱이고, `common`은 LLM/그래프/리포트 같은 백엔드 공통 기능을 담습니다.
+`api`는 Django 도메인 앱이고, `common`은 LLM/그래프/리포트 같은 백엔드 공통 기능을 담습니다. `*_graph.py` 파일은 LangGraph 기반 분석·체크리스트·채팅·피드백 흐름을 구성합니다.
 
 ## 프론트엔드
 
@@ -112,6 +121,17 @@ frontend/
 │   │   ├── useAuthSession.ts
 │   │   └── useLogoutAction.ts
 │   ├── pages/
+│   │   ├── AdminPage.tsx
+│   │   ├── AnalysisReportPage.tsx
+│   │   ├── ChatPage.tsx
+│   │   ├── CompanyPage.tsx
+│   │   ├── CoverLetterPage.tsx
+│   │   ├── CoverLetterTemplatePage.tsx
+│   │   ├── DashboardPage.tsx
+│   │   ├── JdPage.tsx
+│   │   ├── MyPage.tsx
+│   │   ├── RecruitmentPostPage.tsx
+│   │   ├── SharedReportPage.tsx
 │   │   └── auth/
 │   │       ├── LoginPage.tsx
 │   │       ├── SignupPage.tsx
@@ -156,6 +176,17 @@ database/
     ├── chunk_embedding.ipynb
     └── pinecone_uploader.ipynb
 ```
+
+## RunPod
+
+```text
+runpod/
+├── Dockerfile
+├── masking_handler.py
+└── requirements.txt
+```
+
+RunPod 구성은 EXAONE 기반 LoRA 마스킹 모델을 serverless handler로 실행하기 위한 보조 배포 자산입니다. `masking_handler.py`는 입력 텍스트를 받아 개인정보·회사명·학교·프로젝트명 등 라벨별 마스킹 후보를 JSON으로 반환합니다.
 
 ## 관련 문서
 
