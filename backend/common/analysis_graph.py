@@ -1,9 +1,22 @@
-"""LangGraph orchestration for resume analysis report generation."""
-
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
+
+from . import analysis_agent as agents
+from . import feedback_graph
+from .prompt import (
+    CHECKLIST_FEEDBACK_CRITERIA,
+    INTERVIEW_FEEDBACK_CRITERIA,
+    REPORT_FEEDBACK_CRITERIA,
+)
+
+
+################################################################
+#                      state definition
+################################################################
+
+MAX_FIT_VERIFICATION_ATTEMPTS = 3
 
 
 class AnalysisGraphState(TypedDict, total=False):
@@ -23,12 +36,62 @@ class AnalysisGraphState(TypedDict, total=False):
     result: dict[str, Any]
 
 
+################################################################
+#                      node definition
+################################################################
+
+
+def _normalize_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y"}:
+            return True
+        if normalized in {"false", "0", "no", "n", ""}:
+            return False
+    return bool(value)
+
+
+def normalize_fit_checks(fit_checks):
+    """dict, Pydantic 객체, list 형태의 체크 결과를 checklist/result 리스트로 표준화합니다."""
+
+    if hasattr(fit_checks, "model_dump"):
+        dumped = fit_checks.model_dump()
+        if isinstance(dumped, dict):
+            fit_checks = dumped.get("checklist", dumped.get("checks", dumped))
+
+    if isinstance(fit_checks, dict):
+        if "checklist" in fit_checks and isinstance(fit_checks["checklist"], list):
+            fit_checks = fit_checks["checklist"]
+        elif "checks" in fit_checks and isinstance(fit_checks["checks"], list):
+            fit_checks = fit_checks["checks"]
+        else:
+            return [
+                {"content": str(content), "result": _normalize_bool(result)}
+                for content, result in fit_checks.items()
+            ]
+
+    if isinstance(fit_checks, list):
+        normalized = []
+        for item in fit_checks:
+            if hasattr(item, "model_dump"):
+                item = item.model_dump()
+            if not isinstance(item, dict):
+                raise ValueError("체크 결과 리스트 항목은 dict 형태여야 합니다.")
+
+            content = item.get("content", item.get("checklist", item.get("question", "")))
+            result = item.get("result", item.get("is_checked", False))
+            normalized.append({"content": content, "result": _normalize_bool(result)})
+        return normalized
+
+    raise ValueError("fit_checks는 list 또는 dict 형태여야 합니다.")
+
+
 def star_analysis_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """자기소개서 답변란을 {s, t, a, r} 분석 결과로 대체하고 원문 품질을 추가합니다."""
 
-    from . import report as report_service
-
-    star_resume_dict = report_service.analyze_resume_self_intro_with_star(
+    star_resume_dict = agents.invoke_star_analysis_node(
         state["resume_dict"]
     )
     return {
@@ -40,9 +103,7 @@ def star_analysis_node(state: AnalysisGraphState) -> AnalysisGraphState:
 def check_resume_fit_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """이력서가 각 체크리스트 항목을 충족하는지 T/F로 1차 판정합니다."""
 
-    from . import report as report_service
-
-    fit_checks = report_service.check_resume_fit(
+    fit_checks = agents.invoke_check_resume_fit_node(
         resume_summary=state["resume_dict"],
         checklist=state["checklist"],
     )
@@ -52,16 +113,16 @@ def check_resume_fit_node(state: AnalysisGraphState) -> AnalysisGraphState:
 def fit_feedback_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """체크리스트 T/F 판정 결과를 피드백 루프로 검증하고 보정합니다."""
 
-    from . import report as report_service
-
-    fit_feedback = report_service.evaluate_resume_fit_with_feedback(
-        resume_info=state["resume_dict"],
-        fit_checks=state["fit_checks"],
+    fit_checks = normalize_fit_checks(state["fit_checks"])
+    fit_feedback = feedback_graph.invoke(
+        reference_data={"resume_info": state["resume_dict"]},
+        initial_output={"checklist": fit_checks},
+        evaluation_criteria=CHECKLIST_FEEDBACK_CRITERIA,
+        min_score=95,
+        max_attempts=MAX_FIT_VERIFICATION_ATTEMPTS,
     )
     return {
-        "fit_checks": report_service._normalize_fit_checks(
-            fit_feedback["outputdata"]["checklist"]
-        ),
+        "fit_checks": normalize_fit_checks(fit_feedback["outputdata"]["checklist"]),
         "fit_feedback": fit_feedback,
     }
 
@@ -69,9 +130,7 @@ def fit_feedback_node(state: AnalysisGraphState) -> AnalysisGraphState:
 def interview_questions_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """검증된 체크리스트 결과를 바탕으로 면접 질문/답변/의도를 생성합니다."""
 
-    from . import report as report_service
-
-    questions = report_service.make_interview_questions(
+    questions = agents.invoke_interview_questions_node(
         resume_summary=state["resume_dict"],
         company_summary=state["company_dict"],
         jd_summary=state["jd_dict"],
@@ -83,14 +142,20 @@ def interview_questions_node(state: AnalysisGraphState) -> AnalysisGraphState:
 def question_feedback_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """생성된 면접 질문 10개를 피드백 루프로 검증하고 보정합니다."""
 
-    from . import report as report_service
+    if not isinstance(state["questions"], list):
+        raise ValueError("questions는 list 형태여야 합니다.")
 
-    question_feedback = report_service.evaluate_interview_questions_with_feedback(
-        resume_info=state["resume_dict"],
-        company_info=state["company_dict"],
-        jd_info=state["jd_dict"],
-        fit_checks=state["fit_checks"],
-        questions=state["questions"],
+    question_feedback = feedback_graph.invoke(
+        reference_data={
+            "resume_info": state["resume_dict"],
+            "company_info": state["company_dict"],
+            "jd_info": state["jd_dict"],
+            "checklist_checks": normalize_fit_checks(state["fit_checks"]),
+        },
+        initial_output={"questions": state["questions"]},
+        evaluation_criteria=INTERVIEW_FEEDBACK_CRITERIA,
+        min_score=85,
+        max_attempts=3,
     )
     return {
         "questions": question_feedback["outputdata"]["questions"],
@@ -101,11 +166,9 @@ def question_feedback_node(state: AnalysisGraphState) -> AnalysisGraphState:
 def report_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """검증된 체크리스트 결과를 바탕으로 최종 분석 리포트를 생성합니다."""
 
-    from . import report as report_service
-
-    report = report_service.make_report(
+    report = agents.invoke_report_node(
         resume_summary=state["resume_dict"],
-        fit_checks=state["fit_checks"],
+        fit_checks=normalize_fit_checks(state["fit_checks"]),
     )
     return {"report": report}
 
@@ -113,14 +176,20 @@ def report_node(state: AnalysisGraphState) -> AnalysisGraphState:
 def report_feedback_node(state: AnalysisGraphState) -> AnalysisGraphState:
     """생성된 리포트를 피드백 루프로 검증하고 보정합니다."""
 
-    from . import report as report_service
+    if not isinstance(state["report"], dict):
+        raise ValueError("report_data는 dict 형태여야 합니다.")
 
-    report_feedback = report_service.evaluate_report_with_feedback(
-        resume_info=state["resume_dict"],
-        company_info=state["company_dict"],
-        jd_info=state["jd_dict"],
-        fit_checks=state["fit_checks"],
-        report_data=state["report"],
+    report_feedback = feedback_graph.invoke(
+        reference_data={
+            "resume_info": state["resume_dict"],
+            "company_info": state["company_dict"],
+            "jd_info": state["jd_dict"],
+            "checklist_checks": normalize_fit_checks(state["fit_checks"]),
+        },
+        initial_output=state["report"],
+        evaluation_criteria=REPORT_FEEDBACK_CRITERIA,
+        min_score=95,
+        max_attempts=3,
     )
     return {
         "report": report_feedback["outputdata"],
@@ -136,7 +205,19 @@ def finalize_node(state: AnalysisGraphState) -> AnalysisGraphState:
     return {"result": result}
 
 
-def build_analysis_graph():
+################################################################
+#                      conditional edge
+################################################################
+
+
+################################################################
+#                      graph builder
+################################################################
+
+graph_instance = None
+
+
+def build_graph():
     """체크리스트 판정부터 질문/리포트 생성까지의 전체 분석 그래프를 구성합니다."""
 
     builder = StateGraph(AnalysisGraphState)
@@ -163,10 +244,21 @@ def build_analysis_graph():
     return builder.compile()
 
 
-analysis_graph = build_analysis_graph()
+def get_graph():
+    global graph_instance
+
+    if graph_instance is None:
+        graph_instance = build_graph()
+
+    return graph_instance
 
 
-def invoke_analysis_graph(
+################################################################
+#                      invoke
+################################################################
+
+
+def invoke(
     company_dict: dict,
     jd_dict: dict,
     checklist: list[str],
@@ -180,5 +272,5 @@ def invoke_analysis_graph(
         "checklist": checklist,
         "resume_dict": resume_dict,
     }
-    result = analysis_graph.invoke(state)
+    result = get_graph().invoke(state)
     return result["result"]
