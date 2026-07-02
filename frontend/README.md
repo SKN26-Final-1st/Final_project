@@ -8,10 +8,11 @@
 - session 기반 요청은 `withCredentials`와 `X-CSRFToken`을 사용한다.
 - 공유/비로그인 접근은 `X-API-Key` 헤더를 사용한다.
 - backend 응답은 HTTP status보다 body의 `error: boolean`을 기준으로 처리한다.
-- backend 계약상 오탈자처럼 보이는 경로/필드는 그대로 사용한다.
+- backend 계약상 확정된 경로/필드는 그대로 사용한다.
   - `/api/passqestion/`
-  - `/api/resume/analize/`
+  - `/api/resume/analyze/`
   - `self_intoduction`
+- 면접 질문 전용 API는 없으며, 질문은 `AnalysisReport.interview_question`에서 조회한다.
 - backend API가 아직 없는 후순위 MVP 화면은 삭제하지 않고 보존했다. 다만 nav/sidebar에서는 숨기고, 직접 접근하면 “후순위 MVP / 백엔드 API 연동 예정” 안내를 보여준다.
 
 ## 주요 파일
@@ -26,7 +27,7 @@
 - `src/data/backendTypes.ts`
   - Django `to_dict()` 응답 shape에 맞춘 frontend 타입.
 - `src/api/appDataService.ts`
-  - dashboard에서 필요한 account/company/JD/resume/report/question/authkey 데이터를 실제 API로 조합.
+  - dashboard에서 필요한 account/company/JD/resume/report/interview_question/authkey 데이터를 실제 API로 조합.
 - `src/api/adapters.ts`
   - backend shape를 화면 view model로 변환.
 - `src/data/appConfig.tsx`
@@ -101,18 +102,21 @@ backend endpoint:
 - `apiClient.addJobDescription`
 - `apiClient.saveJobDescription`
 - `apiClient.deleteJobDescription`
+- `apiClient.generateJdChecklist`
 
 backend endpoint:
 
 - `POST /api/jd/add/`
 - `POST /api/jd/get/`
 - `POST /api/jd/modify/`
+- `POST /api/jd/analyze/`
 
 주의:
 
 - 생성 시 `job_name`, `career_level`, `required_skill`을 필수로 취급한다.
 - `status`는 `prepare`, `on_going`, `closed`만 사용한다.
 - 삭제는 `jd/modify`에 `{ id, delete: true }`를 보낸다.
+- `jd/analyze`는 JD 기반 체크리스트 생성 API이며, 기존 체크리스트가 10개보다 적을 때 부족한 개수만 생성한다.
 
 ### Resume / 자소서 / 분석
 
@@ -122,21 +126,21 @@ backend endpoint:
 - `apiClient.addResume`
 - `apiClient.saveResume`
 - `apiClient.deleteResume`
-- `apiClient.requestCoverLetterAnalysis`
-- `apiClient.requestJobAnalysis`
+- `apiClient.requestResumeAnalysis`
 
 backend endpoint:
 
 - `POST /api/resume/add/`
 - `POST /api/resume/get/`
 - `POST /api/resume/modify/`
-- `POST /api/resume/analize/`
+- `POST /api/resume/analyze/`
 
 주의:
 
 - backend에서는 자소서가 별도 모델이 아니라 `Resume.self_intoduction`에 포함된다.
-- 분석 실행은 JD id가 아니라 resume id로 `/api/resume/analize/`를 호출해야 한다.
-- UI에서 JD 기준으로 분석을 누르면 해당 JD의 첫 resume을 찾아 분석한다.
+- 분석 실행은 JD id가 아니라 resume id로 `/api/resume/analyze/`를 호출해야 한다.
+- JD 화면의 분석 버튼은 연결된 지원서가 정확히 1개이고 체크리스트가 있을 때만 해당 resume id로 분석을 요청한다.
+- `requestJobAnalysis`, `requestCoverLetterAnalysis`는 JD id 기반 분석의 모호성을 피하기 위해 deprecated helper로 남아 있다.
 
 ### Report / Interview Question
 
@@ -146,19 +150,20 @@ backend endpoint:
 - `src/pages/ChatPage.tsx`
 - `src/pages/SharedReportPage.tsx`
 - `apiClient.saveReport`
+- `apiClient.deleteReport`
 - `apiClient.saveQuestion`
 
 backend endpoint:
 
 - `POST /api/report/get/`
 - `POST /api/report/modify/`
-- `POST /api/question/get/`
-- `POST /api/question/modify/`
 
 주의:
 
 - 조회 기준은 `resume_id`다.
-- report/question 삭제 API는 없으므로 삭제 UI를 만들지 않는다.
+- 리포트 수정과 삭제는 모두 `report/modify`를 사용한다. 삭제는 `{ id, delete: true }` payload를 보낸다.
+- `status=processing`인 리포트는 backend에서 수정/삭제를 거부한다.
+- 면접 질문은 `report.interview_question`에 포함된다. 개별 질문 조회/수정/삭제 API는 없으므로 `saveQuestion`은 `unsupportedBackendFeature()`를 반환한다.
 
 ### Chat
 
@@ -196,12 +201,11 @@ backend endpoint:
 - `POST /api/authkey/add/`
 - `POST /api/authkey/get/`
 - `POST /api/authkey/modify/`
-- `POST /api/jd/get/` with `X-API-Key`
-- `POST /api/resume/get/` with `X-API-Key`
-- `POST /api/report/get/` with `X-API-Key`
-- `POST /api/question/get/` with `X-API-Key`
+- `POST /api/jd/get/`, `/api/jd/modify/`, `/api/jd/analyze/` with `X-API-Key`
+- `POST /api/checklist/get/`, `/api/checklist/modify/` with `X-API-Key`
+- `POST /api/resume/get/`, `/api/resume/modify/`, `/api/resume/analyze/` with `X-API-Key`
+- `POST /api/report/get/`, `/api/report/modify/` with `X-API-Key`
 - `POST /api/chat/` with `X-API-Key`
-- `POST /api/resume/analize/` with `X-API-Key`
 
 주의:
 
@@ -209,6 +213,8 @@ backend endpoint:
 - `authkey/get` 응답의 `value`는 마스킹된다.
 - `authorized_resume` 권한 설정은 `authkey/modify`로 한다.
 - 공유 화면은 API key를 URL query에 넣지 않고 입력값으로 받은 뒤 헤더로만 보낸다.
+- API Key 로그인 모드는 `sessionStorage`에 key를 저장하고 `/jd`, `/cover-letter`, `/analysis-report` 접근만 허용한다.
+- `jd/add`, `resume/add`, `checklist/add`는 세션 전용이다.
 
 ## 사용자 플로우별 수동 테스트
 
@@ -286,8 +292,8 @@ node scripts\verify-live-django-api.mjs
 3. 지원자 이름, 역량, 자기소개 문항/답변을 입력한다.
 4. 저장 후 resume 목록/미리보기에 나타나는지 확인한다.
 5. 분석 요청을 누른다.
-6. loading 상태가 표시되고, 성공 후 report/questions가 갱신되는지 확인한다.
-7. `/chat`에서 분석 결과 기반 질문을 보낸다.
+6. loading 상태가 표시되고, 성공 후 `/analysis-report?reportId=...`로 이동하거나 report/questions가 갱신되는지 확인한다.
+7. 리포트 화면 또는 `/chat`에서 분석 결과 기반 질문을 보낸다.
 
 LLM 포함 자동 검증:
 
@@ -440,8 +446,10 @@ node scripts\verify-shared-route.mjs
 - session API는 CSRF + credentials 유지.
 - 공유 API는 `X-API-Key`를 명시적으로 전달.
 - HTTP 200이어도 `payload.error`가 `true`면 실패로 처리.
-- `passqestion`, `resume/analize`, `self_intoduction` 철자는 backend 계약이 바뀌기 전까지 유지.
+- `passqestion`, `resume/analyze`, `self_intoduction` 철자는 backend 계약이 바뀌기 전까지 유지한다.
+- 오래된 분석 경로 오탈자 표기를 새로 추가하지 않는다.
 - `account/modify`에는 `id`, `username`, `account_hash`를 보내지 않는다.
-- `report/modify`, `question/modify`에는 `delete`를 보내지 않는다.
+- 리포트 삭제는 `report/modify`에 `{ id, delete: true }`를 보낸다.
+- 면접 질문 개별 수정/삭제 API는 없으므로 `question/*` endpoint를 새로 호출하지 않는다.
 - backend API가 없는 기능은 `unsupportedBackendFeature(...)` 또는 “개발 예정” UI로 처리한다.
 - 후순위 MVP 페이지는 삭제하지 말고 route/file을 보존한다.

@@ -37,6 +37,12 @@
 
 `/shared`는 인증 없이 접근합니다. `?resumeId=` 쿼리와 API 키 입력으로 `getSharedResumeBundle()`을 호출합니다. `AppShell`과 FAB 없이 독립 레이아웃을 사용합니다. 근거: `frontend/src/pages/SharedReportPage.tsx`, `frontend/src/App.tsx`
 
+## API Key 제한 모드
+
+`/login`의 API Key 탭에서 키 검증에 성공하면 key를 `sessionStorage`에 저장하고 `authMode: 'apiKey'`로 보호 화면에 진입합니다. 이 모드에서는 `/jd`, `/cover-letter`, `/analysis-report`만 접근할 수 있고 기본 진입점은 `/jd`입니다. `AppShell`은 허용 라우트만 메뉴에 노출하며 전역 문서 검색 FAB는 숨깁니다.
+
+근거: `frontend/src/App.tsx`, `frontend/src/pages/auth/LoginPage.tsx`, `frontend/src/utils/apiKeySession.ts`
+
 ## 보호 화면 레이아웃
 
 인증 라우트가 아닌 화면은 `AppShell`로 감싸집니다.
@@ -50,7 +56,7 @@
 
 ## 라우트 상태
 
-`App.tsx`가 `useLocation()`과 `getRouteFromPathname()`으로 현재 라우트를 계산합니다. 페이지별 선택 상태·채팅·mutation은 각 화면 훅이 담당합니다. 예: JD 선택은 `useJdPageData`, 리포트 선택은 `useAnalysisReportPageData`(`?resumeId=`), 채팅은 `DocumentChatProvider`. 자세한 표는 [상태와 API 어댑터](state-and-api-adapters.md)를 참고하세요.
+`App.tsx`가 `useLocation()`과 `getRouteFromPathname()`으로 현재 라우트를 계산합니다. 페이지별 선택 상태·채팅·mutation은 각 화면 훅이 담당합니다. 예: JD 선택은 `useJdPageData`, 리포트 선택은 `useAnalysisReportPageData`(`?reportId=` 우선, `?resumeId=` 레거시 지원), 채팅은 `DocumentChatProvider`. 자세한 표는 [상태와 API 어댑터](state-and-api-adapters.md)를 참고하세요.
 
 ## 관련 문서
 

@@ -56,11 +56,11 @@
 | `/api/jd/add/` | POST | 세션 | `job_name`, 선택 `career_level`, `required_skill` 등 | `{error:false,data:JobDescription}` |
 | `/api/jd/get/` | POST | 세션 또는 API 키 | 없음 | `{error:false,data:JobDescription[]}` |
 | `/api/jd/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:JobDescription}` |
-| `/api/jd/analyze/` | POST | 세션 | `id` | `{error:false,data:Checklist[]}` |
+| `/api/jd/analyze/` | POST | 세션 또는 API 키 | `id` | `{error:false,data:Checklist[]}` |
 
 상태값은 `prepare`, `on_going`, `closed`만 허용합니다.
 
-`jd/analyze`는 `id`만 허용합니다. 해당 JD의 기존 체크리스트 개수를 확인한 뒤 부족한 항목을 `backend/common/checklist.py`로 생성하고 저장된 전체 체크리스트를 반환합니다.
+`jd/analyze`는 `id`만 허용합니다. 해당 JD의 기존 체크리스트 개수를 확인한 뒤 부족한 항목을 `backend/common/checklist.py`로 생성하고 저장된 전체 체크리스트를 반환합니다. API 키 요청은 `authorized_resume`으로 접근 가능한 JD에 한해 허용됩니다.
 
 ## 체크리스트
 
@@ -94,9 +94,9 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 | 경로 | 메서드 | 인증 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
 | `/api/report/get/` | POST | 세션 또는 API 키 | `resume_id` 또는 `id` | `{error:false,data:AnalysisReport[]}` |
-| `/api/report/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 | `{error:false,data:AnalysisReport}` |
+| `/api/report/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:AnalysisReport}` |
 
-`report_get`은 `id`가 있으면 단건, `resume_id`가 있으면 해당 지원서의 리포트 목록을 반환합니다. `report_modify`는 삭제를 허용하지 않습니다.
+`report_get`은 `id`가 있으면 단건, `resume_id`가 있으면 해당 지원서의 리포트 목록을 반환합니다. `report_modify`는 리포트 수정과 삭제를 모두 처리하며, 삭제는 `{id, delete:true}`를 보냅니다. `status=processing`인 리포트는 수정·삭제가 거부됩니다.
 
 `AnalysisReport` 응답 필드에는 `interview_question` (`question`, `answer`, `purpose` 객체 배열), `motive`, `collaboration` 등이 포함됩니다.
 

@@ -20,7 +20,7 @@
 - 지원서 추가·수정·삭제 (`useResumeMutations` → `addResume`, `saveResume`, `deleteResume`)
 - 삭제 확인 모달 (`CoverLetterDeleteModal`) — 삭제 후 선택 id를 인접 항목으로 재지정
 - 분석 요청
-- 분석 완료 후 `/chat` 이동 버튼 표시
+- 분석 요청 후 `/analysis-report?reportId=...`로 이동
 
 선택 상태는 `useCoverLetterPageData`가 관리합니다. override가 없으면 첫 JD·첫 지원서를 기본 선택합니다. 근거: `frontend/src/hooks/useCoverLetterPageData.ts`, `frontend/src/pages/CoverLetterPage.tsx`
 
@@ -60,8 +60,10 @@
 역할:
 
 - 저장된 `AnalysisReport`와 연결 resume·JD를 목록으로 표시
-- `?resumeId=` 쿼리로 선택 항목 유지 (`useSearchParams`)
+- `?reportId=` 쿼리로 선택 리포트를 유지하고, 기존 링크 호환을 위해 `?resumeId=`도 지원 (`useSearchParams`)
 - 리포트 탭 내용과 추천 질문 패널 표시
+- 완료된 리포트 수정과 삭제 (`report/modify`, 삭제 시 `{id, delete:true}`)
+- `onqueue` 또는 `processing` 리포트는 대기 화면을 표시하고, `processing` 상태의 수정·삭제는 backend가 거부
 
 ## 분석 결과 데이터
 

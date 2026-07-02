@@ -54,14 +54,15 @@
 | RES-003 | `/api/resume/analyze/` | POST | 지원서 분석 요청 |
 | RES-004 | `/api/resume/modify/` | POST | 지원서 수정 / 삭제 |
 | REP-001 | `/api/report/get/` | POST | 분석 리포트 조회 |
-| REP-002 | `/api/report/modify/` | POST | 분석 리포트 수정 |
+| REP-002 | `/api/report/modify/` | POST | 분석 리포트 수정 / 삭제 |
 | CHAT-001 | `/api/chat/` | POST | AI 채팅 질의 |
 
 ## 주의할 계약
 
 - `AUTH-006`의 경로는 실제 코드 기준 `passqestion`입니다.
-- `JD-004`는 JD id를 받아 부족한 체크리스트 항목을 AI로 생성하고 `Checklist[]`를 반환합니다.
+- `JD-004`는 JD id를 받아 부족한 체크리스트 항목을 AI로 생성하고 `Checklist[]`를 반환합니다. 세션 또는 접근 가능한 API 키로 호출할 수 있습니다.
 - `RES-003`은 resume id를 받아 분석을 실행하고 `AnalysisReport`를 반환합니다. 면접 질문은 리포트의 `interview_question` 필드에 포함됩니다.
+- `REP-002`는 수정 필드 또는 `delete:true`를 받습니다. `processing` 상태의 리포트는 수정·삭제할 수 없습니다.
 - 공유 리포트 화면은 일부 조회/분석/채팅 요청에 `X-API-Key`를 명시적으로 전달합니다.
 
 ## 관련 문서

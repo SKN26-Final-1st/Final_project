@@ -56,6 +56,7 @@ Final_project/
 │   └── embedding/            # 문서 청킹, 임베딩 생성, Pinecone 업로드 노트북
 ├── docs/                     # 현재 코드 기준 위키형 프로젝트 문서
 ├── outputs/                  # 인터페이스 정의서와 미리보기 산출물
+├── runpod/                   # EXAONE LoRA 마스킹 모델 RunPod serverless handler
 ├── .deploy/                  # Nginx, Gunicorn, Celery 배포 설정
 ├── .github/workflows/        # AWS S3/SSM 기반 배포 워크플로
 └── README.md
