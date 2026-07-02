@@ -34,7 +34,6 @@ STAR_ANALYSIS_SYSTEM_PROMPT = (
     "너는 채용 평가를 위한 자기소개서 STAR 분석가야. "
     "각 자기소개서 답변을 Situation, Task, Action, Result로 나누어 한국어로 작성해. "
     "s, t, a, r 각각은 1문장 이내로 간결해야 한다. "
-    "purpose에는 해당 자기소개서 문항과 답변으로 평가할 수 있는 역량 또는 평가 의도를 1문장으로 작성해. "
     "입력에 없는 경험, 수치, 성과, 회사명, 인명은 만들지 말고, 마스킹 토큰은 원문 그대로 유지해. "
     "또한 original_quality에는 STAR 분석 전 원문 자기소개서가 전반적으로 얼마나 구조적이고 구체적으로 작성되었는지, "
     "경험 맥락·행동·결과가 얼마나 명확한지 1~2문장으로 평가해. "
@@ -71,7 +70,6 @@ class SelfIntroStarAnalysisItem(BaseModel):
     t: str = Field(description="Task: 지원자가 해결해야 했던 과제 또는 목표")
     a: str = Field(description="Action: 지원자가 실제로 취한 행동")
     r: str = Field(description="Result: 행동의 결과 또는 변화")
-    purpose: str = Field(description="해당 자기소개서 문항과 답변으로 평가할 수 있는 역량 또는 평가 의도")
 
 
 class SelfIntroStarAnalysisStructure(BaseModel):
@@ -343,25 +341,22 @@ def analyze_resume_self_intro_with_star(resume_summary: Any):
         SelfIntroStarAnalysisStructure,
     )
     analysis_by_index = {
-        item.index: (
-            {
-                "s": item.s.strip(),
-                "t": item.t.strip(),
-                "a": item.a.strip(),
-                "r": item.r.strip(),
-            },
-            item.purpose.strip(),
-        )
+        item.index: {
+            "s": item.s.strip(),
+            "t": item.t.strip(),
+            "a": item.a.strip(),
+            "r": item.r.strip(),
+        }
         for item in parsed.analyses
         if (
             isinstance(item.index, int)
-            and any((item.s.strip(), item.t.strip(), item.a.strip(), item.r.strip(), item.purpose.strip()))
+            and any((item.s.strip(), item.t.strip(), item.a.strip(), item.r.strip()))
         )
     }
 
     updated_resume = deepcopy(resume_summary)
     updated_self_intro = deepcopy(self_intro)
-    for index, (star_analysis, purpose) in analysis_by_index.items():
+    for index, star_analysis in analysis_by_index.items():
         if index < 0 or index >= len(updated_self_intro):
             continue
 
@@ -375,12 +370,10 @@ def analyze_resume_self_intro_with_star(resume_summary: Any):
                 item["description"] = star_analysis
             else:
                 item["answer"] = star_analysis
-            item["purpose"] = purpose
         else:
             updated_self_intro[index] = {
                 "question": "",
                 "answer": star_analysis,
-                "purpose": purpose,
             }
 
     updated_resume[self_intro_key] = updated_self_intro
