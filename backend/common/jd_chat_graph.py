@@ -125,6 +125,16 @@ def _is_empty_value(value):
     return value == [] or value == {}
 
 
+def _display_value(value):
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+
+    if isinstance(value, dict):
+        return ", ".join(f"{key}: {val}" for key, val in value.items())
+
+    return str(value)
+
+
 ################################################################
 #                      node definition
 ################################################################
@@ -247,6 +257,10 @@ def field_intent_node(state: GraphState) -> GraphState:
         },
         "extracted_value": extracted_value,
         "focus_field": "",
+        "response": _append_response(
+            state,
+            f"'{FIELD_LABELS.get(focus_field, focus_field)}' 데이터를 확인하고, 그 내용을 '{_display_value(extracted_value)}' 값으로 채워 넣었습니다.",
+        ),
     }
 
 
