@@ -1,8 +1,12 @@
 import json
+import math
+import os
 from typing import Any, List
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from openai import OpenAI
+from pinecone import Pinecone
 from pydantic import BaseModel, Field
 
 from .prompt import (
@@ -138,3 +142,75 @@ def invoke_fit_checklist_node(
 
     result = invoke_agent(fit_checklist_node, fit_checklist_prompt, [user_prompt])
     return result.model_dump()["checklist"]
+
+
+################################################################
+#                      search_embedding_node
+################################################################
+
+
+pinecone_client = None
+pinecone_index = None
+embedding_client = None
+
+
+def _validate_checklist_count(cnt: int):
+    if isinstance(cnt, bool) or not isinstance(cnt, int) or cnt <= 0:
+        raise ValueError("cnt는 1 이상의 정수여야 합니다.")
+
+
+def get_embedding_client():
+    """RAG 검색 쿼리를 벡터화할 OpenAI embedding 클라이언트를 재사용합니다."""
+
+    global embedding_client
+
+    if embedding_client is None:
+        embedding_client = OpenAI()
+
+    return embedding_client
+
+
+def get_pinecone_index():
+    """체크리스트 참고 데이터를 조회할 Pinecone index 핸들을 재사용합니다."""
+
+    global pinecone_client, pinecone_index
+
+    if pinecone_index is None:
+        pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        pinecone_index = pinecone_client.Index(host=os.getenv("PINECONE_HOST"))
+
+    return pinecone_index
+
+
+def invoke_search_embedding_node(query: str, cnt: int = 5) -> list[str]:
+    """검색 쿼리로 필수/우대 조건 namespace에서 참고 체크리스트를 가져옵니다."""
+
+    _validate_checklist_count(cnt)
+
+    query_vector = get_embedding_client().embeddings.create(
+        model="text-embedding-3-small",
+        input=query,
+    ).data[0].embedding
+
+    q_cnt = math.ceil(cnt * 3 / 5)
+    p_cnt = cnt - q_cnt
+
+    qresult = get_pinecone_index().query(
+        namespace="qualify_conditions",
+        vector=query_vector,
+        top_k=q_cnt,
+        include_metadata=True,
+    )
+    qlist = [r["metadata"]["condition"] for r in qresult["matches"]]
+
+    plist = []
+    if p_cnt > 0:
+        presult = get_pinecone_index().query(
+            namespace="preffered_conditions",
+            vector=query_vector,
+            top_k=p_cnt,
+            include_metadata=True,
+        )
+        plist = [r["metadata"]["condition"] for r in presult["matches"]]
+
+    return qlist + plist
