@@ -4,7 +4,7 @@ from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.http import JsonResponse
 
-from common import checklist as checklist_service
+from common import checklist_graph
 
 from ..models import Checklist, CompanyInfo, JobDescription
 from .columns import JOB_DESCRIPTION_ADD_BLOCKED_FIELDS, JOB_DESCRIPTION_BLOCKED_FIELDS
@@ -155,7 +155,7 @@ def _get_jd_analysis_inputs(request, job_description_id):
         "job_description_id": job_description.id,
         "company": company_info.to_masked_dict(),
         "jd": job_description.to_masked_dict(),
-        "remaining_count": max(0, checklist_service.CHECKLIST_COUNT - checklist_count),
+        "remaining_count": max(0, checklist_graph.CHECKLIST_COUNT - checklist_count),
     }
 
 
@@ -169,7 +169,7 @@ def _save_generated_checklists(job_description_id, contents):
             return None
 
         current_count = Checklist.objects.filter(job_description=job_description).count()
-        remaining_count = max(0, checklist_service.CHECKLIST_COUNT - current_count)
+        remaining_count = max(0, checklist_graph.CHECKLIST_COUNT - current_count)
         valid_contents = [
             content.strip()
             for content in contents
@@ -188,7 +188,7 @@ def _save_generated_checklists(job_description_id, contents):
 
 
 async def _jd_analyze_async(request):
-    """JD 분석 API 본문입니다. checklist_service.invoke()로 체크리스트 LangGraph를 실행합니다."""
+    """JD 분석 API 본문입니다. checklist_graph.invoke()로 체크리스트 LangGraph를 실행합니다."""
 
     if request.method != "POST":
         return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
@@ -212,7 +212,7 @@ async def _jd_analyze_async(request):
 
     if inputs["remaining_count"]:
         generated_contents = await sync_to_async(
-            checklist_service.invoke,
+            checklist_graph.invoke,
             thread_sensitive=False,
         )(
             inputs["company"],
