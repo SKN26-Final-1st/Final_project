@@ -10,6 +10,7 @@ ERROR_MESSAGES = {
     405: "405: Request method is not allowed.",
     406: "406: Duplicate data exists.",
     407: "407: Operation is not allowed.",
+    408: "408: Not enough credit.",
     500: "500: Internal server error.",
 }
 

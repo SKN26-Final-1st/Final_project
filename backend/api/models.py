@@ -57,7 +57,7 @@ class Account(AbstractUser):
 
     verification_question = models.CharField(max_length=255, null=True, blank=True)
     verification_answer = models.CharField(max_length=255, null=True, blank=True)
-    credit = models.IntegerField(default=150)
+    credit = models.IntegerField(default=100)
     subscribe = models.BooleanField(default=False)
     subscribe_expiration = models.DateTimeField(null=True, blank=True)
     account_hash = models.CharField(max_length=16, unique=True, default=generate_account_hash)
