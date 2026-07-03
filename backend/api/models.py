@@ -350,10 +350,12 @@ class AnalysisReport(models.Model):
     STATUS_ONQUEUE = "onqueue"
     STATUS_PROCESSING = "processing"
     STATUS_DONE = "done"
+    STATUS_FAIL = "fail"
     STATUS_CHOICES = [
         (STATUS_ONQUEUE, "On queue"),
         (STATUS_PROCESSING, "Processing"),
         (STATUS_DONE, "Done"),
+        (STATUS_FAIL, "Fail"),
     ]
 
     id = models.BigAutoField(primary_key=True)

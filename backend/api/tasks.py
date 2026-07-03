@@ -2,10 +2,11 @@ from celery import shared_task
 from celery import current_app
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F
 
 from common import analysis_graph
 
-from .models import AnalysisReport, CompanyInfo
+from .models import Account, AnalysisReport, AuthKey, CompanyInfo
 
 _CELERY_WORKER_AVAILABLE = None
 
@@ -65,7 +66,45 @@ def is_celery_worker_available():
     return _CELERY_WORKER_AVAILABLE
 
 
-def analyze_and_save_report(report_id):
+def _mark_report_failed(report_id):
+    return (
+        AnalysisReport.objects.filter(id=report_id)
+        .exclude(status__in=[AnalysisReport.STATUS_DONE, AnalysisReport.STATUS_FAIL])
+        .update(status=AnalysisReport.STATUS_FAIL)
+    )
+
+
+def refund_report_credit(account_id=None, api_key_id=None, credit_spent=0):
+    if not credit_spent:
+        return
+
+    if api_key_id is not None:
+        AuthKey.objects.filter(pk=api_key_id).update(
+            credit_limit=F("credit_limit") + credit_spent
+        )
+        return
+
+    if account_id is not None:
+        Account.objects.filter(pk=account_id).update(credit=F("credit") + credit_spent)
+
+
+def _try_mark_report_failed(report_id):
+    try:
+        return _mark_report_failed(report_id) > 0
+    except Exception:
+        return False
+
+
+def _handle_report_failure(report_id, account_id=None, api_key_id=None, credit_spent=0):
+    if _try_mark_report_failed(report_id):
+        refund_report_credit(
+            account_id=account_id,
+            api_key_id=api_key_id,
+            credit_spent=credit_spent,
+        )
+
+
+def analyze_and_save_report(report_id, account_id=None, api_key_id=None, credit_spent=0):
     """Celery/동기 fallback에서 실행되는 리포트 생성 전체 작업입니다."""
 
     try:
@@ -91,16 +130,29 @@ def analyze_and_save_report(report_id):
                 ),
             }
     except AnalysisReport.DoesNotExist:
+        refund_report_credit(
+            account_id=account_id,
+            api_key_id=api_key_id,
+            credit_spent=credit_spent,
+        )
         return None
-
-    analysis_result = analysis_graph.invoke(
-        company_dict=inputs["company"],
-        jd_dict=inputs["jd"],
-        checklist=inputs["checklist"],
-        resume_dict=inputs["resume"],
-    )
+    except Exception:
+        _handle_report_failure(
+            report_id,
+            account_id=account_id,
+            api_key_id=api_key_id,
+            credit_spent=credit_spent,
+        )
+        raise
 
     try:
+        analysis_result = analysis_graph.invoke(
+            company_dict=inputs["company"],
+            jd_dict=inputs["jd"],
+            checklist=inputs["checklist"],
+            resume_dict=inputs["resume"],
+        )
+
         with transaction.atomic():
             report = AnalysisReport.objects.select_for_update().get(id=report_id)
             _apply_analysis_result(report, analysis_result)
@@ -108,11 +160,29 @@ def analyze_and_save_report(report_id):
 
             return report.to_dict()
     except AnalysisReport.DoesNotExist:
+        refund_report_credit(
+            account_id=account_id,
+            api_key_id=api_key_id,
+            credit_spent=credit_spent,
+        )
         return None
+    except Exception:
+        _handle_report_failure(
+            report_id,
+            account_id=account_id,
+            api_key_id=api_key_id,
+            credit_spent=credit_spent,
+        )
+        raise
 
 
 @shared_task
-def enqueue_report_analyze(report_id):
+def enqueue_report_analyze(report_id, account_id=None, api_key_id=None, credit_spent=0):
     """Celery worker가 실행하는 분석 리포트 생성 task입니다."""
 
-    return analyze_and_save_report(report_id)
+    return analyze_and_save_report(
+        report_id,
+        account_id=account_id,
+        api_key_id=api_key_id,
+        credit_spent=credit_spent,
+    )
