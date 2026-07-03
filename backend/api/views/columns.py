@@ -32,4 +32,4 @@ RESUME_ADD_ALLOWED_FIELDS = {
 }
 RESUME_MODIFY_BLOCKED_FIELDS = RESUME_BLOCKED_FIELDS | {"job_description", "job_description_id"}
 
-REPORT_BLOCKED_FIELDS = {"id", "resume", "resume_id", "status"}
+REPORT_BLOCKED_FIELDS = {"id", "resume", "resume_id", "status", "version"}
