@@ -1,14 +1,33 @@
 import json
 import os
-from typing import Union
+import inspect
+from collections.abc import Callable
+from typing import Any, Union
 
 from pinecone import Pinecone
 from openai import OpenAI
 
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+
+try:
+    from .chat_prompt import (
+        app_manual_rag_prompt,
+        context_extractor_prompt,
+        fall_case_prompt,
+        hr_analyst_prompt,
+        summary_prompt,
+    )
+except ImportError:
+    from chat_prompt import (
+        app_manual_rag_prompt,
+        context_extractor_prompt,
+        fall_case_prompt,
+        hr_analyst_prompt,
+        summary_prompt,
+    )
 
 try:
     from .utils import load_env
@@ -60,44 +79,15 @@ async def invoke_llm_async(llm, prompt: str, chats: list[dict]):
 ################################################################
 
 class FallCaseStructure(BaseModel):
-    is_out_of_bounds: bool
-    is_hr_case: bool
-    is_app_manual: bool
-    out_of_bounds_response: str
-    rag_search_query: str   # app_manual 전용 검색 쿼리
-    hr_search_query: str    # hr_case 전용 검색 쿼리
+    is_out_of_bounds: bool = Field(description="HR/채용 데이터/앱 사용법과 무관한 의도가 포함되면 True")
+    is_hr_case: bool = Field(description="회사 정보, JD, 지원자 이력서, 분석 리포트 조회/집계/분석 의도가 있으면 True")
+    is_app_manual: bool = Field(description="앱 화면, 버튼, 메뉴, 사용 방법 질문이 있으면 True")
+    out_of_bounds_response: str = Field(description="범위 밖 의도가 있을 때만 짧은 거절/안내 문장")
+    rag_search_query: str = Field(description="앱 사용법 검색용 핵심 명사구. is_app_manual이 False면 빈 문자열")
+    hr_search_query: str = Field(description="HR 데이터 조회/분석용 핵심 명사구. is_hr_case가 False면 빈 문자열")
 
 
 fall_case_model = None
-
-fall_case_prompt = """
-당신은 우리 회사 HR/채용 챗봇의 다중 의도 분류기입니다.
-사용자의 가장 최근 입력을 분석하여, 아래의 3가지 속성이 각각 포함되어 있는지 여부를 True/False로 판단하세요.
-
-분류 속성:
-1. is_out_of_bounds: HR, 채용, 앱 사용법과 전혀 상관없는 질문(예: 날씨, 맛집 등)이 포함된 경우
-2. is_hr_case: 우리 회사 채용 통계, 인원수, JD 내용, 지원자 점수/평가 등 '실제 데이터베이스 내부 데이터'를 조회하거나 분석해달라는 질문인 경우
-3. is_app_manual: 우리 앱의 화면 위치, 버튼 클릭 방법, 메뉴 사용법, 리포트 생성 버튼 위치 등 '기능 사용법' 질문인 경우
-
-[분류 예외 필수 규칙]
-- 메뉴명이나 기능 이름 자체에 '지원자 분석 리포트', '채용 공고 등록', '평가 수정'과 같이 '지원자'나 '채용'이라는 단어가 포함되어 있더라도, 질문의 본질이 "어디서 봐요?", "어떻게 올려요?", "어느 버튼 눌러요?" 같은 '기능 위치/사용법'이라면 1번(is_hr_case)은 False로 하고 오직 3번(is_app_manual)만 True로 해야 합니다.
-- 1번(is_hr_case)은 오직 통계를 내거나 실제 데이터 내용을 조회해야 할 때만 True로 켜세요.
-
-[rag_search_query 생성 규칙 - 앱 사용법 전용]
-- is_app_manual이 True인 경우에만 채워주세요. 사용자 질문에서 핵심 기능/화면 키워드만 추출해 명사형으로 작성하세요.
-  예) "로그인 어떻게 해?" → "로그인 방법"
-  예) "지원서 파일 올리려면 어떻게 해?" → "지원서 파일 업로드"
-  예) "대시보드에서 뭘 볼 수 있어?" → "대시보드 기능"
-  예) "AI 문서 검색 플로팅 버튼이 어디 있어? 그리고 PM JD 우대 기술도 알려줘." → "AI 문서 검색 플로팅 버튼 위치" (app 관련 부분만)
-- is_app_manual이 False이면 빈 문자열로 두세요.
-
-[hr_search_query 생성 규칙 - HR 데이터 조회 전용]
-- is_hr_case가 True인 경우에만 채워주세요. 조회가 필요한 HR 데이터 키워드만 추출해 명사형으로 작성하세요.
-  예) "백엔드 JD 필수 기술이 뭐야?" → "백엔드 JD 필수 기술"
-  예) "AI 문서 검색 플로팅 버튼이 어디 있어? 그리고 PM JD 우대 기술도 알려줘." → "PM JD 우대 기술" (hr 관련 부분만)
-  예) "경력 3년 이상 요구하는 직무가 뭐야?" → "경력 요건 직무 목록"
-- is_hr_case가 False이면 빈 문자열로 두세요.
-"""
 
 
 async def invoke_fall_case_node(chats: list[dict]) -> FallCaseStructure:
@@ -128,11 +118,6 @@ class ContextExtractorStructure(BaseModel):
 
 context_extractor_model = None
 
-context_extractor_prompt = """
-당신은 HR 챗봇의 메모리 추출기입니다.
-현재 사용자 질문을 해결하는 데 필요한 이전 대화의 수치, 인원수, 점수, 금액, 날짜, 비율 등을 추출하세요.
-"""
-
 
 async def invoke_context_extractor_node(chats: list[dict]) -> ContextExtractorStructure:
     global context_extractor_model
@@ -150,39 +135,231 @@ async def invoke_context_extractor_node(chats: list[dict]) -> ContextExtractorSt
 
 hr_analyst_model = None
 
-hr_analyst_prompt = """
-당신은 자사 채용 데이터베이스(JD) 및 이전 대화 맥락을 직접 분석하고 통계를 내어 답변하는 HR 분석 챗봇입니다.
+RECRUITING_DATA_SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_recruiting_data",
+        "description": (
+            "자사 채용 데이터베이스에서 사용자 질문과 관련된 채용 데이터를 검색합니다. "
+            "JD, 회사 정보, 지원자 이력서, 분석 리포트 기반 통계나 분석이 필요할 때 호출하세요. "
+            "반환 리스트의 첫 번째 요소는 항상 object_type이 company_info인 회사 정보입니다. "
+            "JD/resume/report 필터에 검색 조건이 없으면 해당 객체 목록은 반환되지 않습니다. "
+            "전체 목록이 필요할 때만 해당 필터의 get_all_list를 true로 설정하세요. "
+            "여러 객체 필터를 동시에 쓰면 서로 다른 object_type 데이터가 한 리스트에 섞여 반환되므로, 개수 계산 시 object_type별로 분리해 세세요. "
+            "관계는 JobDescription.id -> Resume.job_description_id -> AnalysisReport.resume_id 입니다. "
+            "예: 백엔드 JD를 jd_filters.job_name_icontains='백엔드'로 찾고, 반환된 JD id를 "
+            "resume_filters.job_description_id_in에 넣어 관련 이력서를 조회한 뒤, 반환된 Resume id를 "
+            "report_filters.resume_id_in에 넣어 관련 리포트를 조회할 수 있습니다."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "모든 객체군에 공통 OR icontains로 적용할 자연어 검색어",
+                },
+                "jd_filters": {
+                    "type": "object",
+                    "description": "채용공고 JobDescription에 적용할 필터",
+                    "properties": {
+                        "get_all_list": {
+                            "type": "boolean",
+                            "description": "true이면 조건 없이 접근 가능한 모든 JD 목록을 조회합니다.",
+                        },
+                        "query": {"type": "string", "description": "JD 전체 텍스트 검색"},
+                        "id_in": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "JobDescription.id 목록으로 조회",
+                        },
+                        "job_name_icontains": {"type": "string"},
+                        "education_level_icontains": {"type": "string"},
+                        "major_icontains": {"type": "string"},
+                        "career_level_icontains": {"type": "string"},
+                        "required_skill_icontains": {"type": "string"},
+                        "preferred_skill_icontains": {"type": "string"},
+                        "main_task_icontains": {"type": "string"},
+                        "hiring_reason_icontains": {"type": "string"},
+                        "work_type_in": {"type": "array", "items": {"type": "string"}},
+                        "status_in": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+                "resume_filters": {
+                    "type": "object",
+                    "description": "지원자 이력서 Resume에 적용할 필터",
+                    "properties": {
+                        "get_all_list": {
+                            "type": "boolean",
+                            "description": "true이면 조건 없이 접근 가능한 모든 이력서 목록을 조회합니다.",
+                        },
+                        "query": {"type": "string", "description": "이력서 전체 텍스트 검색"},
+                        "id_in": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "Resume.id 목록으로 조회",
+                        },
+                        "job_description_id_in": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "Resume.job_description_id 목록으로 관련 JD의 이력서 조회",
+                        },
+                        "skill_icontains": {"type": "string"},
+                        "education_level_icontains": {"type": "string"},
+                        "experience_icontains": {"type": "string"},
+                        "self_intoduction_icontains": {"type": "string"},
+                        "certification_icontains": {"type": "string"},
+                        "language_icontains": {"type": "string"},
+                        "award_icontains": {"type": "string"},
+                        "training_icontains": {"type": "string"},
+                        "other_activity_icontains": {"type": "string"},
+                        "reviewed_in": {"type": "array", "items": {"type": "boolean"}},
+                    },
+                },
+                "report_filters": {
+                    "type": "object",
+                    "description": "분석 리포트 AnalysisReport에 적용할 필터",
+                    "properties": {
+                        "get_all_list": {
+                            "type": "boolean",
+                            "description": "true이면 조건 없이 접근 가능한 모든 분석 리포트 목록을 조회합니다.",
+                        },
+                        "query": {"type": "string", "description": "리포트 전체 텍스트 검색"},
+                        "id_in": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "AnalysisReport.id 목록으로 조회",
+                        },
+                        "resume_id_in": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "AnalysisReport.resume_id 목록으로 관련 이력서의 리포트 조회",
+                        },
+                        "version_icontains": {"type": "string"},
+                        "overall_grade_in": {"type": "array", "items": {"type": "string"}},
+                        "overall_summary_icontains": {"type": "string"},
+                        "candidate_summary_icontains": {"type": "string"},
+                        "checklist_icontains": {"type": "string"},
+                        "competency_analysis_icontains": {"type": "string"},
+                        "fit_analysis_icontains": {"type": "string"},
+                        "motive_icontains": {"type": "string"},
+                        "collaboration_icontains": {"type": "string"},
+                        "strength_icontains": {"type": "string"},
+                        "concern_icontains": {"type": "string"},
+                        "check_point_icontains": {"type": "string"},
+                        "interview_question_icontains": {"type": "string"},
+                        "final_comment_icontains": {"type": "string"},
+                        "status_in": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "객체군별 최대 결과 개수",
+                    "minimum": 1,
+                    "maximum": 50,
+                },
+            },
+        },
+    },
+}
 
-[답변 작성 필수 규칙]
-1. 제공된 [자사 채용 데이터베이스]와 [참고할 이전 메모리 데이터]를 종합적으로 분석하세요.
-2. 만약 현재 채용 데이터베이스가 비어있더라도, [참고할 이전 메모리 데이터]에 관련 수치나 인원수 정보가 있다면 그것을 신뢰할 수 있는 사실로 판단하여 "백엔드 지원자는 총 X명입니다"와 같이 확정형 문장으로 명확하게 답변하세요. "데이터베이스에는 없지만 메모리에는 있다"처럼 사용자를 혼란스럽게 하는 모순된 표현은 절대 금지합니다.
-3. 이모티콘과 이모지는 사용하지 마세요.
-"""
+
+async def _maybe_await(value):
+    if inspect.isawaitable(value):
+        return await value
+    return value
+
+
+async def _call_recruiting_data_searcher(
+    recruiting_data_searcher: Callable[..., Any],
+    tool_args: dict,
+) -> list[dict]:
+    allowed_args = {
+        "query",
+        "jd_filters",
+        "resume_filters",
+        "report_filters",
+        "limit",
+    }
+    safe_args = {key: value for key, value in tool_args.items() if key in allowed_args}
+    result = await _maybe_await(recruiting_data_searcher(**safe_args))
+    return result or []
+
+
+async def _invoke_hr_analyst_with_tools(
+    messages: list,
+    recruiting_data_searcher: Callable[..., Any],
+) -> str:
+    llm_with_tools = hr_analyst_model.bind_tools([RECRUITING_DATA_SEARCH_TOOL])
+    current_messages = messages
+
+    for _ in range(3):
+        llm_response = await llm_with_tools.ainvoke(current_messages)
+        tool_calls = getattr(llm_response, "tool_calls", None) or []
+
+        if not tool_calls:
+            return llm_response.content
+
+        tool_messages = []
+        for tool_call in tool_calls:
+            if tool_call.get("name") != "search_recruiting_data":
+                continue
+
+            search_result = await _call_recruiting_data_searcher(
+                recruiting_data_searcher,
+                tool_call.get("args") or {},
+            )
+            tool_messages.append(
+                ToolMessage(
+                    content=json.dumps(search_result, ensure_ascii=False, indent=2),
+                    tool_call_id=tool_call["id"],
+                    name="search_recruiting_data",
+                )
+            )
+
+        if not tool_messages:
+            return llm_response.content
+
+        current_messages = [*current_messages, llm_response, *tool_messages]
+
+    final_response = await hr_analyst_model.ainvoke(current_messages)
+    return final_response.content
 
 
 async def invoke_hr_analyst_agent(
     search_query: str,
-    job_descriptions: list[dict] | None = None,
     extracted_memories: list[dict] | None = None,
+    recruiting_data_searcher: Callable[..., Any] | None = None,
 ) -> str:
     global hr_analyst_model
 
     if hr_analyst_model is None:
         hr_analyst_model = _make_chat_llm()
 
-    job_descriptions = job_descriptions or []
     extracted_memories = extracted_memories or []
 
     if extracted_memories:
         memory_str = json.dumps(extracted_memories, ensure_ascii=False)
         search_query = f"[참고할 이전 메모리 데이터]: {memory_str}\n[사용자 질문]: {search_query}"
 
-    user_prompt = f"사용자 질문:\n{search_query}\n\n자사 채용 데이터베이스:\n{json.dumps(job_descriptions, ensure_ascii=False, indent=2)}"
+    if recruiting_data_searcher is None:
+        raise ValueError("recruiting_data_searcher is required for HR analysis.")
 
-    llm_response = await hr_analyst_model.ainvoke(
-        [SystemMessage(content=hr_analyst_prompt), HumanMessage(content=user_prompt)]
+    user_prompt = (
+        f"사용자 질문:\n{search_query}\n\n"
+        "자사 채용 데이터베이스는 search_recruiting_data 도구로 조회할 수 있습니다. "
+        "질문에 답하기 위해 필요한 JD, 지원자 이력서, 분석 리포트 필터를 객체별로 나누어 도구를 호출하세요. "
+        "도구 결과는 object_type과 data를 가진 리스트로 반환되며, 첫 번째 요소는 항상 회사 정보(company_info)입니다. "
+        "특정 객체의 검색 조건이 없으면 그 객체 결과는 나오지 않습니다. 전체 목록이 필요할 때만 해당 필터에 get_all_list=true를 넣으세요. "
+        "여러 객체를 한 번에 조회하면 결과 리스트에 object_type이 섞일 수 있으므로, 개수나 통계를 낼 때는 object_type별로 분리하세요. "
+        "관계 키는 JobDescription.id -> Resume.job_description_id -> AnalysisReport.resume_id입니다. "
+        "예를 들어 JD를 먼저 찾은 뒤 반환된 id로 resume_filters.job_description_id_in을 호출하고, "
+        "이력서 id로 report_filters.resume_id_in을 호출해 연관 리포트를 찾을 수 있습니다. "
+        "도구 결과와 이전 메모리 데이터만 근거로 답변하세요."
     )
-    return llm_response.content
+    return await _invoke_hr_analyst_with_tools(
+        [SystemMessage(content=hr_analyst_prompt), HumanMessage(content=user_prompt)],
+        recruiting_data_searcher,
+    )
 
 
 ################################################################
@@ -195,12 +372,6 @@ pinecone_client = None
 pinecone_index = None
 embedding_client = None
 
-
-app_manual_rag_prompt = """
-당신은 우리 애플리케이션 사용법을 안내하는 상담 챗봇입니다.
-검색된 사용설명서 문서를 근거로 짧고 정확하게 답변하세요.
-이모티콘과 이모지는 사용하지 마세요.
-"""
 
 
 def get_embedding_client():
@@ -259,17 +430,6 @@ async def invoke_app_manual_rag_agent(query: str, user_question: str) -> tuple[s
 
 
 summary_model = None
-
-summary_prompt = """
-당신은 답변 요약 및 병합 전문가입니다.
-사용자의 질문에 대해 여러 시스템(범위 밖 안내, HR 분석 결과, 앱 사용법 안내)에서 도출된 개별 답변들을 보고, 맥락이 자연스럽게 이어지는 하나의 통합된 답변 문장으로 재구성하세요.
-
-[연결어 및 문장 결합 규칙]
-1. 하위 답변들을 단순히 문장 단위로 나열하거나 붙여넣지 마세요. 문맥에 맞는 적절한 부사와 접속사(예: '다만', '한편', '이와 관련하여', '또한')를 유기적으로 사용하여 흐름을 매끄럽게 만드세요.
-2. 만약 앞문장과 뒷문장의 성격이 다를 때(예: 범위 밖 질문 거절 + 정상 답변 제공)는 "전자의 정보는 제공할 수 없으나, 후자의 경우 ~입니다" 혹은 "A에 대한 안내는 어려우나, 요청하신 B에 대해 말씀드리겠습니다"처럼 대조/전환의 연결어를 사용하여 세련되게 문장을 시작하세요.
-3. 하위 답변 간에 내용이 중복되거나 모순되는 표현이 있다면, 생략하거나 더 정확한 수치가 포함된 정보를 기준으로 문장을 깔끔하게 다듬으세요.
-4. 격식 있는 존댓말을 사용하고, 이모티콘이나 이모지는 절대 사용하지 마세요.
-"""
 
 async def invoke_summary_agent(merge_input: str) -> str:
     global summary_model

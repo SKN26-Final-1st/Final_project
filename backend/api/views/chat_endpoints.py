@@ -8,7 +8,7 @@ from common.jd_chat_graph import invoke as invoke_jd_chat_graph
 
 from ..models import CompanyInfo, JobDescription
 from .error_code import error_code
-from .utils import accessible_job_descriptions, get_job_description_dicts
+from .utils import accessible_job_descriptions, search_recruiting_data_dicts
 
 JD_CHAT_JD_FIELDS = (
     "job_name",
@@ -119,13 +119,20 @@ async def chat(request):
                 return JsonResponse({"error": True, "message": error_code("Chat message must be a string.", 400)}, status=400)
 
         try:
-            job_descriptions = await sync_to_async(get_job_description_dicts)(request, masked=True)
+            await sync_to_async(lambda: accessible_job_descriptions(request).exists())()
         except PermissionError as error:
             return JsonResponse({"error": True, "message": error_code(str(error), 403)})
 
+        async def search_recruiting_data(**kwargs):
+            return await sync_to_async(search_recruiting_data_dicts)(
+                request,
+                masked=False,
+                **kwargs,
+            )
+
         response = await chat_graph.invoke({
             "chats": list(chats),
-            "job_descriptions": job_descriptions,
+            "recruiting_data_searcher": search_recruiting_data,
         })
 
         return JsonResponse({

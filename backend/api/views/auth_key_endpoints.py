@@ -1,8 +1,10 @@
 import json
 
+from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.http import JsonResponse
 
-from ..models import AuthKey, Resume
+from ..models import Account, AuthKey, Resume
 from .columns import (
     AUTH_KEY_ADD_ALLOWED_FIELDS,
     AUTH_KEY_ADD_BLOCKED_FIELDS,
@@ -12,6 +14,21 @@ from .columns import (
 )
 from .error_code import error_code
 from .utils import editable_model_fields
+
+
+def _apply_account_credit_delta(account_id, credit_delta):
+    if credit_delta == 0:
+        return True
+
+    if credit_delta > 0:
+        updated_count = Account.objects.filter(
+            pk=account_id,
+            credit__gte=credit_delta,
+        ).update(credit=F("credit") - credit_delta)
+        return updated_count == 1
+
+    Account.objects.filter(pk=account_id).update(credit=F("credit") - credit_delta)
+    return True
 
 
 def _validate_authorized_resume(account, authorized_resume):
@@ -83,18 +100,41 @@ def authkey_add(request):
         if not name:
             return JsonResponse({"error": True, "message": error_code("Name is required.", 401)}, status=400)
 
+        try:
+            credit_limit = int(credit_limit)
+        except (TypeError, ValueError):
+            return JsonResponse({"error": True, "message": error_code("Credit limit must be an integer.", 402)}, status=400)
+
+        if credit_limit < 0:
+            return JsonResponse({"error": True, "message": error_code("Credit limit must be zero or greater.", 402)}, status=400)
+
         validation_error = _validate_authorized_resume(request.user, authorized_resume)
 
         if validation_error is not None:
             return validation_error
 
-        auth_key = AuthKey.objects.create(
-            account=request.user,
-            name=name,
-            description=description,
-            credit_limit=credit_limit,
-            authorized_resume=authorized_resume,
-        )
+        auth_key = None
+
+        for _ in range(5):
+            try:
+                with transaction.atomic():
+                    if not _apply_account_credit_delta(request.user.pk, credit_limit):
+                        return JsonResponse({"error": True, "message": error_code("Not enough credit.", 408)}, status=400)
+
+                    auth_key = AuthKey.objects.create(
+                        account=request.user,
+                        name=name,
+                        description=description,
+                        credit_limit=credit_limit,
+                        authorized_resume=authorized_resume,
+                    )
+
+                break
+            except IntegrityError:
+                auth_key = None
+
+        if auth_key is None:
+            return JsonResponse({"error": True, "message": error_code("Failed to generate unique auth key.", 500)}, status=500)
 
         return JsonResponse({"error": False, "data": auth_key.to_dict()})
     except Exception as error:
@@ -127,6 +167,26 @@ def authkey_get(request):
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
+def authkey_credit(request):
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": True, "message": error_code("POST request required.", 405)}, status=405)
+
+        api_key = request.headers.get("X-API-Key")
+
+        if not api_key:
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
+
+        try:
+            auth_key = AuthKey.objects.get(value=api_key)
+        except AuthKey.DoesNotExist:
+            return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)})
+
+        return JsonResponse({"error": False, "data": {"credit": auth_key.credit_limit}})
+    except Exception as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
+
+
 def authkey_modify(request):
     try:
         if request.method != "POST":
@@ -147,10 +207,15 @@ def authkey_modify(request):
             return JsonResponse({"error": True, "message": error_code("AuthKey does not exist.", 400)}, status=400)
 
         if data.get("delete") is True:
-            auth_key.delete()
+            with transaction.atomic():
+                auth_key = AuthKey.objects.select_for_update().get(id=authkey_id, account=request.user)
+                _apply_account_credit_delta(request.user.pk, -auth_key.credit_limit)
+                auth_key.delete()
+
             return JsonResponse({"error": False})
 
         auth_key_fields = editable_model_fields(auth_key, AUTH_KEY_BLOCKED_FIELDS)
+        update_data = {}
 
         for key, value in data.items():
             if key in {"id"} | AUTH_KEY_MODIFY_CONTROL_FIELDS:
@@ -168,9 +233,30 @@ def authkey_modify(request):
                 if validation_error is not None:
                     return validation_error
 
-            setattr(auth_key, key, value)
+            if key == "credit_limit":
+                try:
+                    value = int(value)
+                except (TypeError, ValueError):
+                    return JsonResponse({"error": True, "message": error_code("Credit limit must be an integer.", 402)}, status=400)
 
-        auth_key.save()
+                if value < 0:
+                    return JsonResponse({"error": True, "message": error_code("Credit limit must be zero or greater.", 402)}, status=400)
+
+            update_data[key] = value
+
+        with transaction.atomic():
+            auth_key = AuthKey.objects.select_for_update().get(id=authkey_id, account=request.user)
+
+            if "credit_limit" in update_data:
+                credit_delta = update_data["credit_limit"] - auth_key.credit_limit
+
+                if not _apply_account_credit_delta(request.user.pk, credit_delta):
+                    return JsonResponse({"error": True, "message": error_code("Not enough credit.", 408)}, status=400)
+
+            for key, value in update_data.items():
+                setattr(auth_key, key, value)
+
+            auth_key.save()
 
         return JsonResponse({"error": False})
     except Exception as error:

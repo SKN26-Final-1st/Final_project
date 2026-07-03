@@ -57,7 +57,7 @@ class Account(AbstractUser):
 
     verification_question = models.CharField(max_length=255, null=True, blank=True)
     verification_answer = models.CharField(max_length=255, null=True, blank=True)
-    credit = models.IntegerField(default=150)
+    credit = models.IntegerField(default=100)
     subscribe = models.BooleanField(default=False)
     subscribe_expiration = models.DateTimeField(null=True, blank=True)
     account_hash = models.CharField(max_length=16, unique=True, default=generate_account_hash)
@@ -350,13 +350,17 @@ class AnalysisReport(models.Model):
     STATUS_ONQUEUE = "onqueue"
     STATUS_PROCESSING = "processing"
     STATUS_DONE = "done"
+    STATUS_FAIL = "fail"
     STATUS_CHOICES = [
         (STATUS_ONQUEUE, "On queue"),
         (STATUS_PROCESSING, "Processing"),
         (STATUS_DONE, "Done"),
+        (STATUS_FAIL, "Fail"),
     ]
 
     id = models.BigAutoField(primary_key=True)
+    version = models.CharField(max_length=100, default="", blank=True)
+    user_feedback = models.IntegerField(default=-1)
 
     resume = models.ForeignKey(
         Resume,
@@ -396,6 +400,8 @@ class AnalysisReport(models.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "version": _value_or_empty_string(self.version),
+            "user_feedback": self.user_feedback,
             "resume_id": self.resume_id,
             "overall_grade": _value_or_empty_string(self.overall_grade),
             "overall_summary": _value_or_empty_string(self.overall_summary),

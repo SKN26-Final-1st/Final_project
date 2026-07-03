@@ -77,6 +77,19 @@ MOCK_JD_LIST = [
 # ────────────────────────────────────────────────────────────────────────────
 
 
+async def mock_recruiting_data_searcher(**kwargs):
+    return [
+        {
+            "company_info": {},
+            "job_description": jd,
+            "resume_count": 0,
+            "report_count": 0,
+            "resumes": [],
+        }
+        for jd in MOCK_JD_LIST
+    ]
+
+
 def load_golden_set():
     with open(SUMMARY_GOLDENSET_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -96,8 +109,8 @@ async def run_full_pipeline(question: str) -> str:
         extracted_memories = [m.dict() for m in memory.memories]
         hr_answer = await invoke_hr_analyst_agent(
             search_query=fall_case.hr_search_query,   # hr 전용 쿼리 사용
-            job_descriptions=MOCK_JD_LIST,
             extracted_memories=extracted_memories,
+            recruiting_data_searcher=mock_recruiting_data_searcher,
         )
         sub_answers.append(f"[HR 분석 결과]: {hr_answer}")
 
@@ -233,8 +246,8 @@ async def debug_single(question: str):
         extracted_memories = [m.dict() for m in memory.memories]
         hr_answer = await invoke_hr_analyst_agent(
             search_query=fall_case.hr_search_query,   # hr 전용 쿼리 사용
-            job_descriptions=MOCK_JD_LIST,
             extracted_memories=extracted_memories,
+            recruiting_data_searcher=mock_recruiting_data_searcher,
         )
         print(f"[hr_answer] {hr_answer}")
         sub_answers.append(f"[HR 분석 결과]: {hr_answer}")
