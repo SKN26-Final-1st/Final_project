@@ -6,13 +6,15 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from .prompt import (
+from .analysis_prompt import (
     CHECK_RESUME_FIT_SYSTEM_PROMPT,
     CHECK_RESUME_FIT_USER_PROMPT,
     INTERVIEW_QUESTION_SYSTEM_PROMPT,
     INTERVIEW_QUESTION_USER_PROMPT,
     REPORT_SYSTEM_PROMPT,
     REPORT_USER_PROMPT,
+    star_analysis_prompt,
+    star_analysis_user_prompt,
 )
 from .utils import load_env
 
@@ -136,23 +138,6 @@ class SelfIntroStarAnalysisStructure(BaseModel):
 
 
 star_analysis_node = None
-
-star_analysis_prompt = (
-    "너는 채용 평가를 위한 자기소개서 STAR 분석가야. "
-    "각 자기소개서 답변을 Situation, Task, Action, Result로 나누어 한국어로 작성해. "
-    "s, t, a, r 각각은 1문장 이내로 간결해야 한다. "
-    "입력에 없는 경험, 수치, 성과, 회사명, 인명은 만들지 말고, 마스킹 토큰은 원문 그대로 유지해. "
-    "또한 original_quality에는 STAR 분석 전 원문 자기소개서가 전반적으로 얼마나 구조적이고 구체적으로 작성되었는지, "
-    "경험 맥락·행동·결과가 얼마나 명확한지 1~2문장으로 평가해. "
-    "원문이 부족한데 STAR 분석 결과만 좋아 보일 수 있는 위험도 함께 언급해."
-)
-
-star_analysis_user_prompt = (
-    "다음 자기소개서 문항과 답변을 각각 STAR 관점으로 분석해줘. "
-    "analyses는 입력 항목 수와 같은 개수여야 하고, index는 입력 index와 같아야 해. "
-    "마지막에 original_quality도 반드시 작성해.\n\n"
-    "{context_json}"
-)
 
 
 def invoke_star_analysis_node(resume_summary: Any):

@@ -1,5 +1,6 @@
 import os
 import json
+import requests
 
 from openai import OpenAI
 
@@ -101,15 +102,12 @@ def get_client():
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     return client
 
-def invoke(data):
+def invoke_openai(data):
     """원본 채용 데이터를 받아 마스킹해야 할 표현 목록(mask_result)을 생성합니다."""
 
     global masking_prompt
 
     ai_client = get_client()
-
-    if not isinstance(data, dict):
-        raise ValueError("masking invoke input must be a dict.")
 
     data_text = json.dumps(data, ensure_ascii=False, indent=2)
     messages = [
@@ -135,3 +133,57 @@ def invoke(data):
     return MaskingAnalysis.model_validate_json(
         response.choices[0].message.content
     ).model_dump()
+
+
+RUNPOD_ENDPOINT_ID = os.environ.get("RUNPOD_ENDPOINT_ID")
+RUNPOD_API_KEY = os.environ.get("RUNPOD_API_KEY")
+
+def invoke_runpod(data):
+    indata = json.dumps(data, ensure_ascii=False, indent=2)
+    
+    url = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}/runsync"
+
+    headers = {
+        "Authorization": f"Bearer {RUNPOD_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "input": {
+            "instr": indata
+        }
+    }
+
+    response = requests.post(
+        url,
+        headers=headers,
+        json=payload,
+        timeout=600,
+    )
+
+    if response.status_code != 200:
+        return response.status_code, None
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        return response.status_code, None
+
+    output = response_data.get("output")
+    if not isinstance(output, dict):
+        return response.status_code, None
+
+    result = output.get("result")
+    if result is None:
+        return response.status_code, None
+
+    return response.status_code, result
+
+def invoke(data):
+    
+    status_code, res = invoke_runpod(data)
+
+    if status_code == 200 and res is not None:
+        return res
+
+    return invoke_openai(data)

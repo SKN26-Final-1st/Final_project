@@ -9,7 +9,7 @@ from openai import OpenAI
 from pinecone import Pinecone
 from pydantic import BaseModel, Field
 
-from .prompt import (
+from .checklist_prompt import (
     EXTRACT_QUERY_SYSTEM_PROMPT,
     EXTRACT_QUERY_USER_PROMPT,
     FIT_CHECKLIST_SYSTEM_PROMPT,
