@@ -6,6 +6,7 @@ from typing_extensions import TypedDict
 from . import analysis_agent as agents
 from . import feedback_graph
 from .analysis_prompt import (
+    VERSION,
     CHECKLIST_FEEDBACK_CRITERIA,
     INTERVIEW_FEEDBACK_CRITERIA,
     REPORT_FEEDBACK_CRITERIA,
@@ -274,3 +275,6 @@ def invoke(
     }
     result = get_graph().invoke(state)
     return result["result"]
+
+def get_version():
+    return VERSION

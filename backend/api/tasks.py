@@ -28,6 +28,7 @@ def _build_interview_question(report_data):
 def _apply_analysis_result(report, report_data):
     """분석 그래프 결과를 AnalysisReport 모델 필드에 매핑합니다."""
 
+    report.version = analysis_graph.get_version()
     report.overall_grade = report_data.get("overall_grade", "")
     report.overall_summary = report_data.get("overall_summary", "")
     report.candidate_summary = report_data.get("candidate_summary", "")

@@ -357,6 +357,8 @@ class AnalysisReport(models.Model):
     ]
 
     id = models.BigAutoField(primary_key=True)
+    version = models.CharField(max_length=100, default="", blank=True)
+    user_feedback = models.IntegerField(default=-1)
 
     resume = models.ForeignKey(
         Resume,
@@ -396,6 +398,8 @@ class AnalysisReport(models.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "version": _value_or_empty_string(self.version),
+            "user_feedback": self.user_feedback,
             "resume_id": self.resume_id,
             "overall_grade": _value_or_empty_string(self.overall_grade),
             "overall_summary": _value_or_empty_string(self.overall_summary),
