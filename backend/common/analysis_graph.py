@@ -5,7 +5,7 @@ from typing_extensions import TypedDict
 
 from . import analysis_agent as agents
 from . import feedback_graph
-from .prompt import (
+from .analysis_prompt import (
     CHECKLIST_FEEDBACK_CRITERIA,
     INTERVIEW_FEEDBACK_CRITERIA,
     REPORT_FEEDBACK_CRITERIA,

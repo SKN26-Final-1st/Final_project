@@ -7,7 +7,7 @@ from typing import Any
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationError
 
-from .prompt import (
+from .feedback_prompt import (
     FEEDBACK_EVALUATION_SYSTEM_PROMPT,
     FEEDBACK_EVALUATION_USER_PROMPT,
 )
