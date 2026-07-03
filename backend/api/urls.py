@@ -21,6 +21,7 @@ urlpatterns = [
     path("authkey/add/", views.authkey_add),
     path("authkey/get/", views.authkey_get),
     path("authkey/modify/", views.authkey_modify),
+    path("authkey/credit/", views.authkey_credit),
     path("jd/add/", views.jd_add),
     path("jd/analyze/", views.jd_analyze),
     path("jd/get/", views.jd_get),

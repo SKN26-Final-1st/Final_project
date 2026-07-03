@@ -1,12 +1,42 @@
 import json
 
+from django.db import transaction
+from django.db.models import F
 from django.http import JsonResponse
+from django.utils import timezone
 
-from ..models import AnalysisReport, AuthKey, JobDescription, Resume
-from ..tasks import analyze_and_save_report, enqueue_report_analyze, is_celery_worker_available
+from ..models import Account, AnalysisReport, AuthKey, JobDescription, Resume
+from ..tasks import (
+    analyze_and_save_report,
+    enqueue_report_analyze,
+    is_celery_worker_available,
+    refund_report_credit,
+)
 from .columns import RESUME_ADD_ALLOWED_FIELDS, RESUME_ADD_BLOCKED_FIELDS, RESUME_MODIFY_BLOCKED_FIELDS
 from .error_code import error_code
 from .utils import editable_model_fields
+
+
+REPORT_COST = 100
+
+
+def _has_active_subscription(account):
+    return bool(account.subscribe_expiration and account.subscribe_expiration > timezone.now())
+
+
+def _charge_report_analysis_credit(account_id=None, auth_key_id=None):
+    if auth_key_id is not None:
+        updated_count = AuthKey.objects.filter(
+            pk=auth_key_id,
+            credit_limit__gte=REPORT_COST,
+        ).update(credit_limit=F("credit_limit") - REPORT_COST)
+        return updated_count == 1
+
+    updated_count = Account.objects.filter(
+        pk=account_id,
+        credit__gte=REPORT_COST,
+    ).update(credit=F("credit") - REPORT_COST)
+    return updated_count == 1
 
 
 def _get_analysis_resume(request, resume_id):
@@ -15,6 +45,7 @@ def _get_analysis_resume(request, resume_id):
             "job_description",
             "job_description__account",
         ).filter(id=resume_id, job_description__account=request.user)
+        auth_key = None
     else:
         api_key = request.headers.get("X-API-Key")
 
@@ -38,9 +69,9 @@ def _get_analysis_resume(request, resume_id):
     try:
         resume = resumes.get()
     except Resume.DoesNotExist:
-        return None
+        return None, None
 
-    return resume
+    return resume, auth_key
 
 
 def resume_analyze(request):
@@ -55,7 +86,7 @@ def resume_analyze(request):
             return JsonResponse({"error": True, "message": error_code("Resume id is required.", 401)}, status=400)
 
         try:
-            resume = _get_analysis_resume(request, resume_id)
+            resume, auth_key = _get_analysis_resume(request, resume_id)
         except PermissionError as error:
             return JsonResponse({"error": True, "message": error_code(str(error), 403)}, status=400)
 
@@ -63,27 +94,49 @@ def resume_analyze(request):
             return JsonResponse({"error": True, "message": error_code("Resume does not exist.", 400)}, status=400)
 
         celery_worker_available = is_celery_worker_available()
+        account_id = request.user.pk if request.user.is_authenticated else None
+        api_key_id = auth_key.pk if auth_key is not None else None
+        credit_spent = 0
 
-        report = AnalysisReport.objects.create(
-            resume=resume,
-            overall_grade="",
-            overall_summary="",
-            candidate_summary="",
-            checklist=[],
-            competency_analysis=[],
-            fit_analysis="",
-            motive="",
-            collaboration="",
-            strength=[],
-            concern=[],
-            check_point=[],
-            interview_question=[],
-            final_comment="",
-            status=AnalysisReport.STATUS_ONQUEUE,
-        )
+        with transaction.atomic():
+            should_charge_credit = not (
+                request.user.is_authenticated and _has_active_subscription(request.user)
+            )
+
+            if should_charge_credit and not _charge_report_analysis_credit(
+                account_id=account_id,
+                auth_key_id=api_key_id,
+            ):
+                return JsonResponse({"error": True, "message": error_code("Not enough credit.", 408)}, status=400)
+
+            if should_charge_credit:
+                credit_spent = REPORT_COST
+
+            report = AnalysisReport.objects.create(
+                resume=resume,
+                overall_grade="",
+                overall_summary="",
+                candidate_summary="",
+                checklist=[],
+                competency_analysis=[],
+                fit_analysis="",
+                motive="",
+                collaboration="",
+                strength=[],
+                concern=[],
+                check_point=[],
+                interview_question=[],
+                final_comment="",
+                status=AnalysisReport.STATUS_ONQUEUE,
+            )
 
         if not celery_worker_available:
-            saved_result = analyze_and_save_report(report.id)
+            saved_result = analyze_and_save_report(
+                report.id,
+                account_id=account_id,
+                api_key_id=api_key_id,
+                credit_spent=credit_spent,
+            )
 
             if saved_result is None:
                 return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
@@ -91,14 +144,21 @@ def resume_analyze(request):
             return JsonResponse({"error": False, "data": saved_result})
 
         try:
-            enqueue_report_analyze.delay(report.id)
+            enqueue_report_analyze.delay(
+                report.id,
+                account_id=account_id,
+                api_key_id=api_key_id,
+                credit_spent=credit_spent,
+            )
         except Exception:
-            saved_result = analyze_and_save_report(report.id)
-
-            if saved_result is None:
-                return JsonResponse({"error": True, "message": error_code("Report does not exist.", 400)}, status=400)
-
-            return JsonResponse({"error": False, "data": saved_result})
+            report.status = AnalysisReport.STATUS_FAIL
+            report.save(update_fields=["status"])
+            refund_report_credit(
+                account_id=account_id,
+                api_key_id=api_key_id,
+                credit_spent=credit_spent,
+            )
+            return JsonResponse({"error": False, "data": report.to_dict()})
 
         return JsonResponse({"error": False, "data": report.to_dict()})
     except Exception as error:

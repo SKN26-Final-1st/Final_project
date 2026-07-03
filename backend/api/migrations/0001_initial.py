@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=100)),
                 ('verification_question', models.CharField(blank=True, max_length=255, null=True)),
                 ('verification_answer', models.CharField(blank=True, max_length=255, null=True)),
-                ('credit', models.IntegerField(default=150)),
+                ('credit', models.IntegerField(default=100)),
                 ('subscribe', models.BooleanField(default=False)),
                 ('subscribe_expiration', models.DateTimeField(blank=True, null=True)),
                 ('account_hash', models.CharField(default=api.models.generate_account_hash, max_length=16, unique=True)),

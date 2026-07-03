@@ -10,7 +10,7 @@ from .account_endpoints import (
     password_reset,
 )
 from .analysis_report_endpoints import report_get, report_modify
-from .auth_key_endpoints import authkey_add, authkey_get, authkey_modify
+from .auth_key_endpoints import authkey_add, authkey_credit, authkey_get, authkey_modify
 from .chat_endpoints import chat, jd_chat
 from .checklist_endpoints import checklist_add, checklist_get, checklist_modify
 from .company_info_endpoints import compinfo_get, compinfo_modify
@@ -26,6 +26,7 @@ __all__ = [
     "account_modify",
     "account_signin",
     "authkey_add",
+    "authkey_credit",
     "authkey_get",
     "authkey_modify",
     "chat",

@@ -1,6 +1,5 @@
 import json
 
-from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.http import JsonResponse
 
@@ -139,7 +138,20 @@ def jd_modify(request):
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
 
 
-def _get_jd_analysis_inputs(request, job_description_id):
+def _parse_checklist_count(value):
+    if value in (None, ""):
+        return 0
+
+    if isinstance(value, bool):
+        raise ValueError("cnt must be an integer.")
+
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("cnt must be an integer.") from exc
+
+
+def _get_jd_analysis_inputs(request, job_description_id, cnt):
     """체크리스트 생성에 필요한 회사/JD 입력과 남은 생성 개수를 준비합니다."""
 
     job_description_queryset = accessible_job_descriptions(request)
@@ -150,16 +162,19 @@ def _get_jd_analysis_inputs(request, job_description_id):
 
     company_info, _ = CompanyInfo.objects.get_or_create(account=job_description.account)
     checklist_count = job_description.checklists.count()
+    remaining_count = max(0, checklist_graph.CHECKLIST_COUNT - checklist_count)
+    generation_count = min(cnt, checklist_graph.CHECKLIST_COUNT) if cnt > 0 else remaining_count
 
     return {
         "job_description_id": job_description.id,
         "company": company_info.to_masked_dict(),
         "jd": job_description.to_masked_dict(),
-        "remaining_count": max(0, checklist_graph.CHECKLIST_COUNT - checklist_count),
+        "generation_count": generation_count,
+        "save_limit": generation_count,
     }
 
 
-def _save_generated_checklists(job_description_id, contents):
+def _save_generated_checklists(job_description_id, contents, save_limit):
     """생성된 체크리스트 문자열을 남은 개수만큼 DB에 저장합니다."""
 
     with transaction.atomic():
@@ -168,13 +183,11 @@ def _save_generated_checklists(job_description_id, contents):
         except JobDescription.DoesNotExist:
             return None
 
-        current_count = Checklist.objects.filter(job_description=job_description).count()
-        remaining_count = max(0, checklist_graph.CHECKLIST_COUNT - current_count)
         valid_contents = [
             content.strip()
             for content in contents
             if isinstance(content, str) and content.strip()
-        ][:remaining_count]
+        ][:save_limit]
 
         Checklist.objects.bulk_create(
             [
@@ -187,7 +200,7 @@ def _save_generated_checklists(job_description_id, contents):
         return [checklist.to_dict() for checklist in checklists]
 
 
-async def _jd_analyze_async(request):
+def _jd_analyze(request):
     """JD 분석 API 본문입니다. checklist_graph.invoke()로 체크리스트 LangGraph를 실행합니다."""
 
     if request.method != "POST":
@@ -195,36 +208,38 @@ async def _jd_analyze_async(request):
 
     data = json.loads(request.body or "{}")
     job_description_id = data.get("id")
+    query = data.get("query") or ""
+    cnt = _parse_checklist_count(data.get("cnt", 0))
 
     if not job_description_id:
         return JsonResponse({"error": True, "message": error_code("JobDescription id is required.", 401)}, status=400)
 
-    if set(data) != {"id"}:
-        return JsonResponse({"error": True, "message": error_code("Only JobDescription id is allowed.", 402)}, status=400)
+    allowed_keys = {"id", "query", "cnt"}
+    if set(data) - allowed_keys:
+        return JsonResponse({"error": True, "message": error_code("Only JobDescription id, query, cnt are allowed.", 402)}, status=400)
 
     try:
-        inputs = await sync_to_async(_get_jd_analysis_inputs)(request, job_description_id)
+        inputs = _get_jd_analysis_inputs(request, job_description_id, cnt)
     except PermissionError:
         return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)}, status=403)
 
     if inputs is None:
         return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
 
-    if inputs["remaining_count"]:
-        generated_contents = await sync_to_async(
-            checklist_graph.invoke,
-            thread_sensitive=False,
-        )(
+    if inputs["generation_count"]:
+        generated_contents = checklist_graph.invoke(
             inputs["company"],
             inputs["jd"],
-            inputs["remaining_count"],
+            inputs["generation_count"],
+            user_query=query,
         )
     else:
         generated_contents = []
 
-    checklists = await sync_to_async(_save_generated_checklists)(
+    checklists = _save_generated_checklists(
         inputs["job_description_id"],
         generated_contents,
+        inputs["save_limit"],
     )
     if checklists is None:
         return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
@@ -232,8 +247,10 @@ async def _jd_analyze_async(request):
     return JsonResponse({"error": False, "data": checklists})
 
 
-async def jd_analyze(request):
+def jd_analyze(request):
     try:
-        return await _jd_analyze_async(request)
+        return _jd_analyze(request)
+    except ValueError as error:
+        return JsonResponse({"error": True, "message": error_code(str(error), 402)}, status=400)
     except Exception as error:
         return JsonResponse({"error": True, "message": error_code(str(error), 500)}, status=500)
