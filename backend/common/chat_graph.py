@@ -1,5 +1,6 @@
 import operator
-from typing import Annotated
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from langgraph.graph import END, START, StateGraph
 from typing_extensions import TypedDict
@@ -75,7 +76,8 @@ class GraphState(TypedDict, total=False):
     is_hr_case: bool
     is_app_manual: bool
     rag_search_query: str
-    job_descriptions: list[dict]
+    hr_search_query: str
+    recruiting_data_searcher: Callable[..., Any]
     memories: Annotated[list[dict], operator.add]
     retrieved_manual_docs: Annotated[list[str], reduce_chats]
     out_of_bounds_response: str
@@ -96,6 +98,7 @@ async def fall_case_node(state: GraphState) -> GraphState:
         "is_hr_case": llm_result.is_hr_case,
         "is_app_manual": llm_result.is_app_manual,
         "rag_search_query": llm_result.rag_search_query,
+        "hr_search_query": llm_result.hr_search_query,
         "out_of_bounds_response": llm_result.out_of_bounds_response,
     }
 
@@ -111,10 +114,11 @@ async def context_extractor_node(state: GraphState) -> GraphState:
 
 
 async def hr_analyst_node(state: GraphState) -> GraphState:
+    user_question = get_latest_user_message(state.get("chats", []))
     hr_response = await agents.invoke_hr_analyst_agent(
-        get_latest_user_message(state.get("chats", [])),
-        state.get("job_descriptions", []),
+        state.get("hr_search_query") or user_question,
         state.get("memories", []),
+        state.get("recruiting_data_searcher"),
     )
     return {"hr_response": hr_response}
 
@@ -153,6 +157,9 @@ async def summary_node(state: GraphState) -> GraphState:
         return {
             "response": "질문하신 내용에 대해 안내해 드릴 수 있는 내용을 찾지 못했습니다."
         }
+
+    if len(responses_to_merge) == 1:
+        return {"response": responses_to_merge[0].split("]:\n", 1)[-1]}
 
     merge_input = (
         f"사용자 원본 질문: {user_question}\n\n취합해야 할 개별 답변 목록:\n"
@@ -249,7 +256,5 @@ def get_graph():
 async def invoke(state: dict) -> str:
     if "chats" in state:
         state = {**state, "chats": normalize_chats(state["chats"])}
-    if "job_descriptions" not in state:
-        state = {**state, "job_descriptions": []}
     result = await get_graph().ainvoke(state)
     return result.get("response", "")
