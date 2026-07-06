@@ -17,6 +17,7 @@ export type UserProfile = {
   companyName: string;
   credit: number;
   subscribe: boolean;
+  subscribeExpirationIso: string;
   subscribeExpirationText: string;
   verificationQuestion: string;
 };
@@ -98,6 +99,7 @@ export function mapUserProfile(data: Account, company?: CompanyInfo): UserProfil
     companyName: company?.company_name ?? '회사 정보 없음',
     credit: data.credit,
     subscribe: data.subscribe,
+    subscribeExpirationIso: data.subscribe_expiration,
     subscribeExpirationText: formatDateTime(data.subscribe_expiration),
     verificationQuestion: data.verification_question,
   };
