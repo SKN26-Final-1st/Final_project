@@ -162,6 +162,7 @@ const ANALYSIS_STATUS_LABEL: Record<AnalysisReportStatus, string> = {
   onqueue: '분석 대기',
   processing: '분석 중',
   done: '분석 완료',
+  fail: '분석 실패',
 };
 
 const GRADE_SCORE: Record<string, number> = {

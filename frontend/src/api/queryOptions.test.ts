@@ -9,7 +9,7 @@ function getRefetchInterval(options: ReturnType<typeof appDataQueryOptions>) {
   return options.refetchInterval;
 }
 
-function makeQuery(statuses: Array<'onqueue' | 'processing' | 'done'>) {
+function makeQuery(statuses: Array<'onqueue' | 'processing' | 'done' | 'fail'>) {
   return {
     state: {
       data: {
@@ -35,5 +35,11 @@ describe('appDataQueryOptions', () => {
 
     expect(refetchInterval(makeQuery(['done']))).toBe(false);
     expect(refetchInterval(makeQuery([]))).toBe(false);
+  });
+
+  test('does not poll when analysis reports failed', () => {
+    const refetchInterval = getRefetchInterval(appDataQueryOptions());
+
+    expect(refetchInterval(makeQuery(['fail']))).toBe(false);
   });
 });
