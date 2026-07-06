@@ -15,6 +15,7 @@ type ApiKeyAxiosConfig = AxiosRequestConfig & {
 };
 
 const API_ROOT = '/api';
+const CREDIT_SHORTAGE_MESSAGE = 'Credit이 부족합니다.';
 
 export const httpClient = axios.create({
   baseURL: API_ROOT,
@@ -86,6 +87,14 @@ export function normalizePayload<T>(payload: unknown, status: number, statusText
 }
 
 export function getRequestErrorMessage(error: unknown, fallback: string) {
+  const toFriendlyMessage = (message: string) => {
+    if (/not enough credit|credit이 부족|credit 부족|크레딧.*부족|부족.*크레딧/i.test(message)) {
+      return CREDIT_SHORTAGE_MESSAGE;
+    }
+
+    return message;
+  };
+
   if (axios.isAxiosError(error)) {
     const responseData = error.response?.data;
 
@@ -93,18 +102,18 @@ export function getRequestErrorMessage(error: unknown, fallback: string) {
       const message = responseData.message;
 
       if (typeof message === 'string' && message) {
-        return message;
+        return toFriendlyMessage(message);
       }
     }
 
     if (typeof responseData === 'string' && responseData) {
-      return responseData;
+      return toFriendlyMessage(responseData);
     }
 
-    return error.message || fallback;
+    return toFriendlyMessage(error.message || fallback);
   }
 
-  return error instanceof Error ? error.message : fallback;
+  return toFriendlyMessage(error instanceof Error ? error.message : fallback);
 }
 
 httpClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
