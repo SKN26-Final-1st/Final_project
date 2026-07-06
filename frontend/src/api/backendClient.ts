@@ -88,6 +88,11 @@ type ChecklistModifyBody = {
   content: string;
 };
 
+type GenerateJdChecklistOptions = {
+  query?: string;
+  cnt?: number;
+};
+
 type CompanyInfoModifyBody = Partial<Omit<CompanyInfo, 'id'>>;
 
 type JobDescriptionAddBody = {
@@ -152,6 +157,10 @@ type ResumeAnalysisPayload = ResumeAnalysisResult & {
 
 type PingPayload = {
   ok: true;
+};
+
+type ApiKeyCreditPayload = {
+  credit: number;
 };
 
 function toTextList(value: unknown) {
@@ -366,7 +375,7 @@ async function getDashboardData(): Promise<DashboardPayload> {
   };
 }
 
-function buildApiKeyAccount(): Account {
+function buildApiKeyAccount(credit: number): Account {
   return {
     id: 0,
     username: 'api-key-user',
@@ -374,7 +383,7 @@ function buildApiKeyAccount(): Account {
     name: 'API Key 사용자',
     verification_question: '',
     verification_answer: '',
-    credit: 0,
+    credit,
     subscribe: false,
     subscribe_expiration: '',
   };
@@ -392,12 +401,15 @@ function buildApiKeyCompanyInfo(): CompanyInfo {
 }
 
 async function getApiKeyDashboardData(apiKey: string): Promise<DashboardPayload> {
-  const jobDescriptions = await getJobDescriptions(apiKey);
+  const [jobDescriptions, creditData] = await Promise.all([
+    getJobDescriptions(apiKey),
+    requestBackend<ApiKeyCreditPayload>('authkey/credit', {}, { apiKey }),
+  ]);
   const resumes = (await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id, apiKey)))).flat();
   const analysisReports = (await Promise.all(resumes.map((resume) => getReportsForResume(resume.id, apiKey)))).flat();
 
   return {
-    account: buildApiKeyAccount(),
+    account: buildApiKeyAccount(creditData.credit),
     company_info: buildApiKeyCompanyInfo(),
     job_descriptions: jobDescriptions,
     resumes,
@@ -551,8 +563,19 @@ export const apiClient = {
     return toApiResponse('체크리스트를 불러왔습니다.', data);
   },
 
-  generateJdChecklist: async (jdId: number | string, apiKey?: string) => {
-    const data = parseChecklists(await requestBackend<Checklist[]>('jd/analyze', { id: Number(jdId) }, { apiKey }));
+  generateJdChecklist: async (jdId: number | string, apiKey?: string, options: GenerateJdChecklistOptions = {}) => {
+    const body: { id: number; query?: string; cnt?: number } = { id: Number(jdId) };
+    const query = options.query?.trim();
+
+    if (query) {
+      body.query = query;
+    }
+
+    if (typeof options.cnt === 'number' && Number.isFinite(options.cnt)) {
+      body.cnt = Math.max(0, Math.min(10, Math.trunc(options.cnt)));
+    }
+
+    const data = parseChecklists(await requestBackend<Checklist[]>('jd/analyze', body, { apiKey }));
 
     return toApiResponse('체크리스트를 생성했습니다.', data);
   },
