@@ -361,6 +361,7 @@ class AnalysisReport(models.Model):
     id = models.BigAutoField(primary_key=True)
     version = models.CharField(max_length=100, default="", blank=True)
     user_feedback = models.IntegerField(default=-1)
+    review_text = models.TextField(null=True, blank=True)
 
     resume = models.ForeignKey(
         Resume,
@@ -402,6 +403,7 @@ class AnalysisReport(models.Model):
             "id": self.id,
             "version": _value_or_empty_string(self.version),
             "user_feedback": self.user_feedback,
+            "review_text": _value_or_empty_string(self.review_text),
             "resume_id": self.resume_id,
             "overall_grade": _value_or_empty_string(self.overall_grade),
             "overall_summary": _value_or_empty_string(self.overall_summary),
