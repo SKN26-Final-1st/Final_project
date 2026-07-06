@@ -53,6 +53,7 @@ const REPORT_STATUS_LABEL: Record<AnalysisReport['status'], string> = {
   onqueue: '분석 대기',
   processing: '분석 중',
   done: '분석 완료',
+  fail: '분석 실패',
 };
 
 const GRADE_SCORE: Record<string, number> = {
@@ -133,7 +134,11 @@ function reportListTag(report: AnalysisReport) {
     return <Tag color={report.status === 'processing' ? 'processing' : 'warning'}>{REPORT_STATUS_LABEL[report.status]}</Tag>;
   }
 
-  return <Tag>{report.overall_grade || 'N/A'} 등급</Tag>;
+  if (report.status === 'fail') {
+    return <Tag color="error">{REPORT_STATUS_LABEL.fail}</Tag>;
+  }
+
+  return null;
 }
 
 function formatReportTimestamp(value: string) {
@@ -576,6 +581,9 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                 <div className="analysis-report-selected-summary">
                   <strong>{displaySelectedItem.resume?.name || '지원자 정보 없음'}</strong>
                   <span>{displaySelectedItem.jd?.title || '연결 JD 없음'}</span>
+                  {displaySelectedItem.report.version !== undefined && displaySelectedItem.report.version !== null ? (
+                    <Tag color="blue">v{displaySelectedItem.report.version}</Tag>
+                  ) : null}
                 </div>
                 <div className="analysis-report-detail-toolbar">
                   {isEditingReport ? (

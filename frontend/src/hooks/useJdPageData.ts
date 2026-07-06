@@ -5,6 +5,7 @@ export function useJdPageData() {
   const { data, refetch } = useAppDataQuery();
   const jdList = useMemo(() => data?.jdList ?? [], [data?.jdList]);
   const resumes = useMemo(() => data?.resumes ?? [], [data?.resumes]);
+  const userProfile = data?.userProfile ?? null;
   const [selectedJdIdOverride, setSelectedJdId] = useState<string | null>(null);
   const jdIds = useMemo(() => jdList.map((item) => item.id), [jdList]);
   const selectedJdId =
@@ -18,5 +19,6 @@ export function useJdPageData() {
     selectedJd,
     selectedJdId,
     setSelectedJdId,
+    userProfile,
   };
 }

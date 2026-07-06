@@ -30,6 +30,7 @@ const SHARED_REPORT_STATUS_LABEL: Record<AnalysisReport['status'], string> = {
   onqueue: '분석 대기',
   processing: '분석 중',
   done: '분석 완료',
+  fail: '분석 실패',
 };
 
 function getInitialResumeId(search: string) {
@@ -98,7 +99,7 @@ function getSharedReportStatus(report: AnalysisReport | undefined) {
 
   return {
     label: SHARED_REPORT_STATUS_LABEL[report.status],
-    color: report.status === 'done' ? 'green' : 'gold',
+    color: report.status === 'done' ? 'green' : report.status === 'fail' ? 'red' : 'gold',
   };
 }
 
@@ -261,6 +262,9 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                         <Space wrap>
                           <Tag color="blue">Resume #{bundle.resume.id}</Tag>
                           <Tag color={reportStatus.color}>{reportStatus.label}</Tag>
+                          {report?.version !== undefined && report.version !== null ? (
+                            <Tag color="geekblue">v{report.version}</Tag>
+                          ) : null}
                         </Space>
                         <Typography.Title level={3}>{bundle.resume.name || '이름 없음'}</Typography.Title>
                       </div>

@@ -2644,6 +2644,13 @@ button,
   gap: 12px;
 }
 
+.jd-checklist-generate-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .jd-checklist-panel h3 {
   margin: 0;
   color: var(--text);
@@ -2722,6 +2729,7 @@ button,
 
 @media (max-width: 640px) {
   .jd-checklist-add-form,
+  .jd-checklist-generate-controls,
   .jd-checklist-row {
     grid-template-columns: 1fr;
   }
@@ -2803,6 +2811,26 @@ button,
 
 .cover-letter-save-hint .list-panel-hint {
   margin-bottom: 10px;
+}
+
+.analysis-credit-cost {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.analysis-credit-cost--danger {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  color: var(--warning);
 }
 
 .split-editor-layout-row > .ant-col {
