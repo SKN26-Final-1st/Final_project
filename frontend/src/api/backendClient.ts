@@ -136,7 +136,9 @@ type ResumeModifyBody = Partial<Omit<ResumeAddBody, 'job_description_id'>> & {
   delete?: boolean;
 };
 
-type ReportModifyBody = Partial<Omit<AnalysisReport, 'resume_id' | 'status' | 'created_at'>> & {
+type ReportModifyBody = Partial<
+  Omit<AnalysisReport, 'resume_id' | 'status' | 'created_at' | 'version' | 'interview_question'>
+> & {
   id: number;
   delete?: boolean;
 };

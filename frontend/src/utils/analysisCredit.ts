@@ -2,8 +2,16 @@ import type { UserProfile } from '../api/adapters';
 
 export const ANALYSIS_CREDIT_COST = 100;
 
+export function hasActiveSubscription(profile: UserProfile | null | undefined) {
+  const expirationTime = profile?.subscribeExpirationIso
+    ? new Date(profile.subscribeExpirationIso).getTime()
+    : Number.NaN;
+
+  return Number.isFinite(expirationTime) && expirationTime > Date.now();
+}
+
 export function getAnalysisCreditCost(profile: UserProfile | null | undefined, isApiKeyMode: boolean) {
-  if (!isApiKeyMode && profile?.subscribe) {
+  if (!isApiKeyMode && hasActiveSubscription(profile)) {
     return 0;
   }
 

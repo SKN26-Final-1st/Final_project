@@ -64,6 +64,7 @@ function createResumeAccessGroups(resumes: Resume[], jdList: JdItem[]): AuthKeyA
 export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateFormValues>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
+  const [creditDrafts, setCreditDrafts] = useState<Record<number, number>>({});
   const [createdAuthKey, setCreatedAuthKey] = useState<Pick<AuthKey, 'name' | 'value'> | null>(null);
   const [deleteTargetAuthKey, setDeleteTargetAuthKey] = useState<AuthKey | null>(null);
   const { admin, authKeys, jdList, resumes } = useAdminPageData();
@@ -79,6 +80,11 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const accessGroups = useMemo(() => createResumeAccessGroups(resumes, jdList), [jdList, resumes]);
 
   const createAuthKey = async (values: AuthKeyCreateFormValues) => {
+    if (admin && (values.credit_limit ?? 0) > admin.credit.remaining) {
+      showAlert({ type: 'warning', message: '보유 Credit을 초과할 수 없습니다.' });
+      return;
+    }
+
     const response = await createAuthKeyMutation.mutateAsync(values);
     form.resetFields();
     setCreatedAuthKey({ name: response.data.name, value: response.data.value });
@@ -98,16 +104,34 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   };
 
   const getAuthorizedResumeIds = (authKey: AuthKey) => authorizedDrafts[authKey.id] ?? authKey.authorized_resume;
+  const getCreditLimit = (authKey: AuthKey) => creditDrafts[authKey.id] ?? authKey.credit_limit;
 
   const updateAuthorizedDraft = (id: number, nextIds: number[]) => {
     setAuthorizedDrafts((current) => ({ ...current, [id]: nextIds }));
   };
 
+  const updateCreditDraft = (id: number, nextCredit: number) => {
+    setCreditDrafts((current) => ({ ...current, [id]: nextCredit }));
+  };
+
   const saveAuthorizedResumes = (authKey: AuthKey) => {
+    const nextCredit = getCreditLimit(authKey);
+    const creditDelta = nextCredit - authKey.credit_limit;
+
+    if (admin && creditDelta > admin.credit.remaining) {
+      showAlert({ type: 'warning', message: '보유 Credit을 초과할 수 없습니다.' });
+      return;
+    }
+
     void saveAuthKey
-      .mutateAsync({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey) })
+      .mutateAsync({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey), credit_limit: nextCredit })
       .then(() => {
         setAuthorizedDrafts((current) => {
+          const next = { ...current };
+          delete next[authKey.id];
+          return next;
+        });
+        setCreditDrafts((current) => {
           const next = { ...current };
           delete next[authKey.id];
           return next;
@@ -168,6 +192,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
           <AuthKeyCreateForm
             form={form}
             loading={createAuthKeyMutation.isPending}
+            maxCredit={admin.credit.remaining}
             onFinish={(values) => void createAuthKey(values)}
           />
 
@@ -183,8 +208,11 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
             authKeys={authKeys}
             loadingKey={loadingKey}
             accessGroups={accessGroups}
+            adminCreditRemaining={admin.credit.remaining}
             getAuthorizedResumeIds={getAuthorizedResumeIds}
+            getCreditLimit={getCreditLimit}
             updateAuthorizedDraft={updateAuthorizedDraft}
+            updateCreditDraft={updateCreditDraft}
             saveAuthorizedResumes={saveAuthorizedResumes}
             deleteAuthKey={deleteAuthKey}
           />

@@ -7,11 +7,13 @@ import type { AnalysisReport, Resume } from '../data/backendTypes';
 import type { AnalysisReportItem } from '../hooks/useAnalysisReportPageData';
 
 const saveReport = vi.hoisted(() => vi.fn());
+const deleteReport = vi.hoisted(() => vi.fn());
 const setSelectedReportId = vi.hoisted(() => vi.fn());
 const reloadData = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/backendClient', () => ({
   apiClient: {
+    deleteReport,
     saveReport,
   },
 }));
@@ -75,6 +77,8 @@ const report: AnalysisReport = {
   ],
   status: 'done',
   created_at: '2026-06-24T00:00:00+09:00',
+  version: 'analysis-graph-v1',
+  user_feedback: null,
 };
 
 const selectedItem: AnalysisReportItem = {
@@ -260,6 +264,11 @@ describe('AnalysisReportPage', () => {
       message: '분석 리포트를 저장했습니다.',
       data: report,
     });
+    deleteReport.mockResolvedValue({
+      error: false,
+      message: '리포트를 삭제했습니다.',
+      data: report,
+    });
   });
 
   it('긴 리포트 배열 섹션은 일부만 먼저 보여주고 전체 보기로 펼친다', async () => {
@@ -350,7 +359,24 @@ describe('AnalysisReportPage', () => {
     expect(payload).toEqual(expect.objectContaining({ id: 1, overall_summary: '수정한 전체 요약' }));
     expect(payload).not.toEqual(expect.objectContaining({ resume_id: 1 }));
     expect(payload).not.toEqual(expect.objectContaining({ status: 'done' }));
+    expect(payload).not.toEqual(expect.objectContaining({ version: 'analysis-graph-v1' }));
     expect(payload).not.toEqual(expect.objectContaining({ delete: true }));
+    expect(reloadData).toHaveBeenCalled();
+  });
+
+  it('리포트 별점 클릭 시 user_feedback만 수정 payload로 보낸다', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<AnalysisReportPage navigate={vi.fn()} />);
+
+    expect(screen.getAllByText('vanalysis-graph-v1').length).toBeGreaterThan(0);
+    expect(screen.getByText('평가 없음')).toBeInTheDocument();
+
+    const stars = container.querySelectorAll('.analysis-report-feedback .ant-rate-star');
+    expect(stars.length).toBeGreaterThanOrEqual(4);
+
+    await user.click((stars[3].querySelector('.ant-rate-star-second') ?? stars[3]) as HTMLElement);
+
+    expect(saveReport).toHaveBeenCalledWith({ id: 1, user_feedback: 4 }, undefined);
     expect(reloadData).toHaveBeenCalled();
   });
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Form, Input, Row, Space, Tabs, Tag } from 'antd';
+import { Button, Col, Form, Input, Rate, Row, Space, Tabs, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, MessageOutlined, SaveOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/backendClient';
 import { CompactTextList } from '../components/common/CompactTextList';
@@ -129,6 +129,36 @@ function isReportDeleteBlocked(report: AnalysisReport) {
   return report.status === 'processing';
 }
 
+function canSaveReportFeedback(report: AnalysisReport) {
+  return report.status !== 'processing';
+}
+
+function getReportFeedbackValue(report: AnalysisReport) {
+  const value = report.user_feedback;
+  return typeof value === 'number' && value >= 1 && value <= 5 ? value : 0;
+}
+
+function getReportDeleteWarning(report: AnalysisReport) {
+  if (report.status === 'onqueue') {
+    return {
+      title: '대기 중인 리포트도 삭제할 수 있습니다.',
+      description: '대기 중인 리포트를 삭제하면 Credit 환급이 Celery 처리 이후 반영될 수 있습니다.',
+    };
+  }
+
+  if (report.status === 'fail') {
+    return {
+      title: '실패한 리포트를 삭제합니다.',
+      description: '실패 처리 과정에서 환급이 이미 반영되었거나 처리 중일 수 있습니다.',
+    };
+  }
+
+  return {
+    title: '리포트와 질문 추천이 함께 삭제됩니다.',
+    description: '삭제한 리포트는 복구할 수 없습니다. 지원서와 JD 데이터는 삭제되지 않습니다.',
+  };
+}
+
 function reportListTag(report: AnalysisReport) {
   if (isReportPending(report)) {
     return <Tag color={report.status === 'processing' ? 'processing' : 'warning'}>{REPORT_STATUS_LABEL[report.status]}</Tag>;
@@ -138,7 +168,7 @@ function reportListTag(report: AnalysisReport) {
     return <Tag color="error">{REPORT_STATUS_LABEL.fail}</Tag>;
   }
 
-  return null;
+  return <Tag color="success">{REPORT_STATUS_LABEL.done}</Tag>;
 }
 
 function formatReportTimestamp(value: string) {
@@ -318,6 +348,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
   const [reportSearchText, setReportSearchText] = useState('');
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
   const [deleteTargetItem, setDeleteTargetItem] = useState<AnalysisReportItem | null>(null);
   const [isDeletingReport, setIsDeletingReport] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
@@ -435,6 +466,21 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
       setEditingReportId(null);
     } finally {
       setIsSavingReport(false);
+    }
+  };
+
+  const saveReportFeedback = async (value: number) => {
+    if (!displaySelectedItem || !canSaveReportFeedback(displaySelectedItem.report) || value < 1 || value > 5) {
+      return;
+    }
+
+    setIsSavingFeedback(true);
+
+    try {
+      await apiClient.saveReport({ id: displaySelectedItem.report.id, user_feedback: value }, apiKey);
+      await reloadData();
+    } finally {
+      setIsSavingFeedback(false);
     }
   };
 
@@ -556,6 +602,9 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                                   <span className="analysis-report-tree-report-meta">
                                     {formatReportTimestamp(item.report.created_at)}
                                   </span>
+                                  {item.report.version !== undefined && item.report.version !== null ? (
+                                    <Tag color="blue">v{item.report.version}</Tag>
+                                  ) : null}
                                   {reportListTag(item.report)}
                                 </button>
                               );
@@ -584,6 +633,15 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                   {displaySelectedItem.report.version !== undefined && displaySelectedItem.report.version !== null ? (
                     <Tag color="blue">v{displaySelectedItem.report.version}</Tag>
                   ) : null}
+                  <div className="analysis-report-feedback" aria-label="리포트 사용자 평가">
+                    <span>{getReportFeedbackValue(displaySelectedItem.report) ? '사용자 평가' : '평가 없음'}</span>
+                    <Rate
+                      allowClear={false}
+                      disabled={isSavingFeedback || !canSaveReportFeedback(displaySelectedItem.report)}
+                      value={getReportFeedbackValue(displaySelectedItem.report)}
+                      onChange={(value) => void saveReportFeedback(value)}
+                    />
+                  </div>
                 </div>
                 <div className="analysis-report-detail-toolbar">
                   {isEditingReport ? (
@@ -856,7 +914,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
         target={
           deleteTargetItem
             ? {
-                title: `${deleteTargetItem.resume?.name || '지원자 정보 없음'} · 리포트 #${deleteTargetItem.report.id}`,
+                title: `${deleteTargetItem.resume?.name || '지원자 정보 없음'} · 리포트`,
                 description: deleteTargetItem.jd?.title || '연결 JD 없음',
                 extra: (
                   <span className="analysis-report-delete-meta">
@@ -868,10 +926,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
               }
             : null
         }
-        warning={{
-          title: '질문 추천도 함께 삭제됩니다.',
-          description: '리포트 안에 저장된 추천 질문 목록도 더 이상 표시되지 않습니다.',
-        }}
+        warning={deleteTargetItem ? getReportDeleteWarning(deleteTargetItem.report) : undefined}
         loading={isDeletingReport}
         cancelLabel="취소"
         confirmLabel="삭제"
