@@ -27,6 +27,7 @@ import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { getStoredApiKey } from '../utils/apiKeySession';
+import { getAnalysisCreditCost, getAnalysisCreditText, hasEnoughAnalysisCredit } from '../utils/analysisCredit';
 import { pageSectionGutter } from '../utils/layout';
 import {
   getSearchTextWithoutSuggestions,
@@ -317,10 +318,14 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const [isCreatingCoverLetter, setIsCreatingCoverLetter] = useState(false);
   const [deleteTargetResume, setDeleteTargetResume] = useState<CoverLetterRow | null>(null);
   const [coverSearchText, setCoverSearchText] = useState('');
-  const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId } =
+  const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId, userProfile } =
     useCoverLetterPageData();
   const { addResume, analyzeResume, deleteResume, saveResume } = useResumeMutations(showAlert);
   const isApiKeyMode = Boolean(getStoredApiKey());
+  const analysisCreditCost = getAnalysisCreditCost(userProfile, isApiKeyMode);
+  const analysisCreditText = getAnalysisCreditText(analysisCreditCost, isApiKeyMode);
+  const creditDisabledReason = hasEnoughAnalysisCredit(userProfile, analysisCreditCost) ? undefined : 'Credit이 부족합니다.';
+  const analysisCreditDisplayText = creditDisabledReason ? `${analysisCreditText} · Credit 부족` : analysisCreditText;
   const canCreateResume = !isApiKeyMode;
   const currentResume = useMemo(
     () => resumes.find((resume) => String(resume.id) === selectedResumeId) ?? null,
@@ -346,7 +351,9 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
         : editingResume && checklistItems.length === 0
           ? '연결된 JD에 체크리스트가 없습니다.'
           : undefined;
-  const canAnalyze = Boolean(editingResume && !isCreatingCoverLetter && !checklistAnalysisDisabledReason);
+  const canAnalyze = Boolean(
+    editingResume && !isCreatingCoverLetter && !checklistAnalysisDisabledReason && !creditDisabledReason,
+  );
   const selectedCoverSuggestions = useMemo(
     () => getSelectedSuggestionLabels(coverSearchText, COVER_SEARCH_SUGGESTIONS),
     [coverSearchText],
@@ -494,9 +501,11 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   };
 
   const requestAnalysis = async () => {
-    if (!editingResume || checklistAnalysisDisabledReason) {
+    if (!editingResume || checklistAnalysisDisabledReason || creditDisabledReason) {
       if (checklistAnalysisDisabledReason) {
         showAlert({ type: 'warning', message: checklistAnalysisDisabledReason });
+      } else if (creditDisabledReason) {
+        showAlert({ type: 'warning', message: creditDisabledReason });
       }
       return;
     }
@@ -515,6 +524,9 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
         description="저장된 자소서를 확인하고, 선택한 JD에 맞춰 작성/수정 후 분석 요청을 진행합니다."
         actions={
           <Space wrap>
+            <span className={`analysis-credit-cost${creditDisabledReason ? ' analysis-credit-cost--danger' : ''}`}>
+              {analysisCreditDisplayText}
+            </span>
             <Button
               icon={<SaveOutlined />}
               loading={saveResume.isPending || addResume.isPending}
@@ -527,7 +539,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
               type="primary"
               icon={<FileSearchOutlined />}
               disabled={!canAnalyze || analyzeResume.isPending}
-              title={checklistAnalysisDisabledReason}
+              title={checklistAnalysisDisabledReason ?? creditDisabledReason}
               onClick={() => void requestAnalysis()}
             >
               {analyzeResume.isPending ? <InlineLoading label="분석 중" /> : '분석 요청'}

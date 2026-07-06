@@ -180,7 +180,11 @@ describe('JdPage', () => {
 
     await user.click(screen.getByRole('button', { name: /체크리스트 분석 요청/ }));
 
-    expect(generateChecklistMutateAsync).toHaveBeenCalledWith(1);
+    expect(generateChecklistMutateAsync).toHaveBeenCalledWith({
+      jdId: 1,
+      query: '',
+      cnt: 0,
+    });
   });
 
   it('체크리스트가 없는 JD는 지원서 분석 요청을 막는다', () => {

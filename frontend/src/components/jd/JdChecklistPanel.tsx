@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input, InputNumber } from 'antd';
 import { FileSearchOutlined } from '@ant-design/icons';
 import { DestructiveConfirmModal } from '../common/DestructiveConfirmModal';
 import { InlineLoading } from '../common/InlineLoading';
@@ -23,6 +23,8 @@ type JdChecklistPanelProps = {
   adding: boolean;
   deleting: boolean;
   generating: boolean;
+  generateCount: number;
+  generateQuery: string;
   items: Checklist[];
   jobDescriptionId: number;
   loading: boolean;
@@ -30,6 +32,8 @@ type JdChecklistPanelProps = {
   onAdd: (payload: ChecklistAddPayload) => Promise<unknown>;
   onDelete: (payload: ChecklistDeletePayload) => Promise<unknown>;
   onGenerate: () => Promise<unknown>;
+  onGenerateCountChange: (value: number) => void;
+  onGenerateQueryChange: (value: string) => void;
   onUpdate: (payload: ChecklistUpdatePayload) => Promise<unknown>;
 };
 
@@ -43,6 +47,8 @@ export function JdChecklistPanel({
   adding,
   deleting,
   generating,
+  generateCount,
+  generateQuery,
   items,
   jobDescriptionId,
   loading,
@@ -50,6 +56,8 @@ export function JdChecklistPanel({
   onAdd,
   onDelete,
   onGenerate,
+  onGenerateCountChange,
+  onGenerateQueryChange,
   onUpdate,
 }: JdChecklistPanelProps) {
   const [newContent, setNewContent] = useState('');
@@ -132,6 +140,24 @@ export function JdChecklistPanel({
         >
           {generating ? <InlineLoading label="생성 중" /> : '체크리스트 분석 요청'}
         </Button>
+      </div>
+
+      <div className="jd-checklist-generate-controls">
+        <Input
+          allowClear
+          aria-label="체크리스트 생성 요청사항"
+          placeholder="체크리스트 생성 요청사항 (예: 실무 경험 검증을 강화)"
+          value={generateQuery}
+          onChange={(event) => onGenerateQueryChange(event.target.value)}
+        />
+        <InputNumber
+          aria-label="체크리스트 생성 개수"
+          min={0}
+          max={10}
+          value={generateCount}
+          onChange={(value) => onGenerateCountChange(typeof value === 'number' ? value : 0)}
+        />
+        <span className="muted">0이면 현재 항목 기준 10개까지 채웁니다.</span>
       </div>
 
       <div className="jd-checklist-add-form">

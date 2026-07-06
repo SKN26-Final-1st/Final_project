@@ -20,6 +20,12 @@ type ChecklistDeletePayload = {
   job_description_id: number;
 };
 
+type GenerateChecklistPayload = {
+  jdId: number | string;
+  query?: string;
+  cnt?: number;
+};
+
 function alertSuccess<T>(showAlert: ShowAlert, response: ApiResponse<T>) {
   showAlert({
     type: response.error ? 'error' : 'success',
@@ -79,10 +85,11 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const generateChecklist = useMutation({
-    mutationFn: (jdId: number | string) => apiClient.generateJdChecklist(jdId, apiKey),
-    onSuccess: async (response, jdId) => {
+    mutationFn: (payload: GenerateChecklistPayload) =>
+      apiClient.generateJdChecklist(payload.jdId, apiKey, { query: payload.query, cnt: payload.cnt }),
+    onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
-      await invalidateChecklist(jdId);
+      await invalidateChecklist(payload.jdId);
     },
     onError: (error) => alertError(showAlert, error),
   });
