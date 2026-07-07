@@ -1,5 +1,5 @@
 import { useState, type Key } from 'react';
-import { Alert, Button, Col, Row, Space, Tooltip } from 'antd';
+import { Button, Col, Row, Space, Tooltip } from 'antd';
 import { DownloadOutlined, FileSearchOutlined } from '@ant-design/icons';
 import { JdSelectionPanel } from '../components/recruitment/JdSelectionPanel';
 import { RecruitmentPreviewPanel } from '../components/recruitment/RecruitmentPreviewPanel';
@@ -21,28 +21,21 @@ export function RecruitmentPostPage() {
       <PageTitle
         eyebrow="Recruitment Post"
         title="모집 공고 작성"
-        description="실제 JD 데이터를 바탕으로 미리보기를 표시합니다. 공고 생성과 PDF 다운로드는 현재 backend API가 없어 비활성화되어 있습니다."
+        description="선택한 JD 정보를 바탕으로 모집 공고 초안을 미리 확인합니다."
         actions={
           <Space wrap>
-            <Tooltip title="모집 공고 생성 backend API가 아직 없습니다.">
+            <Tooltip title="공고 생성 기능은 준비 중입니다.">
               <Button icon={<FileSearchOutlined />} type="primary" disabled>
                 공고 생성
               </Button>
             </Tooltip>
-            <Tooltip title="모집 공고 PDF 다운로드 backend API가 아직 없습니다.">
+            <Tooltip title="PDF 다운로드 기능은 준비 중입니다.">
               <Button disabled icon={<DownloadOutlined />}>
                 PDF
               </Button>
             </Tooltip>
           </Space>
         }
-      />
-      <Alert
-        showIcon
-        className="planned-mvp-alert"
-        type="info"
-        message="후순위 MVP"
-        description="모집 공고 생성과 PDF 다운로드는 현재 backend API가 없어 backend 연동 예정 상태입니다. 기존 화면은 보존하되 실제 동작 버튼은 비활성화되어 있습니다."
       />
       <Row className="section-row" gutter={pageSectionGutter}>
         <Col xs={24} xl={13}>

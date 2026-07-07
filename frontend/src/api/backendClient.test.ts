@@ -157,6 +157,46 @@ describe('backendClient', () => {
     expect(response.data).toEqual([{ id: 1, job_description_id: 10, content: 'React 실무 경험 확인' }]);
   });
 
+  test('jd chat sends the first empty chat and then keeps prior state', async () => {
+    const observedBodies: unknown[] = [];
+
+    server.use(
+      http.post('/api/jd_chat/', async ({ request }) => {
+        observedBodies.push(await request.json());
+        return HttpResponse.json({
+          error: false,
+          response: { role: 'agent', message: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.' },
+          state: { ignored_field: [], focus_field: 'main_task', end_chat: false },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const first = await apiClient.sendJdChatMessage({ jobDescriptionId: 10, messages: [] });
+    const second = await apiClient.sendJdChatMessage({
+      jobDescriptionId: 10,
+      messages: [
+        { role: 'assistant', text: first.data.response.text },
+        { role: 'user', text: '프론트엔드 개발 업무를 보강해줘' },
+      ],
+      state: first.data.state,
+    });
+
+    expect(observedBodies[0]).toEqual({ job_description_id: 10, chat: [] });
+    expect(observedBodies[1]).toEqual({
+      job_description_id: 10,
+      chat: [
+        { role: 'agent', message: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.' },
+        { role: 'user', message: '프론트엔드 개발 업무를 보강해줘' },
+      ],
+      state: { ignored_field: [], focus_field: 'main_task', end_chat: false },
+    });
+    expect(second.data.response).toEqual({
+      role: 'assistant',
+      text: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.',
+    });
+  });
+
   test('checklist add calls checklist/add with job description id and content', async () => {
     let requestBody: unknown = null;
     server.use(

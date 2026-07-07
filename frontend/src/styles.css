@@ -6552,19 +6552,19 @@ button,
 .admin-credit-panel {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .admin-credit-panel > .anticon {
   display: grid;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 24px;
+  font-size: 21px;
 }
 
 .admin-credit-panel strong,
@@ -6573,7 +6573,106 @@ button,
 }
 
 .admin-credit-panel strong {
-  font-size: 28px;
+  font-size: 24px;
+}
+
+.admin-credit-control {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--primary-soft) 46%, var(--surface));
+}
+
+.admin-credit-control-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-credit-control-header span,
+.admin-credit-control .muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.admin-credit-control .ant-space {
+  row-gap: 6px;
+}
+
+.admin-credit-control--subscription {
+  gap: 7px;
+}
+
+.jd-chat-panel {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.jd-chat-context {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
+}
+
+.jd-chat-context span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.jd-chat-messages {
+  display: grid;
+  flex: 1 1 auto;
+  align-content: start;
+  gap: 10px;
+  min-height: 280px;
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  padding: 4px;
+}
+
+.jd-chat-message {
+  display: grid;
+  gap: 4px;
+  max-width: 88%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.jd-chat-message span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.jd-chat-message p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.jd-chat-message--user {
+  justify-self: end;
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 56%, var(--surface));
+}
+
+.jd-chat-input-row {
+  width: 100%;
+}
+
+.jd-chat-input-row .ant-input {
+  resize: none;
 }
 
 .app-root[data-theme="dark"] .shared-report-page {

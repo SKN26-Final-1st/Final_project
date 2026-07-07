@@ -130,7 +130,7 @@ function isReportDeleteBlocked(report: AnalysisReport) {
 }
 
 function canSaveReportFeedback(report: AnalysisReport) {
-  return report.status !== 'processing';
+  return report.status === 'done';
 }
 
 function getReportFeedbackValue(report: AnalysisReport) {

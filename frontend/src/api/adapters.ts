@@ -108,6 +108,8 @@ export type AdminData = {
     remaining: number;
     subscriptionStatus: string;
     expiresAt: string;
+    expiresAtIso: string;
+    isSubscriptionActive: boolean;
   };
 };
 
@@ -304,6 +306,11 @@ function formatDateTime(isoDate: string) {
   }).format(date);
 }
 
+function isFutureDate(isoDate: string) {
+  const time = isoDate ? new Date(isoDate).getTime() : Number.NaN;
+  return !Number.isNaN(time) && time > Date.now();
+}
+
 function mapAnalysisStatus(report?: AnalysisReport): { label: string; code: StatusCode } {
   if (!report) {
     return { label: '분석 전', code: 'normal' };
@@ -430,6 +437,7 @@ export function mapAdmin(data: DashboardSource): AdminData {
   const processingResumes = data.resumes.filter((resume) => isActiveAnalysis(reportsByResume.get(resume.id))).length;
   const creditPercent = creditToPercent(data.account.credit);
   const teams = toStringList(data.company_info.team_composition);
+  const isSubscriptionActive = isFutureDate(data.account.subscribe_expiration);
 
   return {
     companyName: data.company_info.company_name,
@@ -480,8 +488,8 @@ export function mapAdmin(data: DashboardSource): AdminData {
       {
         key: 'backend-gap',
         role: '멤버/역할 관리',
-        description: '현재 backend에는 조직 멤버, 역할, 초대, 권한 변경 API가 없습니다.',
-        permissions: ['표시 전용', 'backend 미지원'],
+        description: '조직 멤버와 역할 권한은 추후 운영 설정에서 관리할 수 있습니다.',
+        permissions: ['준비 중'],
       },
     ],
     operatingStatus: {
@@ -493,8 +501,10 @@ export function mapAdmin(data: DashboardSource): AdminData {
     credit: {
       percent: creditPercent,
       remaining: data.account.credit,
-      subscriptionStatus: data.account.subscribe ? '구독 활성' : '구독 만료',
+      subscriptionStatus: isSubscriptionActive ? '구독 중' : '구독 만료',
       expiresAt: formatDateTime(data.account.subscribe_expiration),
+      expiresAtIso: data.account.subscribe_expiration,
+      isSubscriptionActive,
     },
   };
 }
@@ -505,7 +515,7 @@ export function mapRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?:
       title: '모집 공고 미리보기',
       sections: [
         `${companyInfo.company_name || '회사'} 정보를 불러왔습니다.`,
-        '모집 공고 생성/다운로드 backend API는 아직 없어 실제 JD 기반 미리보기만 제공합니다.',
+        '선택한 JD를 바탕으로 공고 초안을 미리 확인할 수 있습니다.',
       ],
     };
   }
@@ -522,7 +532,7 @@ export function mapRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?:
       `근무 형태는 ${jobDescription.work_type || '입력 없음'}, 요구 경력은 ${
         jobDescription.career_level
       }입니다.`,
-      '공고 생성/PDF 다운로드는 현재 backend API가 없어 지원하지 않습니다.',
+      '공고 생성과 PDF 다운로드는 준비 중입니다.',
     ],
   };
 }

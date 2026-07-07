@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Form, Input, Row, Space } from 'antd';
-import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { FileSearchOutlined, MessageOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import { JdChecklistPanel } from '../components/jd/JdChecklistPanel';
+import { JdChatDrawer } from '../components/jd/JdChatDrawer';
 import { JdDeleteModal } from '../components/jd/JdDeleteModal';
 import { JdEditorPanel, type JdEditorFormValues } from '../components/jd/JdEditorPanel';
 import { JdListEmptyState } from '../components/jd/JdListEmptyState';
@@ -82,9 +83,10 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [deleteTargetJd, setDeleteTargetJd] = useState<JdItem | null>(null);
   const [jdSearchText, setJdSearchText] = useState('');
+  const [isJdChatOpen, setIsJdChatOpen] = useState(false);
   const [checklistGenerateQuery, setChecklistGenerateQuery] = useState('');
   const [checklistGenerateCount, setChecklistGenerateCount] = useState(0);
-  const { jdList, resumes, selectedJdId, selectedJd, setSelectedJdId, userProfile } = useJdPageData();
+  const { jdList, reloadData, resumes, selectedJdId, selectedJd, setSelectedJdId, userProfile } = useJdPageData();
   const {
     addChecklist,
     addJd,
@@ -313,6 +315,15 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     setChecklistGenerateCount(Math.max(0, Math.min(10, Math.trunc(value))));
   };
 
+  const openJdChat = () => {
+    if (isCreateMode || !selectedJd) {
+      showAlert({ type: 'info', message: '채팅으로 JD를 작성하려면 먼저 JD를 저장해주세요.' });
+      return;
+    }
+
+    setIsJdChatOpen(true);
+  };
+
   return (
     <div className="jd-page viewport-page">
       <PageTitle
@@ -398,7 +409,22 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard className="scroll-card-body" title="JD 작성/수정">
+          <SectionCard
+            className="scroll-card-body"
+            title="JD 작성/수정"
+            extra={
+              !isApiKeyMode ? (
+                <Button
+                  size="small"
+                  icon={<MessageOutlined />}
+                  disabled={isCreateMode || !selectedJd}
+                  onClick={openJdChat}
+                >
+                  채팅으로 JD 작성
+                </Button>
+              ) : null
+            }
+          >
             {showEditor && editorInitialValues ? (
               <>
                 <JdEditorPanel
@@ -438,6 +464,12 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         deleting={deleteJd.isPending}
         onCancel={closeDeleteModal}
         onConfirm={() => void confirmDeleteJd()}
+      />
+      <JdChatDrawer
+        open={isJdChatOpen}
+        selectedJd={!isCreateMode ? selectedJd : null}
+        onClose={() => setIsJdChatOpen(false)}
+        onRefresh={reloadData}
       />
     </div>
   );
