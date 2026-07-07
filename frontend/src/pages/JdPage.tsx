@@ -12,6 +12,7 @@ import { InlineLoading } from '../components/common/InlineLoading';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { JdItem } from '../api/adapters';
+import type { JobDescriptionChecklistStatus } from '../data/backendTypes';
 import { useJdPageData } from '../hooks/useJdPageData';
 import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useJdMutations } from '../hooks/mutations/useJdMutations';
@@ -78,6 +79,22 @@ const EMPTY_JD_EDITOR_VALUES: JdEditorFormValues = {
   status: 'prepare',
 };
 
+function getChecklistGenerateBlockedReason(status: JobDescriptionChecklistStatus) {
+  if (status === 'onqueue') {
+    return '체크리스트 생성 요청이 대기 중입니다.';
+  }
+
+  if (status === 'processing') {
+    return '체크리스트를 생성하는 중입니다.';
+  }
+
+  if (status === 'fail') {
+    return '이전 체크리스트 생성 요청이 실패했습니다. 확인 후 다시 요청해주세요.';
+  }
+
+  return undefined;
+}
+
 export function JdPage({ navigate, showAlert }: JdPageProps) {
   const [form] = Form.useForm<JdEditorFormValues>();
   const [isCreatingJd, setIsCreatingJd] = useState(false);
@@ -94,6 +111,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     deleteChecklist,
     deleteJd,
     generateChecklist,
+    refreshChecklistFailure,
     saveJd,
     updateChecklist,
   } = useJdMutations(showAlert);
@@ -110,6 +128,8 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     [isCreateMode, selectedJd],
   );
   const showEditor = isCreateMode || Boolean(selectedJd && editorInitialValues);
+  const checklistStatus = selectedJd?.checklistStatus ?? 'done';
+  const checklistGenerateBlockedReason = getChecklistGenerateBlockedReason(checklistStatus);
   const selectedJdResumes = useMemo(
     () => (selectedJd ? resumes.filter((resume) => String(resume.job_description_id) === selectedJd.id) : []),
     [resumes, selectedJd],
@@ -237,6 +257,14 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       return;
     }
 
+    if (targetJd.checklistStatus === 'processing') {
+      showAlert({
+        type: 'warning',
+        message: '체크리스트 생성이 진행 중이라 JD 삭제가 잠겼습니다. 완료 후 다시 시도해주세요.',
+      });
+      return;
+    }
+
     setDeleteTargetJd(targetJd);
   };
 
@@ -304,11 +332,27 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       return;
     }
 
+    if (checklistGenerateBlockedReason) {
+      showAlert({
+        type: 'warning',
+        message: checklistGenerateBlockedReason,
+      });
+      return;
+    }
+
     await generateChecklist.mutateAsync({
       jdId: Number(selectedJd.id),
       query: checklistGenerateQuery,
       cnt: checklistGenerateCount,
     });
+  };
+
+  const confirmChecklistFailure = async () => {
+    if (!selectedJd) {
+      return;
+    }
+
+    await refreshChecklistFailure.mutateAsync(Number(selectedJd.id));
   };
 
   const updateChecklistGenerateCount = (value: number) => {
@@ -440,15 +484,19 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
                     generating={generateChecklist.isPending}
                     generateCount={checklistGenerateCount}
                     generateQuery={checklistGenerateQuery}
+                    generateBlockedReason={checklistGenerateBlockedReason}
                     items={checklistItems}
                     jobDescriptionId={Number(selectedJd.id)}
                     loading={checklistQuery.isLoading}
+                    checklistStatus={checklistStatus}
+                    refreshingFailure={refreshChecklistFailure.isPending}
                     updating={updateChecklist.isPending}
                     onAdd={addChecklist.mutateAsync}
                     onDelete={deleteChecklist.mutateAsync}
                     onGenerate={requestChecklistGeneration}
                     onGenerateCountChange={updateChecklistGenerateCount}
                     onGenerateQueryChange={setChecklistGenerateQuery}
+                    onRefreshFailure={confirmChecklistFailure}
                     onUpdate={updateChecklist.mutateAsync}
                   />
                 ) : null}

@@ -16,6 +16,7 @@ const jobDescription: JobDescription = {
   hiring_reason: '',
   work_type: '',
   status: 'on_going',
+  checklist_status: 'done',
   created_at: now,
   updated_at: now,
 };

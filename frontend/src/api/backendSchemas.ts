@@ -62,6 +62,7 @@ export const jobDescriptionSchema = z.object({
   hiring_reason: z.string(),
   work_type: z.string(),
   status: z.enum(['prepare', 'on_going', 'closed']),
+  checklist_status: z.enum(['onqueue', 'processing', 'done', 'fail']).default('done'),
   created_at: z.string(),
   updated_at: z.string(),
 }) satisfies z.ZodType<JobDescription>;

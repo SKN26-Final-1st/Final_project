@@ -34,8 +34,29 @@ describe('backendSchemas', () => {
           created_at: '',
           updated_at: '',
         },
-      ]),
-    ).toHaveLength(1);
+      ])[0].checklist_status,
+    ).toBe('done');
+
+    expect(
+      parseJobDescriptions([
+        {
+          id: 2,
+          job_name: '프론트엔드',
+          education_level: '',
+          major: '',
+          career_level: '3년',
+          required_skill: ['React'],
+          preferred_skill: [],
+          main_task: '',
+          hiring_reason: '',
+          work_type: '',
+          status: 'prepare',
+          checklist_status: 'processing',
+          created_at: '',
+          updated_at: '',
+        },
+      ])[0].checklist_status,
+    ).toBe('processing');
 
     expect(
       parseResumes([

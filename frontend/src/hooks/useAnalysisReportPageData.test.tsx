@@ -41,6 +41,7 @@ const jd: JdItem = {
   educationLevel: '',
   major: '',
   hiringReason: '',
+  checklistStatus: 'done',
 };
 
 const olderReport: AnalysisReport = {

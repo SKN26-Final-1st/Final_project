@@ -26,6 +26,7 @@ const jdItem: JdItem = {
   educationLevel: '',
   major: '',
   hiringReason: '',
+  checklistStatus: 'done',
 };
 
 const resume: Resume = {

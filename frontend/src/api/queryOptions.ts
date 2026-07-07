@@ -11,6 +11,12 @@ function hasActiveAnalysisReport(data: AppData | undefined) {
   );
 }
 
+function hasActiveChecklistGeneration(data: AppData | undefined) {
+  return Boolean(
+    data?.jdList.some((job) => job.checklistStatus === 'onqueue' || job.checklistStatus === 'processing'),
+  );
+}
+
 export function appDataQueryOptions(
   enabled = true,
   authMode: AuthMode = getCurrentAuthMode(),
@@ -33,6 +39,8 @@ export function appDataQueryOptions(
     },
     enabled,
     refetchInterval: (query) =>
-      hasActiveAnalysisReport(query.state.data) ? ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS : false,
+      hasActiveAnalysisReport(query.state.data) || hasActiveChecklistGeneration(query.state.data)
+        ? ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS
+        : false,
   });
 }

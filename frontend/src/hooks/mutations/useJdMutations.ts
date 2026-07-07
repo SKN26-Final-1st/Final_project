@@ -89,7 +89,18 @@ export function useJdMutations(showAlert: ShowAlert) {
       apiClient.generateJdChecklist(payload.jdId, apiKey, { query: payload.query, cnt: payload.cnt }),
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
+      await invalidateAppData();
       await invalidateChecklist(payload.jdId);
+    },
+    onError: (error) => alertError(showAlert, error),
+  });
+
+  const refreshChecklistFailure = useMutation({
+    mutationFn: (id: number) => apiClient.refreshJdChecklistFailure(id, apiKey),
+    onSuccess: async (response, payload) => {
+      alertSuccess(showAlert, response);
+      await invalidateAppData();
+      await invalidateChecklist(payload);
     },
     onError: (error) => alertError(showAlert, error),
   });
@@ -129,6 +140,7 @@ export function useJdMutations(showAlert: ShowAlert) {
     deleteChecklist,
     deleteJd,
     generateChecklist,
+    refreshChecklistFailure,
     saveJd,
     updateChecklist,
   };

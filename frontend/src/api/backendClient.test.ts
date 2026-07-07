@@ -55,6 +55,7 @@ const apiKeyJobDescription = {
   hiring_reason: '제품 고도화',
   work_type: '정규직',
   status: 'on_going',
+  checklist_status: 'done',
   created_at: '2026-06-24T00:00:00+09:00',
   updated_at: '2026-06-24T01:00:00+09:00',
 };
@@ -142,7 +143,7 @@ describe('backendClient', () => {
         requestBody = await request.json();
         return HttpResponse.json({
           error: false,
-          data: [{ id: 1, job_description_id: 10, content: 'React 실무 경험 확인' }],
+          data: { ...apiKeyJobDescription, checklist_status: 'onqueue' },
         });
       }),
     );
@@ -154,7 +155,26 @@ describe('backendClient', () => {
     });
 
     expect(requestBody).toEqual({ id: 10, query: 'React 실무 경험을 더 확인해줘', cnt: 3 });
-    expect(response.data).toEqual([{ id: 1, job_description_id: 10, content: 'React 실무 경험 확인' }]);
+    expect(response.data).toMatchObject({ id: 10, checklist_status: 'onqueue' });
+  });
+
+  test('jd checklist failure refresh calls jd/modify with refresh_fail', async () => {
+    let requestBody: unknown = null;
+    server.use(
+      http.post('/api/jd/modify/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({
+          error: false,
+          data: { ...apiKeyJobDescription, checklist_status: 'done' },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.refreshJdChecklistFailure(10);
+
+    expect(requestBody).toEqual({ id: 10, refresh_fail: true });
+    expect(response.data).toMatchObject({ id: 10, checklist_status: 'done' });
   });
 
   test('jd chat sends the first empty chat and then keeps prior state', async () => {

@@ -9,6 +9,7 @@ const saveJdMutateAsync = vi.hoisted(() => vi.fn());
 const addJdMutateAsync = vi.hoisted(() => vi.fn());
 const analyzeJdMutateAsync = vi.hoisted(() => vi.fn());
 const generateChecklistMutateAsync = vi.hoisted(() => vi.fn());
+const refreshChecklistFailureMutateAsync = vi.hoisted(() => vi.fn());
 const addChecklistMutateAsync = vi.hoisted(() => vi.fn());
 const updateChecklistMutateAsync = vi.hoisted(() => vi.fn());
 const deleteChecklistMutateAsync = vi.hoisted(() => vi.fn());
@@ -44,6 +45,7 @@ function makeJdItem(overrides: Partial<JdItem> = {}): JdItem {
     educationLevel: '학사',
     major: '컴퓨터공학',
     hiringReason: '확장',
+    checklistStatus: 'done',
     ...overrides,
   };
 }
@@ -66,6 +68,7 @@ vi.mock('../hooks/mutations/useJdMutations', () => ({
     deleteJd: { isPending: false, mutateAsync: deleteJdMutateAsync },
     deleteChecklist: { isPending: false, mutateAsync: deleteChecklistMutateAsync },
     generateChecklist: { isPending: false, mutateAsync: generateChecklistMutateAsync },
+    refreshChecklistFailure: { isPending: false, mutateAsync: refreshChecklistFailureMutateAsync },
     saveJd: { isPending: false, mutateAsync: saveJdMutateAsync },
     updateChecklist: { isPending: false, mutateAsync: updateChecklistMutateAsync },
   }),
@@ -107,6 +110,11 @@ describe('JdPage', () => {
       error: false,
       message: '체크리스트를 삭제했습니다.',
       data: checklistData.items[0],
+    });
+    refreshChecklistFailureMutateAsync.mockResolvedValue({
+      error: false,
+      message: '체크리스트 실패 상태를 확인했습니다.',
+      data: { id: 1, checklist_status: 'done' },
     });
   });
 
@@ -185,6 +193,38 @@ describe('JdPage', () => {
       query: '',
       cnt: 0,
     });
+  });
+
+  it('체크리스트 생성 실패 상태에서는 확인 후 상태 복구를 요청한다', async () => {
+    jdPageData.selectedJd = makeJdItem({ checklistStatus: 'fail' });
+    jdPageData.jdList = [jdPageData.selectedJd];
+    render(<JdPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /체크리스트 분석 요청/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: '확인했습니다' }));
+
+    expect(refreshChecklistFailureMutateAsync).toHaveBeenCalledWith(1);
+    expect(generateChecklistMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('체크리스트 생성 처리 중인 JD는 삭제 모달을 열지 않는다', async () => {
+    jdPageData.selectedJd = makeJdItem({ checklistStatus: 'processing' });
+    jdPageData.jdList = [jdPageData.selectedJd];
+    const showAlert = vi.fn();
+    const user = userEvent.setup();
+
+    render(<JdPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    await user.click(screen.getByRole('button', { name: `${jdPageData.selectedJd.title} 삭제` }));
+
+    expect(showAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'warning',
+        message: '체크리스트 생성이 진행 중이라 JD 삭제가 잠겼습니다. 완료 후 다시 시도해주세요.',
+      }),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('체크리스트가 없는 JD는 지원서 분석 요청을 막는다', () => {
