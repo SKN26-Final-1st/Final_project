@@ -6,6 +6,7 @@ export function useCoverLetterPageData() {
   const jdList = useMemo(() => data?.jdList ?? [], [data?.jdList]);
   const resumes = useMemo(() => data?.resumes ?? [], [data?.resumes]);
   const coverRows = useMemo(() => data?.coverLetterRows ?? [], [data?.coverLetterRows]);
+  const userProfile = data?.userProfile ?? null;
   const [selectedJdIdOverride, setSelectedJdId] = useState<string | null>(null);
   const [selectedResumeIdOverride, setSelectedResumeId] = useState<string | null>(null);
   const jdIds = useMemo(() => jdList.map((item) => item.id), [jdList]);
@@ -28,5 +29,6 @@ export function useCoverLetterPageData() {
     selectedResumeId,
     setSelectedJdId,
     setSelectedResumeId,
+    userProfile,
   };
 }

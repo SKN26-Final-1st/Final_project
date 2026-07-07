@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Checkbox, Tag } from 'antd';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
 
@@ -34,6 +34,18 @@ function toggleId(currentIds: number[], targetId: number) {
   return currentIds.includes(targetId) ? currentIds.filter((id) => id !== targetId) : [...currentIds, targetId];
 }
 
+function formatAccessSummary(groups: AuthKeyAccessGroup[], selectedIds: number[]) {
+  const selectedSet = new Set(selectedIds);
+  const selectedGroupCount = groups.filter((group) => group.resumes.some((resume) => selectedSet.has(resume.value))).length;
+  const resumeCount = selectedIds.length;
+
+  if (!resumeCount) {
+    return '허용된 지원서 없음';
+  }
+
+  return `JD ${selectedGroupCount}개 · 지원서 ${resumeCount}명 허용`;
+}
+
 export function AuthKeyAccessTree({
   authKeyId,
   authKeyName,
@@ -43,6 +55,8 @@ export function AuthKeyAccessTree({
 }: AuthKeyAccessTreeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [openGroupKeys, setOpenGroupKeys] = useState<string[]>([]);
+  const selectedIdSet = new Set(selectedIds);
+  const accessSummary = useMemo(() => formatAccessSummary(groups, selectedIds), [groups, selectedIds]);
 
   const toggleGroupOpen = (groupKey: string) => {
     setOpenGroupKeys((current) =>
@@ -50,22 +64,23 @@ export function AuthKeyAccessTree({
     );
   };
 
-  const selectedIdSet = new Set(selectedIds);
-
   return (
     <div className="authkey-access">
       <Button
         className="authkey-access-toggle"
-        aria-label={`${authKeyName} 지원서 접근 범위 ${isOpen ? '닫기' : '열기'}`}
+        aria-label={`${authKeyName} 지원서 접근 범위 ${isOpen ? '접기' : '열기'}`}
         icon={isOpen ? <DownOutlined /> : <RightOutlined />}
         onClick={() => setIsOpen((current) => !current)}
       >
-        지원서 범위
+        <span className="authkey-access-toggle-main">접근 범위</span>
+        <span className="authkey-access-summary">{accessSummary}</span>
       </Button>
 
       {isOpen && (
         <div className="authkey-access-panel">
-          <p className="authkey-access-note">JD 선택 시 현재 등록된 지원서만 접근 범위에 포함됩니다.</p>
+          <p className="authkey-access-note">
+            JD를 선택하면 하위 지원서가 함께 선택됩니다. 서버에는 선택한 지원서 목록만 저장합니다.
+          </p>
           {groups.length ? (
             groups.map((group) => {
               const groupIds = group.resumes.map((resume) => resume.value);
@@ -83,7 +98,7 @@ export function AuthKeyAccessTree({
                         className="authkey-access-expand"
                         type="text"
                         size="small"
-                        aria-label={`${group.label} 지원서 목록 ${isGroupOpen ? '닫기' : '열기'}`}
+                        aria-label={`${group.label} 지원서 목록 ${isGroupOpen ? '접기' : '열기'}`}
                         icon={isGroupOpen ? <DownOutlined /> : <RightOutlined />}
                         onClick={() => toggleGroupOpen(group.key)}
                       />
@@ -124,7 +139,7 @@ export function AuthKeyAccessTree({
               );
             })
           ) : (
-            <span className="authkey-access-empty">연결할 지원서가 없습니다.</span>
+            <span className="authkey-access-empty">연결된 지원서가 없습니다.</span>
           )}
         </div>
       )}

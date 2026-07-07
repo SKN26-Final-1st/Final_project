@@ -39,6 +39,8 @@ const queuedReport = {
   interview_question: [],
   status: 'onqueue',
   created_at: '2026-06-24T00:00:00+09:00',
+  version: 'analysis-graph-v1',
+  user_feedback: null,
 };
 
 const apiKeyJobDescription = {
@@ -109,7 +111,31 @@ describe('backendClient', () => {
     });
   });
 
-  test('jd checklist generation calls jd/analyze with only id', async () => {
+  test('failed resume analysis preserves status, version, and user feedback fields', async () => {
+    server.use(
+      http.post('/api/resume/get/', () => HttpResponse.json({ error: false, data: [resumeWithoutStatus] })),
+      http.post('/api/resume/analyze/', () =>
+        HttpResponse.json({
+          error: false,
+          data: { ...queuedReport, status: 'fail', version: 'analysis-graph-v2', user_feedback: 4 },
+        }),
+      ),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.requestResumeAnalysis(1)).resolves.toMatchObject({
+      data: {
+        report: {
+          status: 'fail',
+          version: 'analysis-graph-v2',
+          user_feedback: 4,
+        },
+      },
+    });
+  });
+
+  test('jd checklist generation sends query and count options to jd/analyze', async () => {
     let requestBody: unknown = null;
     server.use(
       http.post('/api/jd/analyze/', async ({ request }) => {
@@ -122,10 +148,53 @@ describe('backendClient', () => {
     );
 
     const { apiClient } = await import('./backendClient');
-    const response = await apiClient.generateJdChecklist(10);
+    const response = await apiClient.generateJdChecklist(10, undefined, {
+      query: 'React 실무 경험을 더 확인해줘',
+      cnt: 3,
+    });
 
-    expect(requestBody).toEqual({ id: 10 });
+    expect(requestBody).toEqual({ id: 10, query: 'React 실무 경험을 더 확인해줘', cnt: 3 });
     expect(response.data).toEqual([{ id: 1, job_description_id: 10, content: 'React 실무 경험 확인' }]);
+  });
+
+  test('jd chat sends the first empty chat and then keeps prior state', async () => {
+    const observedBodies: unknown[] = [];
+
+    server.use(
+      http.post('/api/jd_chat/', async ({ request }) => {
+        observedBodies.push(await request.json());
+        return HttpResponse.json({
+          error: false,
+          response: { role: 'agent', message: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.' },
+          state: { ignored_field: [], focus_field: 'main_task', end_chat: false },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const first = await apiClient.sendJdChatMessage({ jobDescriptionId: 10, messages: [] });
+    const second = await apiClient.sendJdChatMessage({
+      jobDescriptionId: 10,
+      messages: [
+        { role: 'assistant', text: first.data.response.text },
+        { role: 'user', text: '프론트엔드 개발 업무를 보강해줘' },
+      ],
+      state: first.data.state,
+    });
+
+    expect(observedBodies[0]).toEqual({ job_description_id: 10, chat: [] });
+    expect(observedBodies[1]).toEqual({
+      job_description_id: 10,
+      chat: [
+        { role: 'agent', message: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.' },
+        { role: 'user', message: '프론트엔드 개발 업무를 보강해줘' },
+      ],
+      state: { ignored_field: [], focus_field: 'main_task', end_chat: false },
+    });
+    expect(second.data.response).toEqual({
+      role: 'assistant',
+      text: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.',
+    });
   });
 
   test('checklist add calls checklist/add with job description id and content', async () => {
@@ -215,6 +284,10 @@ describe('backendClient', () => {
         observedHeaders.report = request.headers.get('X-API-Key');
         return HttpResponse.json({ error: false, data: [queuedReport] });
       }),
+      http.post('/api/authkey/credit/', ({ request }) => {
+        observedHeaders.credit = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: { credit: 780 } });
+      }),
     );
 
     const { apiClient } = await import('./backendClient');
@@ -225,7 +298,9 @@ describe('backendClient', () => {
       jd: apiKey,
       resume: apiKey,
       report: apiKey,
+      credit: apiKey,
     });
+    expect(response.data.account.credit).toBe(780);
     expect(response.data.job_descriptions).toHaveLength(1);
     expect(response.data.resumes).toHaveLength(1);
     expect(response.data.analysis_reports).toHaveLength(1);

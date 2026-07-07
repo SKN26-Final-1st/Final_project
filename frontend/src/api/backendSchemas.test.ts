@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseAccount, parseAnalysisReports, parseAuthKeys, parseJobDescriptions, parseResumes } from './backendSchemas';
 
 describe('backendSchemas', () => {
-  it('핵심 backend 응답을 타입 안정적으로 정규화한다', () => {
+  it('normalizes stable backend response shapes', () => {
     expect(
       parseAccount({
         id: 1,
@@ -72,7 +72,7 @@ describe('backendSchemas', () => {
           competency_analysis: [],
           fit_analysis: 'JD 적합도가 높습니다.',
           motive: '지원 동기가 구체적입니다.',
-          collaboration: '협업 경험이 확인됩니다.',
+          collaboration: '협업 경험을 확인합니다.',
           strength: [],
           concern: [],
           check_point: [],
@@ -85,14 +85,46 @@ describe('backendSchemas', () => {
     ).toMatchObject({
       fit_analysis: 'JD 적합도가 높습니다.',
       motive: '지원 동기가 구체적입니다.',
-      collaboration: '협업 경험이 확인됩니다.',
+      collaboration: '협업 경험을 확인합니다.',
       status: 'done',
       created_at: '2026-06-24T00:00:00+09:00',
     });
     expect(parseAuthKeys([])).toEqual([]);
   });
 
-  it('계약과 다른 응답은 명확히 거부한다', () => {
+  it('rejects response shapes outside the backend contract', () => {
     expect(() => parseJobDescriptions([{ id: 1, status: 'invalid' }])).toThrow();
+  });
+
+  it('parses analysis report version as a backend string field', () => {
+    expect(
+      parseAnalysisReports([
+        {
+          id: 1,
+          resume_id: 1,
+          overall_grade: 'A',
+          overall_summary: 'summary',
+          candidate_summary: 'candidate summary',
+          checklist: [],
+          competency_analysis: [],
+          fit_analysis: 'fit',
+          motive: '',
+          collaboration: '',
+          strength: [],
+          concern: [],
+          check_point: [],
+          final_comment: '',
+          interview_question: [],
+          status: 'fail',
+          created_at: '2026-06-24T00:00:00+09:00',
+          version: 'analysis-graph-v2',
+          user_feedback: 4,
+        },
+      ])[0],
+    ).toMatchObject({
+      status: 'fail',
+      version: 'analysis-graph-v2',
+      user_feedback: 4,
+    });
   });
 });

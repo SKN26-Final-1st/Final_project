@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Button, Form, Space, Tag } from 'antd';
-import { ApiOutlined, KeyOutlined, SettingOutlined } from '@ant-design/icons';
+import { KeyOutlined, SettingOutlined } from '@ant-design/icons';
 import { AdminCreditPanel } from '../components/admin/AdminCreditPanel';
 import { AdminSummaryCards } from '../components/admin/AdminSummaryCards';
 import { AuthKeyCreateForm, type AuthKeyCreateFormValues } from '../components/admin/AuthKeyCreateForm';
 import { AuthKeyDeleteModal } from '../components/admin/AuthKeyDeleteModal';
 import { AuthKeyList, type AuthKeyAccessGroup } from '../components/admin/AuthKeyList';
 import { CreatedAuthKeyPanel } from '../components/admin/CreatedAuthKeyPanel';
-import { UnsupportedBackendPanel } from '../components/admin/UnsupportedBackendPanel';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
@@ -61,13 +60,30 @@ function createResumeAccessGroups(resumes: Resume[], jdList: JdItem[]): AuthKeyA
   return groups;
 }
 
+function addOneMonth(date: Date) {
+  const nextDate = new Date(date);
+  nextDate.setMonth(nextDate.getMonth() + 1);
+  return nextDate;
+}
+
+function getSubscriptionBaseDate(expiresAtIso: string, isSubscriptionActive: boolean) {
+  const expirationDate = expiresAtIso ? new Date(expiresAtIso) : null;
+
+  if (isSubscriptionActive && expirationDate && !Number.isNaN(expirationDate.getTime())) {
+    return expirationDate;
+  }
+
+  return new Date();
+}
+
 export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateFormValues>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
+  const [creditDrafts, setCreditDrafts] = useState<Record<number, number>>({});
   const [createdAuthKey, setCreatedAuthKey] = useState<Pick<AuthKey, 'name' | 'value'> | null>(null);
   const [deleteTargetAuthKey, setDeleteTargetAuthKey] = useState<AuthKey | null>(null);
   const { admin, authKeys, jdList, resumes } = useAdminPageData();
-  const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAuthKey } =
+  const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAccount, saveAuthKey } =
     useAdminMutations(showAlert);
   const loadingKey = createAuthKeyMutation.isPending
     ? 'authkey-add'
@@ -75,10 +91,17 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
       ? `authkey-save-${saveAuthKey.variables.id}`
       : deleteAuthKeyMutation.isPending && deleteAuthKeyMutation.variables
         ? `authkey-delete-${deleteAuthKeyMutation.variables}`
+        : saveAccount.isPending
+          ? 'account-save'
         : null;
   const accessGroups = useMemo(() => createResumeAccessGroups(resumes, jdList), [jdList, resumes]);
 
   const createAuthKey = async (values: AuthKeyCreateFormValues) => {
+    if (admin && (values.credit_limit ?? 0) > admin.credit.remaining) {
+      showAlert({ type: 'warning', message: '보유 Credit을 초과할 수 없습니다.' });
+      return;
+    }
+
     const response = await createAuthKeyMutation.mutateAsync(values);
     form.resetFields();
     setCreatedAuthKey({ name: response.data.name, value: response.data.value });
@@ -98,16 +121,34 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   };
 
   const getAuthorizedResumeIds = (authKey: AuthKey) => authorizedDrafts[authKey.id] ?? authKey.authorized_resume;
+  const getCreditLimit = (authKey: AuthKey) => creditDrafts[authKey.id] ?? authKey.credit_limit;
 
   const updateAuthorizedDraft = (id: number, nextIds: number[]) => {
     setAuthorizedDrafts((current) => ({ ...current, [id]: nextIds }));
   };
 
+  const updateCreditDraft = (id: number, nextCredit: number) => {
+    setCreditDrafts((current) => ({ ...current, [id]: nextCredit }));
+  };
+
   const saveAuthorizedResumes = (authKey: AuthKey) => {
+    const nextCredit = getCreditLimit(authKey);
+    const creditDelta = nextCredit - authKey.credit_limit;
+
+    if (admin && creditDelta > admin.credit.remaining) {
+      showAlert({ type: 'warning', message: '보유 Credit을 초과할 수 없습니다.' });
+      return;
+    }
+
     void saveAuthKey
-      .mutateAsync({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey) })
+      .mutateAsync({ id: authKey.id, authorized_resume: getAuthorizedResumeIds(authKey), credit_limit: nextCredit })
       .then(() => {
         setAuthorizedDrafts((current) => {
+          const next = { ...current };
+          delete next[authKey.id];
+          return next;
+        });
+        setCreditDrafts((current) => {
           const next = { ...current };
           delete next[authKey.id];
           return next;
@@ -128,6 +169,26 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
     setDeleteTargetAuthKey(null);
   };
 
+  const rechargeCredit = async (amount: number) => {
+    if (!admin) {
+      return;
+    }
+
+    await saveAccount.mutateAsync({ credit: admin.credit.remaining + amount });
+  };
+
+  const startOrExtendSubscription = async () => {
+    if (!admin) {
+      return;
+    }
+
+    const baseDate = getSubscriptionBaseDate(admin.credit.expiresAtIso, admin.credit.isSubscriptionActive);
+    await saveAccount.mutateAsync({
+      subscribe: true,
+      subscribe_expiration: addOneMonth(baseDate).toISOString(),
+    });
+  };
+
   if (!admin) {
     return <EmptyState description="관리자 데이터를 불러오지 못했습니다." />;
   }
@@ -142,12 +203,6 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
           <Space wrap>
             <Button icon={<SettingOutlined />} onClick={() => navigate('/company')}>
               회사 정보
-            </Button>
-            <Button
-              icon={<ApiOutlined />}
-              onClick={() => showAlert({ type: 'info', message: '플랜/결제 API는 아직 backend에 없습니다.' })}
-            >
-              플랜 상태 보기
             </Button>
           </Space>
         }
@@ -168,6 +223,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
           <AuthKeyCreateForm
             form={form}
             loading={createAuthKeyMutation.isPending}
+            maxCredit={admin.credit.remaining}
             onFinish={(values) => void createAuthKey(values)}
           />
 
@@ -183,8 +239,11 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
             authKeys={authKeys}
             loadingKey={loadingKey}
             accessGroups={accessGroups}
+            adminCreditRemaining={admin.credit.remaining}
             getAuthorizedResumeIds={getAuthorizedResumeIds}
+            getCreditLimit={getCreditLimit}
             updateAuthorizedDraft={updateAuthorizedDraft}
+            updateCreditDraft={updateCreditDraft}
             saveAuthorizedResumes={saveAuthorizedResumes}
             deleteAuthKey={deleteAuthKey}
           />
@@ -199,8 +258,12 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
         </SectionCard>
 
         <div className="admin-workspace-side">
-          <AdminCreditPanel credit={admin.credit} />
-          <UnsupportedBackendPanel />
+          <AdminCreditPanel
+            credit={admin.credit}
+            loading={saveAccount.isPending}
+            onRecharge={(amount) => void rechargeCredit(amount)}
+            onSubscribe={() => void startOrExtendSubscription()}
+          />
         </div>
       </div>
     </div>

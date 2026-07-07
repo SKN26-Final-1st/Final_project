@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Form, Input, Row, Space } from 'antd';
-import { FileSearchOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
+import { FileSearchOutlined, MessageOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import { JdChecklistPanel } from '../components/jd/JdChecklistPanel';
+import { JdChatDrawer } from '../components/jd/JdChatDrawer';
 import { JdDeleteModal } from '../components/jd/JdDeleteModal';
 import { JdEditorPanel, type JdEditorFormValues } from '../components/jd/JdEditorPanel';
 import { JdListEmptyState } from '../components/jd/JdListEmptyState';
@@ -16,6 +17,7 @@ import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useJdMutations } from '../hooks/mutations/useJdMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { getStoredApiKey } from '../utils/apiKeySession';
+import { getAnalysisCreditCost, getAnalysisCreditText, hasEnoughAnalysisCredit } from '../utils/analysisCredit';
 import { pageSectionGutter } from '../utils/layout';
 import { toTrimmedStringList } from '../utils/stringList';
 
@@ -81,7 +83,10 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
   const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [deleteTargetJd, setDeleteTargetJd] = useState<JdItem | null>(null);
   const [jdSearchText, setJdSearchText] = useState('');
-  const { jdList, resumes, selectedJdId, selectedJd, setSelectedJdId } = useJdPageData();
+  const [isJdChatOpen, setIsJdChatOpen] = useState(false);
+  const [checklistGenerateQuery, setChecklistGenerateQuery] = useState('');
+  const [checklistGenerateCount, setChecklistGenerateCount] = useState(0);
+  const { jdList, reloadData, resumes, selectedJdId, selectedJd, setSelectedJdId, userProfile } = useJdPageData();
   const {
     addChecklist,
     addJd,
@@ -93,6 +98,10 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     updateChecklist,
   } = useJdMutations(showAlert);
   const isApiKeyMode = Boolean(getStoredApiKey());
+  const analysisCreditCost = getAnalysisCreditCost(userProfile, isApiKeyMode);
+  const analysisCreditText = getAnalysisCreditText(analysisCreditCost, isApiKeyMode);
+  const creditDisabledReason = hasEnoughAnalysisCredit(userProfile, analysisCreditCost) ? undefined : 'Credit이 부족합니다.';
+  const analysisCreditDisplayText = creditDisabledReason ? `${analysisCreditText} · Credit 부족` : analysisCreditText;
   const canCreateJd = !isApiKeyMode;
   const isEmptyJdList = jdList.length === 0;
   const isCreateMode = canCreateJd && (isCreatingJd || isEmptyJdList);
@@ -122,13 +131,14 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         : selectedJd && analysisTargetResume && checklistItems.length === 0
           ? '지원서 분석 전에 JD 체크리스트를 먼저 생성해주세요.'
           : undefined;
-  const combinedAnalysisDisabledReason = analysisDisabledReason ?? checklistAnalysisDisabledReason;
+  const combinedAnalysisDisabledReason = analysisDisabledReason ?? checklistAnalysisDisabledReason ?? creditDisabledReason;
   const canRequestAnalysis = Boolean(
     !isCreateMode &&
       selectedJd &&
       analysisTargetResume &&
       !analyzeJd.isPending &&
-      !checklistAnalysisDisabledReason,
+      !checklistAnalysisDisabledReason &&
+      !creditDisabledReason,
   );
   const filteredJdList = useMemo(() => {
     const filtered = jdList.filter((item) => {
@@ -267,6 +277,14 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       return;
     }
 
+    if (creditDisabledReason) {
+      showAlert({
+        type: 'warning',
+        message: creditDisabledReason,
+      });
+      return;
+    }
+
     if (!analysisTargetResume || checklistAnalysisDisabledReason) {
       showAlert({
         type: 'warning',
@@ -286,7 +304,24 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       return;
     }
 
-    await generateChecklist.mutateAsync(Number(selectedJd.id));
+    await generateChecklist.mutateAsync({
+      jdId: Number(selectedJd.id),
+      query: checklistGenerateQuery,
+      cnt: checklistGenerateCount,
+    });
+  };
+
+  const updateChecklistGenerateCount = (value: number) => {
+    setChecklistGenerateCount(Math.max(0, Math.min(10, Math.trunc(value))));
+  };
+
+  const openJdChat = () => {
+    if (isCreateMode || !selectedJd) {
+      showAlert({ type: 'info', message: '채팅으로 JD를 작성하려면 먼저 JD를 저장해주세요.' });
+      return;
+    }
+
+    setIsJdChatOpen(true);
   };
 
   return (
@@ -297,6 +332,9 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         description="JD 목록과 작성 폼을 좌우로 배치해 저장, 삭제, 분석 요청 흐름을 확인합니다."
         actions={
           <Space wrap>
+            <span className={`analysis-credit-cost${creditDisabledReason ? ' analysis-credit-cost--danger' : ''}`}>
+              {analysisCreditDisplayText}
+            </span>
             <Button
               icon={saveJd.isPending || addJd.isPending ? undefined : <SaveOutlined />}
               disabled={!showEditor || saveJd.isPending || addJd.isPending}
@@ -371,7 +409,22 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
           </SectionCard>
         </Col>
         <Col xs={24} xl={16}>
-          <SectionCard className="scroll-card-body" title="JD 작성/수정">
+          <SectionCard
+            className="scroll-card-body"
+            title="JD 작성/수정"
+            extra={
+              !isApiKeyMode ? (
+                <Button
+                  size="small"
+                  icon={<MessageOutlined />}
+                  disabled={isCreateMode || !selectedJd}
+                  onClick={openJdChat}
+                >
+                  채팅으로 JD 작성
+                </Button>
+              ) : null
+            }
+          >
             {showEditor && editorInitialValues ? (
               <>
                 <JdEditorPanel
@@ -385,6 +438,8 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
                     adding={addChecklist.isPending}
                     deleting={deleteChecklist.isPending}
                     generating={generateChecklist.isPending}
+                    generateCount={checklistGenerateCount}
+                    generateQuery={checklistGenerateQuery}
                     items={checklistItems}
                     jobDescriptionId={Number(selectedJd.id)}
                     loading={checklistQuery.isLoading}
@@ -392,6 +447,8 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
                     onAdd={addChecklist.mutateAsync}
                     onDelete={deleteChecklist.mutateAsync}
                     onGenerate={requestChecklistGeneration}
+                    onGenerateCountChange={updateChecklistGenerateCount}
+                    onGenerateQueryChange={setChecklistGenerateQuery}
                     onUpdate={updateChecklist.mutateAsync}
                   />
                 ) : null}
@@ -407,6 +464,12 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         deleting={deleteJd.isPending}
         onCancel={closeDeleteModal}
         onConfirm={() => void confirmDeleteJd()}
+      />
+      <JdChatDrawer
+        open={isJdChatOpen}
+        selectedJd={!isCreateMode ? selectedJd : null}
+        onClose={() => setIsJdChatOpen(false)}
+        onRefresh={reloadData}
       />
     </div>
   );

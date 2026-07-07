@@ -15,7 +15,7 @@ export type DateTimeString = string;
 
 export type JobDescriptionStatus = 'prepare' | 'on_going' | 'closed';
 
-export type AnalysisReportStatus = 'onqueue' | 'processing' | 'done';
+export type AnalysisReportStatus = 'onqueue' | 'processing' | 'done' | 'fail';
 
 export type StatusCode =
   | JobDescriptionStatus
@@ -120,6 +120,8 @@ export type AnalysisReport = {
   interview_question: InterviewQuestion[];
   status: AnalysisReportStatus;
   created_at: DateTimeString;
+  version?: string | null;
+  user_feedback?: number | null;
 };
 
 export type InterviewQuestion = {

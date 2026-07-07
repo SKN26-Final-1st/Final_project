@@ -115,8 +115,10 @@ export const analysisReportSchema = z.object({
   check_point: stringArraySchema,
   final_comment: z.string(),
   interview_question: z.array(interviewQuestionSchema).default([]),
-  status: z.enum(['onqueue', 'processing', 'done']),
+  status: z.enum(['onqueue', 'processing', 'done', 'fail']),
   created_at: z.string(),
+  version: z.string().nullable().optional(),
+  user_feedback: z.number().nullable().optional(),
 }) satisfies z.ZodType<AnalysisReport>;
 
 export const parseAccount = (value: unknown) => accountSchema.parse(value);

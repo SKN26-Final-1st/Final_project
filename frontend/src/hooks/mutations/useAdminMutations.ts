@@ -48,9 +48,19 @@ export function useAdminMutations(showAlert: ShowAlert) {
     onError: (error) => alertError(showAlert, error),
   });
 
+  const saveAccount = useMutation({
+    mutationFn: apiClient.saveUserProfile,
+    onSuccess: async (response) => {
+      alertSuccess(showAlert, response);
+      await invalidateAppData();
+    },
+    onError: (error) => alertError(showAlert, error),
+  });
+
   return {
     createAuthKey,
     deleteAuthKey,
+    saveAccount,
     saveAuthKey,
   };
 }
