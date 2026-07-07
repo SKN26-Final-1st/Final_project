@@ -1,14 +1,17 @@
+import logging
+
 from celery import shared_task
 from celery import current_app
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 
-from common import analysis_graph
+from common import analysis_graph, checklist_graph
 
-from .models import Account, AnalysisReport, AuthKey, CompanyInfo
+from .models import Account, AnalysisReport, AuthKey, Checklist, CompanyInfo, JobDescription
 
 _CELERY_WORKER_AVAILABLE = None
+logger = logging.getLogger(__name__)
 
 
 def _build_interview_question(report_data):
@@ -73,7 +76,6 @@ def _mark_report_failed(report_id):
         .update(status=AnalysisReport.STATUS_FAIL)
     )
 
-
 def refund_report_credit(account_id=None, api_key_id=None, credit_spent=0):
     if not credit_spent:
         return
@@ -104,6 +106,106 @@ def _handle_report_failure(report_id, account_id=None, api_key_id=None, credit_s
         )
 
 
+def _get_checklist_generation_count(job_description, cnt):
+    checklist_count = job_description.checklists.count()
+    remaining_count = max(0, checklist_graph.CHECKLIST_COUNT - checklist_count)
+    return min(cnt, checklist_graph.CHECKLIST_COUNT) if cnt > 0 else remaining_count
+
+
+def _mark_job_description_checklist_status(job_description_id, status):
+    return JobDescription.objects.filter(id=job_description_id).update(
+        checklist_status=status,
+    )
+
+
+def _save_generated_checklists(job_description, contents, save_limit):
+    valid_contents = [
+        content.strip()
+        for content in contents
+        if isinstance(content, str) and content.strip()
+    ][:save_limit]
+
+    Checklist.objects.bulk_create(
+        [
+            Checklist(job_description=job_description, content=content)
+            for content in valid_contents
+        ]
+    )
+
+
+def generate_and_save_checklists(job_description_id, query="", cnt=0):
+    try:
+        with transaction.atomic():
+            job_description = (
+                JobDescription.objects.select_for_update()
+                .select_related("account")
+                .get(id=job_description_id)
+            )
+            company_info, _ = CompanyInfo.objects.get_or_create(account=job_description.account)
+            generation_count = _get_checklist_generation_count(job_description, cnt)
+
+            job_description.checklist_status = JobDescription.CHECKLIST_STATUS_PROCESSING
+            job_description.save(update_fields=["checklist_status"])
+
+            inputs = {
+                "company": company_info.to_masked_dict(),
+                "jd": job_description.to_masked_dict(),
+                "generation_count": generation_count,
+                "save_limit": generation_count,
+            }
+    except JobDescription.DoesNotExist:
+        logger.info(
+            "Skipped checklist generation because job_description_id=%s no longer exists.",
+            job_description_id,
+        )
+        return []
+    except Exception:
+        _mark_job_description_checklist_status(
+            job_description_id,
+            JobDescription.CHECKLIST_STATUS_FAIL,
+        )
+        raise
+
+    try:
+        if inputs["generation_count"]:
+            generated_contents = checklist_graph.invoke(
+                inputs["company"],
+                inputs["jd"],
+                inputs["generation_count"],
+                user_query=query,
+            )
+        else:
+            generated_contents = []
+
+        with transaction.atomic():
+            job_description = JobDescription.objects.select_for_update().get(id=job_description_id)
+            _save_generated_checklists(
+                job_description,
+                generated_contents,
+                inputs["save_limit"],
+            )
+            job_description.checklist_status = JobDescription.CHECKLIST_STATUS_DONE
+            job_description.save(update_fields=["checklist_status"])
+
+            logger.info(
+                "Generated checklists: %s",
+                generated_contents,
+            )
+            return generated_contents
+    except JobDescription.DoesNotExist:
+        logger.info(
+            "Skipped saving generated checklists because job_description_id=%s no longer exists.",
+            job_description_id,
+        )
+        return []
+    except Exception:
+        _mark_job_description_checklist_status(
+            job_description_id,
+            JobDescription.CHECKLIST_STATUS_FAIL,
+        )
+        raise
+
+
 def analyze_and_save_report(report_id, account_id=None, api_key_id=None, credit_spent=0):
     """Celery/동기 fallback에서 실행되는 리포트 생성 전체 작업입니다."""
 
@@ -130,6 +232,10 @@ def analyze_and_save_report(report_id, account_id=None, api_key_id=None, credit_
                 ),
             }
     except AnalysisReport.DoesNotExist:
+        logger.info(
+            "Skipped report analysis because report_id=%s no longer exists.",
+            report_id,
+        )
         refund_report_credit(
             account_id=account_id,
             api_key_id=api_key_id,
@@ -160,6 +266,10 @@ def analyze_and_save_report(report_id, account_id=None, api_key_id=None, credit_
 
             return report.to_dict()
     except AnalysisReport.DoesNotExist:
+        logger.info(
+            "Skipped saving analysis result because report_id=%s no longer exists.",
+            report_id,
+        )
         refund_report_credit(
             account_id=account_id,
             api_key_id=api_key_id,
@@ -185,4 +295,13 @@ def enqueue_report_analyze(report_id, account_id=None, api_key_id=None, credit_s
         account_id=account_id,
         api_key_id=api_key_id,
         credit_spent=credit_spent,
+    )
+
+
+@shared_task
+def enqueue_jd_checklist_analyze(job_description_id, query="", cnt=0):
+    return generate_and_save_checklists(
+        job_description_id,
+        query=query,
+        cnt=cnt,
     )
