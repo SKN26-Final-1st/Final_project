@@ -7,6 +7,7 @@ import type { AuthKey, Resume } from '../data/backendTypes';
 
 const createAuthKeyMutateAsync = vi.hoisted(() => vi.fn());
 const deleteAuthKeyMutateAsync = vi.hoisted(() => vi.fn());
+const saveAccountMutateAsync = vi.hoisted(() => vi.fn());
 const saveAuthKeyMutateAsync = vi.hoisted(() => vi.fn());
 
 const adminData: AdminData = {
@@ -23,6 +24,8 @@ const adminData: AdminData = {
   },
   credit: {
     expiresAt: '',
+    expiresAtIso: '',
+    isSubscriptionActive: false,
     percent: 0,
     remaining: 1000,
     subscriptionStatus: '활성',
@@ -93,6 +96,7 @@ vi.mock('../hooks/mutations/useAdminMutations', () => ({
   useAdminMutations: () => ({
     createAuthKey: { isPending: false, mutateAsync: createAuthKeyMutateAsync },
     deleteAuthKey: { isPending: false, mutateAsync: deleteAuthKeyMutateAsync },
+    saveAccount: { isPending: false, mutateAsync: saveAccountMutateAsync },
     saveAuthKey: { isPending: false, variables: undefined, mutateAsync: saveAuthKeyMutateAsync },
   }),
 }));
@@ -101,6 +105,7 @@ describe('AdminPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createAuthKeyMutateAsync.mockResolvedValue({ data: { name: '새 키', value: 'sk_live_new' } });
+    saveAccountMutateAsync.mockResolvedValue({});
     saveAuthKeyMutateAsync.mockResolvedValue({});
   });
 
@@ -115,6 +120,14 @@ describe('AdminPage', () => {
 
     expect(screen.getByText('홍길동')).toBeInTheDocument();
     expect(screen.queryByText(/#10/)).not.toBeInTheDocument();
+  });
+
+  it('개발자용 미지원 안내와 플랜 상태 버튼을 노출하지 않는다', () => {
+    render(<AdminPage navigate={vi.fn()} showAlert={vi.fn()} />);
+
+    expect(screen.queryByText(['backend', '미지원', '기능'].join(' '))).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(['backend', 'endpoint'].join(' ')))).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /플랜 상태 보기/ })).not.toBeInTheDocument();
   });
 
   it('JD 전체 선택 후 저장하면 authorized_resume id 배열과 credit_limit을 전달한다', async () => {

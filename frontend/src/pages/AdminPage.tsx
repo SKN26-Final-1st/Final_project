@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Button, Form, Space, Tag } from 'antd';
-import { ApiOutlined, KeyOutlined, SettingOutlined } from '@ant-design/icons';
+import { KeyOutlined, SettingOutlined } from '@ant-design/icons';
 import { AdminCreditPanel } from '../components/admin/AdminCreditPanel';
 import { AdminSummaryCards } from '../components/admin/AdminSummaryCards';
 import { AuthKeyCreateForm, type AuthKeyCreateFormValues } from '../components/admin/AuthKeyCreateForm';
 import { AuthKeyDeleteModal } from '../components/admin/AuthKeyDeleteModal';
 import { AuthKeyList, type AuthKeyAccessGroup } from '../components/admin/AuthKeyList';
 import { CreatedAuthKeyPanel } from '../components/admin/CreatedAuthKeyPanel';
-import { UnsupportedBackendPanel } from '../components/admin/UnsupportedBackendPanel';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
@@ -61,6 +60,22 @@ function createResumeAccessGroups(resumes: Resume[], jdList: JdItem[]): AuthKeyA
   return groups;
 }
 
+function addOneMonth(date: Date) {
+  const nextDate = new Date(date);
+  nextDate.setMonth(nextDate.getMonth() + 1);
+  return nextDate;
+}
+
+function getSubscriptionBaseDate(expiresAtIso: string, isSubscriptionActive: boolean) {
+  const expirationDate = expiresAtIso ? new Date(expiresAtIso) : null;
+
+  if (isSubscriptionActive && expirationDate && !Number.isNaN(expirationDate.getTime())) {
+    return expirationDate;
+  }
+
+  return new Date();
+}
+
 export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [form] = Form.useForm<AuthKeyCreateFormValues>();
   const [authorizedDrafts, setAuthorizedDrafts] = useState<Record<number, number[]>>({});
@@ -68,7 +83,7 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
   const [createdAuthKey, setCreatedAuthKey] = useState<Pick<AuthKey, 'name' | 'value'> | null>(null);
   const [deleteTargetAuthKey, setDeleteTargetAuthKey] = useState<AuthKey | null>(null);
   const { admin, authKeys, jdList, resumes } = useAdminPageData();
-  const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAuthKey } =
+  const { createAuthKey: createAuthKeyMutation, deleteAuthKey: deleteAuthKeyMutation, saveAccount, saveAuthKey } =
     useAdminMutations(showAlert);
   const loadingKey = createAuthKeyMutation.isPending
     ? 'authkey-add'
@@ -76,6 +91,8 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
       ? `authkey-save-${saveAuthKey.variables.id}`
       : deleteAuthKeyMutation.isPending && deleteAuthKeyMutation.variables
         ? `authkey-delete-${deleteAuthKeyMutation.variables}`
+        : saveAccount.isPending
+          ? 'account-save'
         : null;
   const accessGroups = useMemo(() => createResumeAccessGroups(resumes, jdList), [jdList, resumes]);
 
@@ -152,6 +169,26 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
     setDeleteTargetAuthKey(null);
   };
 
+  const rechargeCredit = async (amount: number) => {
+    if (!admin) {
+      return;
+    }
+
+    await saveAccount.mutateAsync({ credit: admin.credit.remaining + amount });
+  };
+
+  const startOrExtendSubscription = async () => {
+    if (!admin) {
+      return;
+    }
+
+    const baseDate = getSubscriptionBaseDate(admin.credit.expiresAtIso, admin.credit.isSubscriptionActive);
+    await saveAccount.mutateAsync({
+      subscribe: true,
+      subscribe_expiration: addOneMonth(baseDate).toISOString(),
+    });
+  };
+
   if (!admin) {
     return <EmptyState description="관리자 데이터를 불러오지 못했습니다." />;
   }
@@ -166,12 +203,6 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
           <Space wrap>
             <Button icon={<SettingOutlined />} onClick={() => navigate('/company')}>
               회사 정보
-            </Button>
-            <Button
-              icon={<ApiOutlined />}
-              onClick={() => showAlert({ type: 'info', message: '플랜/결제 API는 아직 backend에 없습니다.' })}
-            >
-              플랜 상태 보기
             </Button>
           </Space>
         }
@@ -227,8 +258,12 @@ export function AdminPage({ navigate, showAlert }: AdminPageProps) {
         </SectionCard>
 
         <div className="admin-workspace-side">
-          <AdminCreditPanel credit={admin.credit} />
-          <UnsupportedBackendPanel />
+          <AdminCreditPanel
+            credit={admin.credit}
+            loading={saveAccount.isPending}
+            onRecharge={(amount) => void rechargeCredit(amount)}
+            onSubscribe={() => void startOrExtendSubscription()}
+          />
         </div>
       </div>
     </div>
