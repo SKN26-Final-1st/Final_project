@@ -183,6 +183,16 @@ class JobDescription(models.Model):
         (STATUS_ON_GOING, "On going"),
         (STATUS_CLOSED, "Closed"),
     ]
+    CHECKLIST_STATUS_ONQUEUE = "onqueue"
+    CHECKLIST_STATUS_PROCESSING = "processing"
+    CHECKLIST_STATUS_DONE = "done"
+    CHECKLIST_STATUS_FAIL = "fail"
+    CHECKLIST_STATUS_CHOICES = [
+        (CHECKLIST_STATUS_ONQUEUE, "On queue"),
+        (CHECKLIST_STATUS_PROCESSING, "Processing"),
+        (CHECKLIST_STATUS_DONE, "Done"),
+        (CHECKLIST_STATUS_FAIL, "Fail"),
+    ]
 
     id = models.BigAutoField(primary_key=True)
 
@@ -210,6 +220,11 @@ class JobDescription(models.Model):
         choices=STATUS_CHOICES,
         default=STATUS_PREPARE,
     )
+    checklist_status = models.CharField(
+        max_length=30,
+        choices=CHECKLIST_STATUS_CHOICES,
+        default=CHECKLIST_STATUS_DONE,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -233,6 +248,7 @@ class JobDescription(models.Model):
             "hiring_reason": _value_or_empty_string(self.hiring_reason),
             "work_type": _value_or_empty_string(self.work_type),
             "status": _value_or_empty_string(self.status),
+            "checklist_status": _value_or_empty_string(self.checklist_status),
             "created_at": _datetime_to_iso(self.created_at),
             "updated_at": _datetime_to_iso(self.updated_at),
         }

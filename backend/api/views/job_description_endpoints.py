@@ -6,6 +6,11 @@ from django.http import JsonResponse
 from common import checklist_graph
 
 from ..models import Checklist, CompanyInfo, JobDescription
+from ..tasks import (
+    enqueue_jd_checklist_analyze,
+    generate_and_save_checklists,
+    is_celery_worker_available,
+)
 from .columns import JOB_DESCRIPTION_ADD_BLOCKED_FIELDS, JOB_DESCRIPTION_BLOCKED_FIELDS
 from .error_code import error_code
 from .utils import accessible_job_descriptions, editable_model_fields, get_job_description_dicts
@@ -100,14 +105,24 @@ def jd_modify(request):
             return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
 
         if data.get("delete") is True:
+            if job_description.checklist_status == JobDescription.CHECKLIST_STATUS_PROCESSING:
+                return JsonResponse({"error": True, "message": error_code("Checklist is processing.", 407)}, status=400)
+
             job_description_data = job_description.to_dict()
             job_description.delete()
             return JsonResponse({"error": False, "data": job_description_data})
 
+        if data.get("refresh_fail") is True:
+            if job_description.checklist_status == JobDescription.CHECKLIST_STATUS_FAIL:
+                job_description.checklist_status = JobDescription.CHECKLIST_STATUS_DONE
+                job_description.save(update_fields=["checklist_status"])
+
+            return JsonResponse({"error": False, "data": job_description.to_dict()})
+
         job_description_fields = editable_model_fields(job_description, JOB_DESCRIPTION_BLOCKED_FIELDS)
 
         for key, value in data.items():
-            if key == "delete":
+            if key in {"delete", "refresh_fail"}:
                 continue
 
             if key in JOB_DESCRIPTION_BLOCKED_FIELDS:
@@ -219,32 +234,49 @@ def _jd_analyze(request):
         return JsonResponse({"error": True, "message": error_code("Only JobDescription id, query, cnt are allowed.", 402)}, status=400)
 
     try:
-        inputs = _get_jd_analysis_inputs(request, job_description_id, cnt)
+        job_description_queryset = accessible_job_descriptions(request)
     except PermissionError:
         return JsonResponse({"error": True, "message": error_code("User is not authenticated.", 403)}, status=403)
 
-    if inputs is None:
+    try:
+        job_description = job_description_queryset.get(id=job_description_id)
+    except JobDescription.DoesNotExist:
         return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
 
-    if inputs["generation_count"]:
-        generated_contents = checklist_graph.invoke(
-            inputs["company"],
-            inputs["jd"],
-            inputs["generation_count"],
-            user_query=query,
+    if job_description.checklist_status in {
+        JobDescription.CHECKLIST_STATUS_ONQUEUE,
+        JobDescription.CHECKLIST_STATUS_PROCESSING,
+    }:
+        return JsonResponse({"error": True, "message": error_code("Checklist is already processing.", 407)}, status=400)
+
+    job_description.checklist_status = JobDescription.CHECKLIST_STATUS_ONQUEUE
+    job_description.save(update_fields=["checklist_status"])
+
+    if not is_celery_worker_available():
+        generate_and_save_checklists(
+            job_description.id,
+            query=query,
+            cnt=cnt,
         )
-    else:
-        generated_contents = []
 
-    checklists = _save_generated_checklists(
-        inputs["job_description_id"],
-        generated_contents,
-        inputs["save_limit"],
-    )
-    if checklists is None:
-        return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
+        try:
+            job_description = job_description_queryset.get(id=job_description_id)
+        except JobDescription.DoesNotExist:
+            return JsonResponse({"error": True, "message": error_code("JobDescription does not exist.", 400)}, status=400)
 
-    return JsonResponse({"error": False, "data": checklists})
+        return JsonResponse({"error": False, "data": job_description.to_dict()})
+
+    try:
+        enqueue_jd_checklist_analyze.delay(
+            job_description.id,
+            query=query,
+            cnt=cnt,
+        )
+    except Exception:
+        job_description.checklist_status = JobDescription.CHECKLIST_STATUS_FAIL
+        job_description.save(update_fields=["checklist_status"])
+
+    return JsonResponse({"error": False, "data": job_description.to_dict()})
 
 
 def jd_analyze(request):
