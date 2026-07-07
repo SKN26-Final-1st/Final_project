@@ -5,12 +5,14 @@ from typing_extensions import TypedDict
 
 from . import analysis_agent as agents
 from . import feedback_graph
+from . import masking as masking_service
 from .analysis_prompt import (
     VERSION,
     CHECKLIST_FEEDBACK_CRITERIA,
     INTERVIEW_FEEDBACK_CRITERIA,
     REPORT_FEEDBACK_CRITERIA,
 )
+from .utils import mask, unmask
 
 
 ################################################################
@@ -27,6 +29,7 @@ class AnalysisGraphState(TypedDict, total=False):
     jd_dict: dict
     checklist: list[str]
     resume_dict: dict
+    mask_result: dict
     star_resume_dict: dict
     fit_checks: list[dict[str, Any]]
     questions: list[dict[str, Any]]
@@ -87,6 +90,25 @@ def normalize_fit_checks(fit_checks):
         return normalized
 
     raise ValueError("fit_checks는 list 또는 dict 형태여야 합니다.")
+
+
+def mask_inputs_node(state: AnalysisGraphState) -> AnalysisGraphState:
+    input_data = {
+        "company_dict": state["company_dict"],
+        "jd_dict": state["jd_dict"],
+        "resume_dict": state["resume_dict"],
+        "checklist": state["checklist"],
+    }
+    mask_result = masking_service.invoke(input_data)
+    masked_input_data = mask(input_data, mask_result)
+
+    return {
+        "company_dict": masked_input_data["company_dict"],
+        "jd_dict": masked_input_data["jd_dict"],
+        "resume_dict": masked_input_data["resume_dict"],
+        "checklist": masked_input_data["checklist"],
+        "mask_result": mask_result,
+    }
 
 
 def star_analysis_node(state: AnalysisGraphState) -> AnalysisGraphState:
@@ -203,6 +225,7 @@ def finalize_node(state: AnalysisGraphState) -> AnalysisGraphState:
 
     result = dict(state["report"])
     result["question"] = state["questions"]
+    result = unmask(result, state.get("mask_result", {}))
     return {"result": result}
 
 
@@ -223,6 +246,7 @@ def build_graph():
 
     builder = StateGraph(AnalysisGraphState)
 
+    builder.add_node("mask_inputs", mask_inputs_node)
     builder.add_node("star_analysis", star_analysis_node)
     builder.add_node("check_resume_fit", check_resume_fit_node)
     builder.add_node("fit_feedback", fit_feedback_node)
@@ -232,7 +256,8 @@ def build_graph():
     builder.add_node("report_feedback", report_feedback_node)
     builder.add_node("finalize", finalize_node)
 
-    builder.add_edge(START, "star_analysis")
+    builder.add_edge(START, "mask_inputs")
+    builder.add_edge("mask_inputs", "star_analysis")
     builder.add_edge("star_analysis", "check_resume_fit")
     builder.add_edge("check_resume_fit", "fit_feedback")
     builder.add_edge("fit_feedback", "interview_questions")
