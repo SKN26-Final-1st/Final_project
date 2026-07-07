@@ -3,7 +3,7 @@ from typing_extensions import TypedDict
 
 from . import checklist_agent as agents
 from . import masking as masking_service
-from .utils import mask
+from .utils import mask, unmask
 
 
 ################################################################
@@ -95,7 +95,11 @@ def generate_checklist_node(state: ChecklistGraphState) -> ChecklistGraphState:
         checklist_count=state["cnt"],
         user_query=state.get("user_query", ""),
     )
-    return {"checklist": generated}
+    unmasked = unmask(
+        {"checklist": generated},
+        state.get("mask_result", {}),
+    )
+    return {"checklist": unmasked["checklist"]}
 
 
 ################################################################
