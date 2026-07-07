@@ -39,6 +39,24 @@ type BackendChatMessage = {
   message: string;
 };
 
+type JdChatState = {
+  ignored_field?: string[];
+  focus_field?: string;
+  end_chat?: boolean;
+} & Record<string, unknown>;
+
+type JdChatRequest = {
+  jobDescriptionId: number;
+  messages?: ChatMessage[];
+  state?: JdChatState;
+  apiKey?: string;
+};
+
+type JdChatPayload = {
+  response: BackendChatMessage;
+  state: JdChatState;
+};
+
 type DashboardPayload = {
   account: Account;
   company_info: CompanyInfo;
@@ -297,6 +315,39 @@ async function chatRequest(messages: ChatMessage[], apiKey?: string) {
   } satisfies ChatMessage;
 }
 
+async function jdChatRequest({ jobDescriptionId, messages = [], state, apiKey }: JdChatRequest): Promise<JdChatPayload> {
+  const body: Record<string, unknown> = {
+    job_description_id: jobDescriptionId,
+    chat: toBackendChatMessages(messages),
+  };
+
+  if (state) {
+    body.state = state;
+  }
+
+  const payload = await requestAction('jd_chat', body, { apiKey });
+  const response = payload.response;
+  const nextState = payload.state;
+
+  if (!response || typeof response !== 'object') {
+    throw new Error('JD 채팅 응답을 불러오지 못했습니다.');
+  }
+
+  const chatResponse = response as Partial<BackendChatMessage>;
+
+  if (typeof chatResponse.message !== 'string') {
+    throw new Error('JD 채팅 응답 메시지를 불러오지 못했습니다.');
+  }
+
+  return {
+    response: {
+      role: chatResponse.role === 'user' ? 'user' : 'agent',
+      message: chatResponse.message,
+    },
+    state: nextState && typeof nextState === 'object' ? (nextState as JdChatState) : {},
+  };
+}
+
 async function signinRequest(body: {
   username: string;
   password: string;
@@ -426,7 +477,7 @@ function buildRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?: JobD
       title: '모집 공고 미리보기',
       sections: [
         `${companyInfo.company_name || '회사'}의 회사 정보를 기준으로 표시합니다.`,
-        '모집 공고 생성/다운로드는 현재 backend API가 없어 준비중입니다.',
+        '모집 공고 생성과 다운로드 기능은 준비 중입니다.',
       ],
     };
   }
@@ -531,7 +582,7 @@ async function getSharedResumeBundle(resumeId: number, apiKey: string) {
 }
 
 function unsupportedBackendFeature(featureName: string): never {
-  throw new Error(`${featureName}은 현재 backend API가 없어 준비중입니다.`);
+  throw new Error(`${featureName}은 준비 중입니다.`);
 }
 
 export const apiClient = {
@@ -743,6 +794,18 @@ export const apiClient = {
   ): Promise<ApiResponse<ChatMessage>> => {
     const chatMessages = messages.length ? messages : [{ role: 'user', text: question } satisfies ChatMessage];
     return toApiResponse('AI 응답이 추가되었습니다.', await chatRequest(chatMessages, apiKey));
+  },
+
+  sendJdChatMessage: async (request: JdChatRequest) => {
+    const payload = await jdChatRequest(request);
+
+    return toApiResponse('JD 채팅 응답을 추가했습니다.', {
+      response: {
+        role: payload.response.role === 'user' ? 'user' : 'assistant',
+        text: payload.response.message,
+      } satisfies ChatMessage,
+      state: payload.state,
+    });
   },
 
   saveUserProfile: async (body: AccountModifyBody = {}) => {
