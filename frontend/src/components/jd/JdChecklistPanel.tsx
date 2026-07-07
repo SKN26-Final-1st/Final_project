@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Button, Input, InputNumber } from 'antd';
+import { Alert, Button, Input, InputNumber, Tag } from 'antd';
 import { FileSearchOutlined } from '@ant-design/icons';
 import { DestructiveConfirmModal } from '../common/DestructiveConfirmModal';
 import { InlineLoading } from '../common/InlineLoading';
-import type { Checklist } from '../../data/backendTypes';
+import type { Checklist, JobDescriptionChecklistStatus } from '../../data/backendTypes';
 
 type ChecklistAddPayload = {
   job_description_id: number;
@@ -25,19 +25,46 @@ type JdChecklistPanelProps = {
   generating: boolean;
   generateCount: number;
   generateQuery: string;
+  generateBlockedReason?: string;
   items: Checklist[];
   jobDescriptionId: number;
   loading: boolean;
+  checklistStatus?: JobDescriptionChecklistStatus;
+  refreshingFailure?: boolean;
   updating: boolean;
   onAdd: (payload: ChecklistAddPayload) => Promise<unknown>;
   onDelete: (payload: ChecklistDeletePayload) => Promise<unknown>;
   onGenerate: () => Promise<unknown>;
   onGenerateCountChange: (value: number) => void;
   onGenerateQueryChange: (value: string) => void;
+  onRefreshFailure?: () => Promise<unknown>;
   onUpdate: (payload: ChecklistUpdatePayload) => Promise<unknown>;
 };
 
 const CHECKLIST_REQUIRED_MESSAGE = '체크리스트 내용을 입력하세요.';
+
+const CHECKLIST_STATUS_LABEL: Record<JobDescriptionChecklistStatus, string> = {
+  done: '체크리스트 준비됨',
+  onqueue: '생성 대기',
+  processing: '생성 중',
+  fail: '생성 실패',
+};
+
+function getChecklistStatusDescription(status: JobDescriptionChecklistStatus) {
+  if (status === 'onqueue') {
+    return '체크리스트 생성 요청이 대기 중입니다.';
+  }
+
+  if (status === 'processing') {
+    return '체크리스트를 생성하는 중입니다. 완료되면 목록이 갱신됩니다.';
+  }
+
+  if (status === 'fail') {
+    return '이전 체크리스트 생성 요청이 실패했습니다. 확인 후 상태를 초기화하면 다시 요청할 수 있습니다.';
+  }
+
+  return '';
+}
 
 function normalizeContent(value: string) {
   return value.trim();
@@ -49,15 +76,19 @@ export function JdChecklistPanel({
   generating,
   generateCount,
   generateQuery,
+  generateBlockedReason,
   items,
   jobDescriptionId,
   loading,
+  checklistStatus = 'done',
+  refreshingFailure = false,
   updating,
   onAdd,
   onDelete,
   onGenerate,
   onGenerateCountChange,
   onGenerateQueryChange,
+  onRefreshFailure,
   onUpdate,
 }: JdChecklistPanelProps) {
   const [newContent, setNewContent] = useState('');
@@ -125,22 +156,44 @@ export function JdChecklistPanel({
     setDeleteTarget(null);
   };
 
+  const hasStatusNotice = checklistStatus !== 'done';
+  const isGenerateDisabled = generating || Boolean(generateBlockedReason);
+
   return (
     <section className="jd-checklist-panel">
       <div className="jd-checklist-panel-head">
         <div>
           <h3>JD 체크리스트</h3>
           <span className="muted">선택한 JD 기준 항목</span>
+          {checklistStatus !== 'done' ? <Tag className="jd-checklist-status-tag">{CHECKLIST_STATUS_LABEL[checklistStatus]}</Tag> : null}
         </div>
         <Button
           size="small"
           icon={<FileSearchOutlined />}
-          disabled={generating}
+          disabled={isGenerateDisabled}
+          title={generateBlockedReason}
           onClick={() => void onGenerate()}
         >
           {generating ? <InlineLoading label="생성 중" /> : '체크리스트 분석 요청'}
         </Button>
       </div>
+
+      {hasStatusNotice ? (
+        <Alert
+          className="jd-checklist-status-alert"
+          type={checklistStatus === 'fail' ? 'warning' : 'info'}
+          showIcon
+          message={CHECKLIST_STATUS_LABEL[checklistStatus]}
+          description={getChecklistStatusDescription(checklistStatus)}
+          action={
+            checklistStatus === 'fail' && onRefreshFailure ? (
+              <Button size="small" loading={refreshingFailure} onClick={() => void onRefreshFailure()}>
+                확인했습니다
+              </Button>
+            ) : null
+          }
+        />
+      ) : null}
 
       <div className="jd-checklist-generate-controls">
         <Input

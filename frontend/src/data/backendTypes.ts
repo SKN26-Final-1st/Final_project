@@ -15,6 +15,8 @@ export type DateTimeString = string;
 
 export type JobDescriptionStatus = 'prepare' | 'on_going' | 'closed';
 
+export type JobDescriptionChecklistStatus = 'onqueue' | 'processing' | 'done' | 'fail';
+
 export type AnalysisReportStatus = 'onqueue' | 'processing' | 'done' | 'fail';
 
 export type StatusCode =
@@ -73,6 +75,7 @@ export type JobDescription = {
   hiring_reason: string;
   work_type: string;
   status: JobDescriptionStatus;
+  checklist_status: JobDescriptionChecklistStatus;
   created_at: DateTimeString;
   updated_at: DateTimeString;
 };

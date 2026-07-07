@@ -129,6 +129,7 @@ type JobDescriptionAddBody = {
 type JobDescriptionModifyBody = Partial<JobDescriptionAddBody> & {
   id: number;
   delete?: boolean;
+  refresh_fail?: boolean;
 };
 
 type ResumeAddBody = Partial<
@@ -628,9 +629,9 @@ export const apiClient = {
       body.cnt = Math.max(0, Math.min(10, Math.trunc(options.cnt)));
     }
 
-    const data = parseChecklists(await requestBackend<Checklist[]>('jd/analyze', body, { apiKey }));
+    const data = parseJobDescription(await requestBackend<JobDescription>('jd/analyze', body, { apiKey }));
 
-    return toApiResponse('체크리스트를 생성했습니다.', data);
+    return toApiResponse('체크리스트 생성 요청을 보냈습니다.', data);
   },
 
   addChecklist: async (body: ChecklistAddBody, apiKey?: string) => {
@@ -737,6 +738,14 @@ export const apiClient = {
     const data = parseJobDescription(await requestBackend<JobDescription>('jd/modify', body, { apiKey }));
 
     return toApiResponse('JD를 저장했습니다.', data);
+  },
+
+  refreshJdChecklistFailure: async (id: number, apiKey?: string) => {
+    const data = parseJobDescription(
+      await requestBackend<JobDescription>('jd/modify', { id, refresh_fail: true }, { apiKey }),
+    );
+
+    return toApiResponse('체크리스트 실패 상태를 확인했습니다.', data);
   },
 
   deleteJobDescription: async (id: number, apiKey?: string) => {

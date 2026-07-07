@@ -1,4 +1,10 @@
-import type { AnalysisReport, JobDescription, Resume, StatusCode } from '../../data/backendTypes';
+import type {
+  AnalysisReport,
+  JobDescription,
+  JobDescriptionChecklistStatus,
+  Resume,
+  StatusCode,
+} from '../../data/backendTypes';
 
 export type JdItem = {
   id: string;
@@ -6,6 +12,7 @@ export type JdItem = {
   team: string;
   status: string;
   statusCode: StatusCode;
+  checklistStatus: JobDescriptionChecklistStatus;
   fit: number;
   stack: string[];
   preferredStack: string[];
@@ -90,6 +97,7 @@ export function mapJdList(data: JobDescription[], resumes: Resume[], analysisRep
     team: `${item.education_level} · ${item.career_level}`,
     status: JOB_STATUS_LABEL[item.status],
     statusCode: item.status,
+    checklistStatus: item.checklist_status,
     fit: getJobFit(item, resumes, analysisReports),
     stack: toStringList(item.required_skill),
     preferredStack: toStringList(item.preferred_skill),
