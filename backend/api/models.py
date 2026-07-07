@@ -125,6 +125,7 @@ class CompanyInfo(models.Model):
 
     def to_masked_dict(self):
         return {
+            "company_name": _value_or_empty_string(self.company_name),
             "employee_count": _value_or_zero(self.employee_count),
             "team_composition": _value_or_empty_list(self.team_composition),
             "company_description": _value_or_empty_string(self.company_description),
@@ -350,6 +351,7 @@ class Resume(models.Model):
 
     def to_masked_dict(self):
         return {
+            "name": _value_or_empty_string(self.name),
             "skill": _value_or_empty_list(self.skill),
             "education_level": _value_or_empty_dict(self.education_level),
             "experience": _value_or_empty_list(self.experience),
