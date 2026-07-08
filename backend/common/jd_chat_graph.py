@@ -267,17 +267,20 @@ def field_intent_node(state: GraphState) -> GraphState:
 def guide_node(state: GraphState) -> GraphState:
     focus_field = state.get("focus_field", "")
     focus_label = FIELD_LABELS.get(focus_field, focus_field)
+    latest_user_chat = _latest_user_chat(_as_list(state.get("chats")))
+    latest_user_message = ""
+    if isinstance(latest_user_chat, dict):
+        latest_user_message = str(latest_user_chat.get("message", ""))
+
     guide_input = {
         "jd": state.get("jd", {}),
         "comp_info": state.get("comp_info", {}),
         "focus_field": focus_field,
         "focus_label": focus_label,
+        "user_message": latest_user_message,
     }
 
-    mask_result = masking_service.invoke({
-        "jd": guide_input["jd"],
-        "comp_info": guide_input["comp_info"],
-    })
+    mask_result = masking_service.invoke(guide_input)
     masked_input = mask(guide_input, mask_result)
     masked_response = agents.invoke_guide_response_node(masked_input)
     guide_response = unmask({"response": masked_response}, mask_result)["response"]
@@ -381,6 +384,9 @@ def route_from_focus_intent(state: GraphState) -> RouteFromFocusIntent:
 
 
 def route_from_field_intent(state: GraphState) -> RouteFromFieldIntent:
+    if state.get("focus_field") == "employee_count" and state.get("extracted_value") == -1:
+        return "guide"
+
     if _is_empty_value(state.get("extracted_value")):
         return "guide"
 
