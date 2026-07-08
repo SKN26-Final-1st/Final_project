@@ -1,0 +1,9 @@
+metric,no_mask_avg,masked_avg,delta_masked_minus_no_mask,no_mask_min,masked_min
+source_fidelity,5.0,4.0,-1.0,5.0,4.0
+critical_information_retention,5.0,4.0,-1.0,5.0,4.0
+coverage,5.0,4.0,-1.0,5.0,4.0
+hallucination_control,5.0,4.0,-1.0,5.0,4.0
+report_quality,5.0,4.0,-1.0,5.0,4.0
+question_quality,5.0,4.0,-1.0,5.0,4.0
+entity_recovery,5.0,3.3333333333333335,-1.6666666666666665,5.0,3.0
+total_score,5.0,3.8066666666666666,-1.1933333333333334,5.0,3.71
