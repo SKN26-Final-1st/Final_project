@@ -13,9 +13,8 @@ from .analysis_prompt import (
     INTERVIEW_QUESTION_USER_PROMPT,
     REPORT_SYSTEM_PROMPT,
     REPORT_USER_PROMPT,
-    star_analysis_prompt,
-    star_analysis_user_prompt,
 )
+from . import star_analysis as star_analysis_service
 from .utils import load_env
 
 load_env()
@@ -66,27 +65,6 @@ def _get_self_intro_key(resume_summary):
     return None
 
 
-def _extract_self_intro_items(self_intro):
-    items = []
-    for index, item in enumerate(self_intro):
-        if isinstance(item, dict):
-            answer = item.get("answer") or item.get("content") or item.get("description") or ""
-            question = item.get("question") or item.get("title") or ""
-        else:
-            answer = str(item)
-            question = ""
-
-        if str(answer).strip():
-            items.append(
-                {
-                    "index": index,
-                    "question": question,
-                    "answer": answer,
-                }
-            )
-    return items
-
-
 def _normalize_checklist(checklist):
     if hasattr(checklist, "checklist") and isinstance(checklist.checklist, list):
         return checklist.checklist
@@ -117,64 +95,40 @@ def _normalize_checklist(checklist):
 ################################################################
 
 
-class SelfIntroStarAnalysisItem(BaseModel):
-    """자기소개서 답변 1개에 대한 STAR 분석 결과입니다."""
-
-    index: int = Field(description="입력 자기소개서 항목의 index")
-    s: str = Field(description="Situation: 답변에 드러난 상황 또는 배경")
-    t: str = Field(description="Task: 지원자가 해결해야 했던 과제 또는 목표")
-    a: str = Field(description="Action: 지원자가 실제로 취한 행동")
-    r: str = Field(description="Result: 행동의 결과 또는 변화")
-
-
-class SelfIntroStarAnalysisStructure(BaseModel):
-    """자기소개서 답변 목록에 대한 STAR 분석 응답 스키마입니다."""
-
-    analyses: List[SelfIntroStarAnalysisItem] = Field(
-        description="입력 자기소개서 항목 수와 같은 STAR 분석 결과 목록"
-    )
-    original_quality: str = Field(
-        description="STAR 분석 전 자기소개서 원문의 전반적인 작성 품질과 과대평가 위험"
-    )
-
-
-star_analysis_node = None
-
-
 def invoke_star_analysis_node(resume_summary: Any):
-    global star_analysis_node
-
     self_intro_key = _get_self_intro_key(resume_summary)
     if not self_intro_key:
         return resume_summary
 
     self_intro = resume_summary.get(self_intro_key) or []
-    star_inputs = _extract_self_intro_items(self_intro)
-    if not star_inputs:
+    result = star_analysis_service.invoke(self_intro)
+    if not isinstance(result, dict):
         return resume_summary
 
-    if star_analysis_node is None:
-        star_analysis_node = _make_llm(SelfIntroStarAnalysisStructure)
-
-    context_json = json.dumps({"self_introduction": star_inputs}, ensure_ascii=False, indent=2)
-    result = invoke_agent(
-        star_analysis_node,
-        star_analysis_prompt,
-        [star_analysis_user_prompt.format(context_json=context_json)],
-    )
     analysis_by_index = {
-        item.index: {
-            "s": item.s.strip(),
-            "t": item.t.strip(),
-            "a": item.a.strip(),
-            "r": item.r.strip(),
+        item["index"]: {
+            "s": item["s"].strip(),
+            "t": item["t"].strip(),
+            "a": item["a"].strip(),
+            "r": item["r"].strip(),
         }
-        for item in result.analyses
+        for item in result.get("analyses", [])
         if (
-            isinstance(item.index, int)
-            and any((item.s.strip(), item.t.strip(), item.a.strip(), item.r.strip()))
+            isinstance(item, dict)
+            and isinstance(item.get("index"), int)
+            and any(
+                (
+                    item.get("s", "").strip(),
+                    item.get("t", "").strip(),
+                    item.get("a", "").strip(),
+                    item.get("r", "").strip(),
+                )
+            )
         )
     }
+
+    if not analysis_by_index:
+        return resume_summary
 
     updated_resume = deepcopy(resume_summary)
     updated_self_intro = deepcopy(self_intro)
@@ -199,7 +153,7 @@ def invoke_star_analysis_node(resume_summary: Any):
             }
 
     updated_resume[self_intro_key] = updated_self_intro
-    updated_resume["original_quality"] = result.original_quality.strip()
+    updated_resume["original_quality"] = result.get("original_quality", "").strip()
     return updated_resume
 
 

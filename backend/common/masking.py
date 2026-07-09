@@ -135,7 +135,7 @@ def invoke_openai(data):
     ).model_dump()
 
 
-RUNPOD_ENDPOINT_ID = os.environ.get("RUNPOD_ENDPOINT_ID")
+RUNPOD_ENDPOINT_ID = os.environ.get("RUNPOD_MASKING_ENDPOINT_ID")
 RUNPOD_API_KEY = os.environ.get("RUNPOD_API_KEY")
 
 def invoke_runpod(data):
