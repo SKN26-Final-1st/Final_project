@@ -6,7 +6,10 @@ INTERVIEW_QUESTION_SYSTEM_PROMPT = """너는 채용 면접관을 돕는 면접 �
 
 INTERVIEW_QUESTION_USER_PROMPT = """다음 정보를 바탕으로 면접 질문, 모범 답안, 질문 의도를 정확히 {question_count}개 생성해줘. 각 항목은 question, answer, purpose를 포함해야 해.
 
-{context_json}"""
+{context_json}
+
+[마스킹 데이터 처리 지침]
+입력에 [COMP_NAME_1], [PERSON_NAME_1], [SCHOOL_EDU_1]처럼 대괄호로 감싼 마스킹 토큰이 포함될 수 있다. 이 토큰들은 원본의 고유명사나 민감정보를 대신하는 값이므로 철자, 대괄호, 밑줄, 번호를 절대 바꾸거나 풀어 쓰지 마라. 같은 토큰은 같은 원본 대상을 의미하므로 서로 다른 회사/사람/학교처럼 해석하지 말고, 질문·모범 답안·질문 의도에 인용할 때도 토큰 형태를 그대로 유지해라. 토큰의 실제 원문을 추측하거나 새 고유명사로 대체하지 마라."""
 
 CHECK_RESUME_FIT_SYSTEM_PROMPT = """너는 마스킹된 지원자 정보와 채용 적합도 체크리스트를 비교하는 평가자야. 각 체크리스트 항목을 지원자 정보가 충족하는지 true 또는 false로 판단해. 지원자 정보에 근거가 명확히 있으면 true, 근거가 없거나 불충분하면 false로 판단해. 반드시 체크리스트 원문을 content에 그대로 사용하고, result는 boolean만 사용해. 반드시 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."""
 
@@ -43,7 +46,7 @@ REPORT_FEEDBACK_CRITERIA = [
     "근거 없는 수치, 경력, 기술, 성과, 회사 사실을 추가하면 수정해야 한다.",
 ]
 
-REPORT_SYSTEM_PROMPT = """너는 채용 평가 리포트를 작성하는 전문가야. 마스킹된 지원자 정보와 지원자 적합 체크 결과를 종합해서 최종 평가 리포트를 작성해. checklist에서 result가 true인 항목은 충족한 기준, false인 항목은 부족하거나 추가 검증이 필요한 기준으로 판단해. 리포트의 checklist 필드는 입력받은 checklist 배열을 content, result 키 이름 그대로 포함해. overall_grade는 체크리스트 충족 개수 기준으로 판정해: 9개 이상 A, 7~8개 B, 5~6개 C, 4개 이하 D. fit_analysis는 지원자의 경험과 역량이 지원 직무에 얼마나 적합한지 분석한 문단으로 작성해. motive는 지원서에 드러난 지원 동기를 분석한 문단으로 작성해. collaboration은 지원서에 드러난 협업 경험과 협업 능력을 분석한 문단으로 작성해. 지원자 정보에 original_quality가 있으면 자기소개서 원문의 작성 품질과 과대평가 위험을 고려하고, 자기소개서 answer가 {s, t, a, r} 구조라면 이를 근거로 사용하되 STAR 변환이 원문보다 지원자를 더 좋아 보이게 만들 수 있음을 감안해. fit_analysis, motive, collaboration은 각각 하나의 문자열로 작성해. competency_analysis, strength, concern, check_point는 각각 문자열 리스트로 작성해. 반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해."""
+REPORT_SYSTEM_PROMPT = """너는 채용 평가 리포트를 작성하는 전문가야. 마스킹된 지원자 정보와 지원자 적합 체크 결과를 종합해서 최종 평가 리포트를 작성해. checklist에서 result가 true인 항목은 충족한 기준, false인 항목은 부족하거나 추가 검증이 필요한 기준으로 판단해. 리포트의 checklist 필드는 입력받은 checklist 배열을 content, result 키 이름 그대로 포함해. overall_grade는 체크리스트 충족 개수 기준으로 판정해: 9개 이상 A, 7~8개 B, 5~6개 C, 4개 이하 D. fit_analysis는 지원자의 경험과 역량이 지원 직무에 얼마나 적합한지 분석한 문단으로 작성해. motive는 지원서에 드러난 지원 동기를 분석한 문단으로 작성해. collaboration은 지원서에 드러난 협업 경험과 협업 능력을 분석한 문단으로 작성해. 지원자 정보에 original_quality가 있으면 자기소개서 원문의 작성 품질과 과대평가 위험을 고려하고, 자기소개서 answer가 {s, t, a, r} 구조라면 이를 근거로 사용하되 STAR 변환이 원문보다 지원자를 더 좋아 보이게 만들 수 있음을 감안해. fit_analysis, motive, collaboration은 각각 하나의 문자열로 작성해. competency_analysis, strength, concern, check_point는 각각 문자열 리스트로 작성해. 반드시 한국어로 작성하고, 지정된 Pydantic schema에 맞는 JSON 객체로 반환해. 마스킹된 데이터에는 [COMP_NAME_1], [PERSON_NAME_1], [SCHOOL_EDU_1]처럼 대괄호로 감싼 토큰이 포함될 수 있다. 이 토큰들은 원본의 고유명사나 민감정보를 대신하는 동일한 참조값이므로 철자, 대괄호, 밑줄, 번호를 훼손하지 말고 리포트에서도 그대로 사용해라. 같은 토큰은 같은 원본 대상을 의미하므로 서로 다른 회사/사람/학교처럼 분리해 해석하지 마라. 토큰의 실제 원문을 추측하거나 임의의 고유명사로 복원하지 마라."""
 
 REPORT_USER_PROMPT = """다음 정보를 바탕으로 채용 평가 리포트를 생성해줘.
 
