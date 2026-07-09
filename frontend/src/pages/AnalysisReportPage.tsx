@@ -36,6 +36,7 @@ type ReportEditFormValues = {
   concern: string;
   check_point: string;
   final_comment: string;
+  review_text: string;
 };
 
 const REPORT_SEARCH_SUGGESTIONS = [
@@ -195,6 +196,7 @@ function reportEditInitialValues(report: AnalysisReport): ReportEditFormValues {
     concern: toTextareaValue(report.concern),
     check_point: toTextareaValue(report.check_point),
     final_comment: report.final_comment,
+    review_text: report.review_text ?? '',
   };
 }
 
@@ -212,6 +214,7 @@ function reportEditPayload(id: number, values: ReportEditFormValues) {
     concern: toTextareaList(values.concern),
     check_point: toTextareaList(values.check_point),
     final_comment: values.final_comment.trim(),
+    review_text: values.review_text.trim(),
   };
 }
 
@@ -385,6 +388,7 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
           report.motive,
           report.collaboration,
           report.final_comment,
+          report.review_text,
           toList(report.check_point).join(' '),
           toList(report.concern).join(' '),
           questionText,
@@ -792,6 +796,13 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                                     placeholder="최종 코멘트를 입력하세요"
                                   />
                                 </Form.Item>
+                                <Form.Item label="검토 의견" name="review_text">
+                                  <Input.TextArea
+                                    aria-label="검토 의견 수정"
+                                    autoSize={{ minRows: 3, maxRows: 7 }}
+                                    placeholder="검토 의견을 입력하세요"
+                                  />
+                                </Form.Item>
                               </div>
                             </Form>
                           ) : (
@@ -877,6 +888,10 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
                               <section className="analysis-report-section">
                                 <h3>최종 코멘트</h3>
                                 <p>{displaySelectedItem.report.final_comment || '최종 코멘트가 없습니다.'}</p>
+                              </section>
+                              <section className="analysis-report-section">
+                                <h3>검토 의견</h3>
+                                <p>{displaySelectedItem.report.review_text || '검토 의견이 없습니다.'}</p>
                               </section>
                             </>
                           )}

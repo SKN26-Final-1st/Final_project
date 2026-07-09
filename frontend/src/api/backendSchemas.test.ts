@@ -98,6 +98,7 @@ describe('backendSchemas', () => {
           concern: [],
           check_point: [],
           final_comment: '',
+          review_text: '검토 의견 메모',
           interview_question: [],
           status: 'done',
           created_at: '2026-06-24T00:00:00+09:00',
@@ -107,6 +108,7 @@ describe('backendSchemas', () => {
       fit_analysis: 'JD 적합도가 높습니다.',
       motive: '지원 동기가 구체적입니다.',
       collaboration: '협업 경험을 확인합니다.',
+      review_text: '검토 의견 메모',
       status: 'done',
       created_at: '2026-06-24T00:00:00+09:00',
     });

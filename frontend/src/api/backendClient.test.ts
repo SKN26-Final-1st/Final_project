@@ -36,6 +36,7 @@ const queuedReport = {
   concern: [],
   check_point: [],
   final_comment: '',
+  review_text: '검토 의견 메모',
   interview_question: [],
   status: 'onqueue',
   created_at: '2026-06-24T00:00:00+09:00',
@@ -112,7 +113,7 @@ describe('backendClient', () => {
     });
   });
 
-  test('failed resume analysis preserves status, version, and user feedback fields', async () => {
+  test('failed resume analysis preserves status, version, user feedback, and review text fields', async () => {
     server.use(
       http.post('/api/resume/get/', () => HttpResponse.json({ error: false, data: [resumeWithoutStatus] })),
       http.post('/api/resume/analyze/', () =>
@@ -131,6 +132,7 @@ describe('backendClient', () => {
           status: 'fail',
           version: 'analysis-graph-v2',
           user_feedback: 4,
+          review_text: '검토 의견 메모',
         },
       },
     });

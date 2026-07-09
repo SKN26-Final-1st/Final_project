@@ -120,6 +120,7 @@ export type AnalysisReport = {
   concern: string[];
   check_point: string[];
   final_comment: string;
+  review_text?: string | null;
   interview_question: InterviewQuestion[];
   status: AnalysisReportStatus;
   created_at: DateTimeString;
