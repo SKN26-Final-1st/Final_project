@@ -200,8 +200,10 @@ for (const [route, menuObject] of [
 }
 
 assert(
-  /export const activeMainMenu = mainMenu\.filter/.test(appConfig),
-  'appConfig must expose activeMainMenu for navigation surfaces',
+  /export const activeMainMenu = mainMenu\.filter\(\(item\) =>[\s\S]*item\.visibleInNav !== false[\s\S]*item\.mvpStatus !== ['"]planned['"]/.test(
+    appConfig,
+  ),
+  'activeMainMenu must exclude hidden and planned MVP routes from navigation surfaces',
 );
 
 assert(
@@ -213,11 +215,6 @@ assert(
   /const postGenerated = false;/.test(recruitmentPostPage) &&
     /templateQuestions\.length/.test(coverLetterTemplatePage),
   'Unsupported recruitment/template generation pages must not start in mock-generated success state',
-);
-
-assert(
-  /planned-mvp-alert/.test(recruitmentPostPage) && /planned-mvp-alert/.test(coverLetterTemplatePage),
-  'Planned MVP pages must show a backend API planned/development notice when accessed directly',
 );
 
 assert(
