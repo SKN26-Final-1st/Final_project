@@ -115,6 +115,7 @@ export const analysisReportSchema = z.object({
   concern: stringArraySchema,
   check_point: stringArraySchema,
   final_comment: z.string(),
+  review_text: z.string().nullable().optional(),
   interview_question: z.array(interviewQuestionSchema).default([]),
   status: z.enum(['onqueue', 'processing', 'done', 'fail']),
   created_at: z.string(),

@@ -7,13 +7,13 @@ const ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS = 3000;
 
 function hasActiveAnalysisReport(data: AppData | undefined) {
   return Boolean(
-    data?.analysisReports.some((report) => report.status === 'onqueue' || report.status === 'processing'),
+    data?.analysisReports?.some((report) => report.status === 'onqueue' || report.status === 'processing'),
   );
 }
 
 function hasActiveChecklistGeneration(data: AppData | undefined) {
   return Boolean(
-    data?.jdList.some((job) => job.checklistStatus === 'onqueue' || job.checklistStatus === 'processing'),
+    data?.jdList?.some((job) => job.checklistStatus === 'onqueue' || job.checklistStatus === 'processing'),
   );
 }
 

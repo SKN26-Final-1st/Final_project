@@ -22,6 +22,14 @@ function makeQuery(statuses: Array<'onqueue' | 'processing' | 'done' | 'fail'>) 
   } as Parameters<ReturnType<typeof getRefetchInterval>>[0];
 }
 
+function makePartialQuery(data: Record<string, unknown>) {
+  return {
+    state: {
+      data,
+    },
+  } as Parameters<ReturnType<typeof getRefetchInterval>>[0];
+}
+
 describe('appDataQueryOptions', () => {
   test('polls while an analysis report is queued or processing', () => {
     const refetchInterval = getRefetchInterval(appDataQueryOptions());
@@ -41,5 +49,12 @@ describe('appDataQueryOptions', () => {
     const refetchInterval = getRefetchInterval(appDataQueryOptions());
 
     expect(refetchInterval(makeQuery(['fail']))).toBe(false);
+  });
+
+  test('does not throw when app data omits polling collections', () => {
+    const refetchInterval = getRefetchInterval(appDataQueryOptions());
+
+    expect(refetchInterval(makePartialQuery({ jdList: [] }))).toBe(false);
+    expect(refetchInterval(makePartialQuery({ analysisReports: [] }))).toBe(false);
   });
 });

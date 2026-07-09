@@ -157,9 +157,11 @@ export default function App() {
       case '/mypage':
         return (
           <MyPage
+            authMode={authMode}
             loadingKey={loadingKey}
             navigate={navigate}
             runApiAction={runApiAction}
+            setIsAuthenticated={setIsAuthenticated}
           />
         );
       case '/recruitment-post':

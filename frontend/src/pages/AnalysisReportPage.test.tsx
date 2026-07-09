@@ -70,6 +70,7 @@ const report: AnalysisReport = {
   concern: ['우려 1', '우려 2', '우려 3'],
   check_point: ['포인트 1', '포인트 2', '포인트 3'],
   final_comment: '최종 코멘트',
+  review_text: '검토 의견 메모',
   interview_question: [
     { id: 1, resume_id: 1, question: '질문 1', answer: '답변 1', purpose: '의도 1' },
     { id: 2, resume_id: 1, question: '질문 2', answer: '답변 2', purpose: '의도 2' },
@@ -123,6 +124,7 @@ const secondReport: AnalysisReport = {
   resume_id: 2,
   overall_grade: 'B',
   overall_summary: '백엔드 요약',
+  review_text: '',
   concern: [],
   check_point: [],
   interview_question: [{ id: 5, resume_id: 2, question: 'Django 질문', answer: '답변', purpose: '의도' }],
@@ -154,6 +156,7 @@ const thirdReport: AnalysisReport = {
   resume_id: 3,
   overall_grade: 'C',
   overall_summary: '운영 요약',
+  review_text: '',
   concern: ['운영 우려'],
   check_point: ['운영 확인'],
   interview_question: [],
@@ -185,6 +188,7 @@ const fourthReport: AnalysisReport = {
   resume_id: 4,
   overall_grade: 'A',
   overall_summary: '데이터 요약',
+  review_text: '',
   concern: [],
   check_point: [],
   interview_question: [],
@@ -225,6 +229,7 @@ const processingReport: AnalysisReport = {
   concern: [],
   check_point: [],
   final_comment: '',
+  review_text: '',
   interview_question: [],
   status: 'processing',
   created_at: '2026-06-24T00:00:00+09:00',
@@ -317,6 +322,7 @@ describe('AnalysisReportPage', () => {
 
     expect(screen.getByText('지원 동기 분석')).toBeInTheDocument();
     expect(screen.getByText('협업 방식 분석')).toBeInTheDocument();
+    expect(screen.getByText('검토 의견 메모')).toBeInTheDocument();
     expect(screen.queryByLabelText('리포트 등급 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('리포트 JD 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('리포트 정렬')).not.toBeInTheDocument();
@@ -325,6 +331,12 @@ describe('AnalysisReportPage', () => {
 
     expect(screen.getByRole('treeitem', { name: /김백엔드/ })).toBeInTheDocument();
     expect(screen.queryByRole('treeitem', { name: /홍길동/ })).not.toBeInTheDocument();
+
+    await user.clear(screen.getByPlaceholderText('지원자, JD, 질문 검색'));
+    await user.type(screen.getByPlaceholderText('지원자, JD, 질문 검색'), '검토 의견 메모');
+
+    expect(screen.getByRole('treeitem', { name: /홍길동/ })).toBeInTheDocument();
+    expect(screen.queryByRole('treeitem', { name: /김백엔드/ })).not.toBeInTheDocument();
   });
 
   it('지원자 하위에 여러 리포트를 트리로 보여주고 reportId 단위로 선택한다', async () => {
@@ -353,11 +365,20 @@ describe('AnalysisReportPage', () => {
     const summaryInput = screen.getByLabelText('전체 평가 요약 수정');
     await user.clear(summaryInput);
     await user.type(summaryInput, '수정한 전체 요약');
+    const reviewTextInput = screen.getByLabelText('검토 의견 수정');
+    await user.clear(reviewTextInput);
+    await user.type(reviewTextInput, '수정한 검토 의견');
     await user.click(screen.getByRole('button', { name: /리포트 저장/ }));
 
     expect(saveReport).toHaveBeenCalledTimes(1);
     const payload = saveReport.mock.calls[0][0];
-    expect(payload).toEqual(expect.objectContaining({ id: 1, overall_summary: '수정한 전체 요약' }));
+    expect(payload).toEqual(
+      expect.objectContaining({
+        id: 1,
+        overall_summary: '수정한 전체 요약',
+        review_text: '수정한 검토 의견',
+      }),
+    );
     expect(payload).not.toEqual(expect.objectContaining({ resume_id: 1 }));
     expect(payload).not.toEqual(expect.objectContaining({ status: 'done' }));
     expect(payload).not.toEqual(expect.objectContaining({ version: 'analysis-graph-v1' }));
