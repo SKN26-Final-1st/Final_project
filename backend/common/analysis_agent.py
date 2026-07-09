@@ -21,6 +21,7 @@ from .utils import load_env
 load_env()
 
 LLM_MODEL = "gpt-4o-mini"
+GENERATION_LLM_MODEL = "gpt-4.1"
 TEMPERATURE = 0
 QUESTION_COUNT = 10
 
@@ -44,9 +45,9 @@ def invoke_agent(llm, prompt: str, chats: list):
     return llm.invoke(messages)
 
 
-def _make_llm(structure_model):
+def _make_llm(structure_model, model_name=LLM_MODEL):
     return ChatOpenAI(
-        model=LLM_MODEL,
+        model=model_name,
         temperature=TEMPERATURE,
     ).with_structured_output(structure_model)
 
@@ -291,7 +292,10 @@ def invoke_interview_questions_node(
     global interview_questions_node
 
     if interview_questions_node is None:
-        interview_questions_node = _make_llm(InterviewQuestionsStructure)
+        interview_questions_node = _make_llm(
+            InterviewQuestionsStructure,
+            model_name=GENERATION_LLM_MODEL,
+        )
 
     interview_context = {
         "resume_info": resume_summary,
@@ -350,7 +354,10 @@ def invoke_report_node(resume_summary: Any, fit_checks):
         raise ValueError("지원자 적합 체크 결과가 필요합니다.")
 
     if report_node is None:
-        report_node = _make_llm(ReportStructure)
+        report_node = _make_llm(
+            ReportStructure,
+            model_name=GENERATION_LLM_MODEL,
+        )
 
     report_context = {
         "resume_info": resume_summary,
