@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Form } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
-import { SaveOutlined } from '@ant-design/icons';
+import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { AccountSettingsForm, type AccountSettingsFormValues } from '../components/mypage/AccountSettingsForm';
 import { CompanySummaryPanel } from '../components/mypage/CompanySummaryPanel';
 import { ProfileSummaryCard } from '../components/mypage/ProfileSummaryCard';
 import { SecuritySettingsForm, type SecuritySettingsFormValues } from '../components/mypage/SecuritySettingsForm';
+import { DestructiveConfirmModal } from '../components/common/DestructiveConfirmModal';
 import { InlineLoading } from '../components/common/InlineLoading';
 import { EmptyState } from '../components/common/PageState';
 import { PageTitle } from '../components/common/PageTitle';
@@ -15,11 +16,14 @@ import { apiClient } from '../api/backendClient';
 import { queryKeys } from '../api/queryKeys';
 import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { Navigate, RunApiAction } from '../types/app';
+import type { AuthMode } from '../utils/apiKeySession';
 
 type MyPageProps = {
+  authMode: AuthMode;
   loadingKey: string | null;
   navigate: Navigate;
   runApiAction: RunApiAction;
+  setIsAuthenticated: (value: boolean) => void;
 };
 
 function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
@@ -33,16 +37,21 @@ function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
 }
 
 export function MyPage({
+  authMode,
   loadingKey,
   navigate,
   runApiAction,
+  setIsAuthenticated,
 }: MyPageProps) {
   const [accountForm] = Form.useForm<AccountSettingsFormValues>();
   const [securityForm] = Form.useForm<SecuritySettingsFormValues>();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const { data } = useAppDataQuery();
   const profile = data?.userProfile;
   const company = data?.company;
+  const isDeletingAccount = loadingKey === 'account-delete';
+  const canDeleteAccount = authMode === 'account';
   const accountInitialValues = profile
     ? toAccountFormValues(profile)
     : {
@@ -117,6 +126,17 @@ export function MyPage({
     );
   };
 
+  const deleteAccount = () =>
+    runApiAction(
+      'account-delete',
+      () => apiClient.deleteAccount(),
+      () => {
+        setDeleteModalOpen(false);
+        setIsAuthenticated(false);
+        navigate('/login');
+      },
+    );
+
   return (
     <div className="mypage-page viewport-page">
       <PageTitle
@@ -152,6 +172,24 @@ export function MyPage({
                 <SecuritySettingsForm form={securityForm} />
               </SectionCard>
             </div>
+            {canDeleteAccount ? (
+              <div>
+                <SectionCard title="계정 삭제">
+                  <p className="list-panel-hint">
+                    계정을 삭제하면 저장된 계정 정보와 세션이 즉시 정리됩니다.
+                  </p>
+                  <Button
+                    aria-label="계정 삭제"
+                    danger
+                    icon={<DeleteOutlined />}
+                    disabled={isDeletingAccount}
+                    onClick={() => setDeleteModalOpen(true)}
+                  >
+                    계정 삭제
+                  </Button>
+                </SectionCard>
+              </div>
+            ) : null}
             <div className="mypage-settings-wide">
               <SectionCard title="회사 정보 요약">
                 <CompanySummaryPanel company={company} navigate={navigate} />
@@ -160,6 +198,26 @@ export function MyPage({
           </div>
         </div>
       </div>
+      <DestructiveConfirmModal
+        open={deleteModalOpen}
+        title="계정 삭제"
+        description="삭제한 계정은 복구할 수 없습니다. 계속 진행하려면 아래 계정을 확인하세요."
+        target={{
+          title: profile.username,
+          description: profile.displayName,
+          ariaLabel: '삭제할 계정',
+        }}
+        warning={{
+          title: '계정과 로그인 세션이 삭제됩니다.',
+          description: '삭제 후 로그인 화면으로 이동합니다.',
+        }}
+        loading={isDeletingAccount}
+        cancelLabel="취소"
+        confirmLabel="계정 삭제"
+        confirmAriaLabel="계정 삭제 확인"
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void deleteAccount()}
+      />
     </div>
   );
 }

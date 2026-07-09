@@ -389,4 +389,23 @@ describe('backendClient', () => {
     });
     expect(observedBodies).toContainEqual({ id: 30, delete: true });
   });
+
+  test('deleteAccount calls account/modify with delete true', async () => {
+    let requestBody: unknown = null;
+
+    server.use(
+      http.post('/api/account/modify/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({ error: false, delete: true });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.deleteAccount()).resolves.toMatchObject({
+      message: '계정이 삭제되었습니다.',
+      data: { delete: true },
+    });
+    expect(requestBody).toEqual({ delete: true });
+  });
 });

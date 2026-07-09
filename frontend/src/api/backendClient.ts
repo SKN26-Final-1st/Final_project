@@ -698,6 +698,12 @@ export const apiClient = {
     return toApiResponse('로그아웃되었습니다.', { logout: true });
   },
 
+  deleteAccount: async () => {
+    await requestAction('account/modify', { delete: true });
+
+    return toApiResponse('계정이 삭제되었습니다.', { delete: true });
+  },
+
   saveCompanyProfile: async (body: CompanyInfoModifyBody = {}) => {
     await requestAction('compinfo/modify', body);
 
