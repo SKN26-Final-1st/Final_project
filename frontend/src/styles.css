@@ -1143,6 +1143,27 @@ button,
   margin-top: 0;
 }
 
+.content-frame .section-row {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+  overflow-x: clip;
+}
+
+.content-frame .section-row > .ant-col {
+  min-width: 0;
+}
+
+.content-frame .section-row > .ant-col:first-child {
+  padding-left: 0 !important;
+}
+
+.content-frame .section-row > .ant-col:last-child {
+  padding-right: 0 !important;
+}
+
 .ant-btn {
   border-color: var(--border-strong);
   font-weight: 800;
@@ -4774,7 +4795,7 @@ button,
   }
 }
 
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
   .content:has(.viewport-page) {
     height: 100dvh;
     min-height: 0;
@@ -4891,6 +4912,18 @@ button,
 
   .viewport-page .dashboard-body-scroll > .section-row {
     margin-bottom: 0;
+  }
+
+  .viewport-page .dashboard-body-scroll .section-card,
+  .viewport-page .admin-workspace-side .section-card {
+    flex: 0 0 auto;
+    height: auto;
+  }
+
+  .viewport-page .dashboard-body-scroll .section-card > .ant-card-body,
+  .viewport-page .admin-workspace-side .section-card > .ant-card-body {
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .viewport-page .admin-workspace-grid {
