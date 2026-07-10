@@ -81,7 +81,7 @@ const report: AnalysisReport = {
   status: 'done',
   created_at: '2026-06-24T00:00:00+09:00',
   version: 'analysis-graph-v1',
-  user_feedback: null,
+  user_feedback: 3,
 };
 
 const selectedItem: AnalysisReportItem = {
@@ -266,11 +266,19 @@ vi.mock('../hooks/useAnalysisReportPageData', () => ({
 describe('AnalysisReportPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    saveReport.mockResolvedValue({
+    window.sessionStorage.clear();
+    report.status = 'done';
+    report.user_feedback = 3;
+    report.review_text = '검토 의견 메모';
+    processingReport.status = 'processing';
+    processingReport.user_feedback = null;
+    processingReport.review_text = '';
+    reloadData.mockResolvedValue(undefined);
+    saveReport.mockImplementation(async (payload) => ({
       error: false,
       message: '분석 리포트를 저장했습니다.',
-      data: report,
-    });
+      data: { ...report, ...payload },
+    }));
     deleteReport.mockResolvedValue({
       error: false,
       message: '리포트를 삭제했습니다.',
@@ -323,7 +331,7 @@ describe('AnalysisReportPage', () => {
 
     expect(screen.getByText('지원 동기 분석')).toBeInTheDocument();
     expect(screen.getByText('협업 방식 분석')).toBeInTheDocument();
-    expect(screen.getByText('검토 의견 메모')).toBeInTheDocument();
+    expect(screen.getByLabelText('사용자 리뷰 의견')).toHaveValue('검토 의견 메모');
     expect(screen.queryByLabelText('리포트 등급 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('리포트 JD 필터')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('리포트 정렬')).not.toBeInTheDocument();
@@ -366,9 +374,6 @@ describe('AnalysisReportPage', () => {
     const summaryInput = screen.getByLabelText('전체 평가 요약 수정');
     await user.clear(summaryInput);
     await user.type(summaryInput, '수정한 전체 요약');
-    const reviewTextInput = screen.getByLabelText('검토 의견 수정');
-    await user.clear(reviewTextInput);
-    await user.type(reviewTextInput, '수정한 검토 의견');
     await user.click(screen.getByRole('button', { name: /리포트 저장/ }));
 
     expect(saveReport).toHaveBeenCalledTimes(1);
@@ -377,9 +382,9 @@ describe('AnalysisReportPage', () => {
       expect.objectContaining({
         id: 1,
         overall_summary: '수정한 전체 요약',
-        review_text: '수정한 검토 의견',
       }),
     );
+    expect(payload).not.toEqual(expect.objectContaining({ review_text: expect.anything() }));
     expect(payload).not.toEqual(expect.objectContaining({ resume_id: 1 }));
     expect(payload).not.toEqual(expect.objectContaining({ status: 'done' }));
     expect(payload).not.toEqual(expect.objectContaining({ version: 'analysis-graph-v1' }));
@@ -405,22 +410,150 @@ describe('AnalysisReportPage', () => {
     expect(screen.getByRole('button', { name: /리포트 저장/ })).toBeInTheDocument();
   });
 
-  it('리포트 별점 클릭 시 user_feedback만 수정 payload로 보낸다', async () => {
+  it('완료 리포트의 기존 별점과 텍스트를 draft로 표시하고 변경 전에는 저장을 비활성화한다', () => {
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    const rate = screen.getByLabelText('사용자 리뷰 별점 3점');
+    expect(rate).toHaveAttribute('aria-disabled', 'false');
+    expect(screen.getByLabelText('사용자 리뷰 의견')).toHaveValue('검토 의견 메모');
+    expect(screen.getByRole('button', { name: '리뷰 저장' })).toBeDisabled();
+  });
+
+  it('별점 클릭 직후 서버 요청 전에도 선택 상태를 화면에 반영한다', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />,
     );
-
-    expect(screen.getAllByText('vanalysis-graph-v1').length).toBeGreaterThan(0);
-    expect(screen.getByText('평가 없음')).toBeInTheDocument();
 
     const stars = container.querySelectorAll('.analysis-report-feedback .ant-rate-star');
     expect(stars.length).toBeGreaterThanOrEqual(4);
 
     await user.click((stars[3].querySelector('.ant-rate-star-second') ?? stars[3]) as HTMLElement);
 
-    expect(saveReport).toHaveBeenCalledWith({ id: 1, user_feedback: 4 }, undefined);
+    expect(screen.getByLabelText('사용자 리뷰 별점 4점')).toBeInTheDocument();
+    expect(container.querySelectorAll('.analysis-report-feedback .ant-rate-star-full')).toHaveLength(4);
+    expect(saveReport).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '리뷰 저장' })).toBeEnabled();
+  });
+
+  it('별점과 텍스트를 함께 변경해 명시적으로 저장한다', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+    const stars = container.querySelectorAll('.analysis-report-feedback .ant-rate-star');
+
+    await user.click((stars[3].querySelector('.ant-rate-star-second') ?? stars[3]) as HTMLElement);
+    const reviewInput = screen.getByLabelText('사용자 리뷰 의견');
+    await user.clear(reviewInput);
+    await user.type(reviewInput, '분석 근거가 구체적이고 유용했습니다.');
+    await user.click(screen.getByRole('button', { name: '리뷰 저장' }));
+
+    await waitFor(() => {
+      expect(saveReport).toHaveBeenCalledWith(
+        {
+          id: 1,
+          user_feedback: 4,
+          review_text: '분석 근거가 구체적이고 유용했습니다.',
+        },
+        undefined,
+      );
+    });
     expect(reloadData).toHaveBeenCalled();
+    expect(screen.getByLabelText('사용자 리뷰 별점 4점')).toBeInTheDocument();
+    expect(reviewInput).toHaveValue('분석 근거가 구체적이고 유용했습니다.');
+  });
+
+  it('별점이 없는 리포트에서 텍스트만 저장할 때 user_feedback 0을 보내지 않는다', async () => {
+    report.user_feedback = null;
+    const user = userEvent.setup();
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+    const reviewInput = screen.getByLabelText('사용자 리뷰 의견');
+
+    await user.clear(reviewInput);
+    await user.type(reviewInput, '텍스트 리뷰만 저장합니다.');
+    await user.click(screen.getByRole('button', { name: '리뷰 저장' }));
+
+    await waitFor(() => {
+      expect(saveReport).toHaveBeenCalledWith(
+        { id: 1, review_text: '텍스트 리뷰만 저장합니다.' },
+        undefined,
+      );
+    });
+  });
+
+  it('빈 텍스트를 저장해 기존 사용자 리뷰를 삭제한다', async () => {
+    const user = userEvent.setup();
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    await user.clear(screen.getByLabelText('사용자 리뷰 의견'));
+    await user.click(screen.getByRole('button', { name: '리뷰 저장' }));
+
+    await waitFor(() => {
+      expect(saveReport).toHaveBeenCalledWith({ id: 1, review_text: '' }, undefined);
+    });
+  });
+
+  it('리뷰 저장 실패 시 오류를 알리고 입력 draft를 유지한다', async () => {
+    const user = userEvent.setup();
+    saveReport.mockRejectedValueOnce(new Error('사용자 리뷰 저장에 실패했습니다.'));
+    const { container } = render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+    const stars = container.querySelectorAll('.analysis-report-feedback .ant-rate-star');
+
+    await user.click((stars[3].querySelector('.ant-rate-star-second') ?? stars[3]) as HTMLElement);
+    const reviewInput = screen.getByLabelText('사용자 리뷰 의견');
+    await user.clear(reviewInput);
+    await user.type(reviewInput, '재시도할 리뷰');
+    await user.click(screen.getByRole('button', { name: '리뷰 저장' }));
+
+    await waitFor(() => {
+      expect(showAlert).toHaveBeenCalledWith({
+        type: 'error',
+        message: '사용자 리뷰 저장에 실패했습니다.',
+      });
+    });
+    expect(screen.getByLabelText('사용자 리뷰 별점 4점')).toBeInTheDocument();
+    expect(reviewInput).toHaveValue('재시도할 리뷰');
+    expect(screen.getByRole('button', { name: '리뷰 저장' })).toBeEnabled();
+    expect(reloadData).not.toHaveBeenCalled();
+  });
+
+  it('processing 리포트에서는 리뷰 입력과 저장을 비활성화하고 이유를 안내한다', () => {
+    report.status = 'processing';
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    expect(screen.getByLabelText('사용자 리뷰 별점 3점')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByLabelText('사용자 리뷰 의견')).toBeDisabled();
+    expect(screen.getByRole('button', { name: '리뷰 저장' })).toBeDisabled();
+    expect(screen.getByText('분석이 완료된 리포트만 평가할 수 있습니다.')).toBeInTheDocument();
+  });
+
+  it('서버 리뷰 값이 재조회되면 선택 리포트 draft를 다시 동기화한다', () => {
+    const { rerender } = render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    report.user_feedback = 5;
+    report.review_text = '재조회된 리뷰';
+    rerender(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    expect(screen.getByLabelText('사용자 리뷰 별점 5점')).toBeInTheDocument();
+    expect(screen.getByLabelText('사용자 리뷰 의견')).toHaveValue('재조회된 리뷰');
+    expect(screen.getByRole('button', { name: '리뷰 저장' })).toBeDisabled();
+  });
+
+  it('API Key 모드에서는 리뷰 저장 요청에 현재 API Key를 전달한다', async () => {
+    window.sessionStorage.setItem('humour.apiKey', 'review-api-key');
+    const user = userEvent.setup();
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    const reviewInput = screen.getByLabelText('사용자 리뷰 의견');
+    await user.clear(reviewInput);
+    await user.type(reviewInput, 'API Key 리뷰');
+    await user.click(screen.getByRole('button', { name: '리뷰 저장' }));
+
+    await waitFor(() => {
+      expect(saveReport).toHaveBeenCalledWith(
+        { id: 1, review_text: 'API Key 리뷰' },
+        'review-api-key',
+      );
+    });
   });
 
   it('진행 중 리포트는 N/A 등급 대신 분석 상태를 표시한다', () => {
