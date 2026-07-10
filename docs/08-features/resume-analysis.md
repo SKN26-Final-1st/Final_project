@@ -26,6 +26,8 @@
 
 ## 분석 요청
 
+분석 1회 비용은 100 크레딧입니다. 활성 구독 계정은 계정 크레딧을 차감하지 않으며, API 키 호출은 해당 키의 `credit_limit`에서 차감합니다. 실패하면 서버가 차감분을 환불합니다.
+
 프론트:
 
 - `apiClient.requestResumeAnalysisById(resumeId)` (및 deprecated JD 기반 helper)
@@ -79,6 +81,8 @@
 - `mapTemplateQuestions()`가 면접 질문을 문항/가이드로 변환합니다.
 
 근거: `frontend/src/api/adapters.ts`, `backend/api/models.py`
+
+완료된 리포트 화면은 `user_feedback`(평가)과 `review_text`(검토 메모)를 `POST /api/report/modify/`로 저장하며 `version`도 표시합니다. 근거: `frontend/src/pages/AnalysisReportPage.tsx`, `backend/api/models.py`
 
 ## 자기소개서 포맷 작성 (후순위 MVP)
 
