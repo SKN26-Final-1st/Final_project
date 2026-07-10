@@ -1,16 +1,33 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiResponse } from '../data/backendTypes';
 import type { AlertState } from '../types/app';
 
 export function useApiAction() {
   const [alert, setAlert] = useState<AlertState | null>(null);
-  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [loadingKeys, setLoadingKeys] = useState<string[]>([]);
   const inFlightKeysRef = useRef<Set<string>>(new Set());
+  const alertTimeoutRef = useRef<number | null>(null);
 
   const showAlert = useCallback((nextAlert: AlertState) => {
+    if (alertTimeoutRef.current !== null) {
+      window.clearTimeout(alertTimeoutRef.current);
+    }
+
     setAlert(nextAlert);
-    window.setTimeout(() => setAlert(null), 3400);
+    alertTimeoutRef.current = window.setTimeout(() => {
+      setAlert(null);
+      alertTimeoutRef.current = null;
+    }, 3400);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (alertTimeoutRef.current !== null) {
+        window.clearTimeout(alertTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   const runApiAction = useCallback(
     async <T,>(
@@ -24,7 +41,9 @@ export function useApiAction() {
       }
 
       inFlightKeysRef.current.add(key);
-      setLoadingKey(key);
+      setLoadingKeys((currentKeys) =>
+        currentKeys.includes(key) ? currentKeys : [...currentKeys, key],
+      );
       try {
         const response = await action();
         showAlert({
@@ -42,7 +61,7 @@ export function useApiAction() {
         onError?.(errorMessage, nextError);
       } finally {
         inFlightKeysRef.current.delete(key);
-        setLoadingKey(null);
+        setLoadingKeys((currentKeys) => currentKeys.filter((currentKey) => currentKey !== key));
       }
     },
     [showAlert],
@@ -50,7 +69,7 @@ export function useApiAction() {
 
   return {
     alert,
-    loadingKey,
+    loadingKey: loadingKeys.at(-1) ?? null,
     runApiAction,
     setAlert,
     showAlert,
