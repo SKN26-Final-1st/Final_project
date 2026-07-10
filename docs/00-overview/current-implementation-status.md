@@ -7,10 +7,13 @@
 - Django 모델과 CRUD성 API: `backend/api/models.py`, `backend/api/views/`, `backend/api/urls.py`
 - 세션 기반 인증과 일부 API 키 기반 접근: `backend/api/views/account_endpoints.py` 등 도메인별 endpoint 모듈
 - JD별 체크리스트 CRUD: `Checklist` 모델, `backend/api/views/checklist_endpoints.py`
-- JD 기반 AI 체크리스트 생성: `jd_analyze` in `backend/api/views/job_description_endpoints.py`, `backend/common/checklist.py`
+- JD 기반 비동기 AI 체크리스트 생성과 상태 추적: `jd_analyze` in `backend/api/views/job_description_endpoints.py`, `backend/common/checklist_graph.py`, `JobDescription.checklist_status`
 - 지원서 분석 저장 흐름: `resume_analyze` in `backend/api/views/resume_endpoints.py`, `analyze_and_save_report`/`enqueue_report_analyze` in `backend/api/tasks.py`
-- OpenAI 리포트/면접질문 생성 파이프라인(운영): `backend/common/report.py` — API는 이 모듈만 사용
-- 리포트/채팅 평가 노트북: `backend/common/eval/*.ipynb`, `backend/common/eval/goldset_mock_data_fixed.csv`
+- LangGraph 리포트/면접질문 생성 파이프라인: `backend/common/analysis_graph.py`, `analysis_agent.py`, `feedback_graph.py`
+- OpenAI/RunPod 이중 경로 마스킹·STAR 구조화: `backend/common/masking.py`, `star_analysis.py`, `runpod/`
+- 모델 학습·평가 노트북: `llm/train_star_masking/`, `llm/eval/`
+- JD 작성 보조 채팅과 자동 필드 반영: `POST /api/jd_chat/`, `backend/common/jd_chat_graph.py`, `frontend/src/components/jd/JdChatDrawer.tsx`
+- 분석 리포트 버전·사용자 평가·검토 메모: `AnalysisReport.version`, `user_feedback`, `review_text`
 - LangGraph 기반 채팅 의도 분류와 응답 병합: `backend/common/chat_graph.py`, `backend/common/chat_agent.py`
 - React 화면, 라우팅, 전역 알림/로딩: `frontend/src/App.tsx`
 - 페이지별 데이터·mutation 훅: `frontend/src/hooks/` (`useJdPageData`, `useCoverLetterPageData`, `useAnalysisReportPageData`, `useChatPageData`, `useAdminPageData`, `useDocumentChatState`, `hooks/mutations/*`)

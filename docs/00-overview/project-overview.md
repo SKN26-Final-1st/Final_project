@@ -6,7 +6,7 @@ HumouR는 채용 담당자가 회사 정보, JD, 지원서, AI 분석 리포트,
 
 - 프론트엔드: React, Vite, TypeScript, Ant Design 기반의 운영 화면입니다. 주요 진입점은 `frontend/src/main.tsx`, 라우팅·인증 가드·전역 UI는 `frontend/src/App.tsx`, 페이지별 상태는 `frontend/src/hooks/`에 있습니다.
 - 백엔드: Django 앱 `api`가 계정, 회사 정보, JD, 체크리스트, 이력서, 분석 리포트(`interview_question` JSON 포함), API 키를 관리합니다. 설정은 `backend/config/settings.py`, URL 연결은 `backend/config/urls.py`와 `backend/api/urls.py`에 있습니다.
-- AI 분석: 지원서 분석은 `backend/common/report.py`와 `backend/api/tasks.py`, 문서/HR 채팅은 `backend/common/chat_graph.py`와 `backend/common/chat_agent.py`가 담당합니다.
+- AI 분석: 지원서 분석은 `backend/common/analysis_graph.py`와 `backend/api/tasks.py`, 문서/HR 채팅은 `backend/common/chat_graph.py`, JD 작성 보조는 `backend/common/jd_chat_graph.py`가 담당합니다. 마스킹과 자기소개서 STAR 구조화는 OpenAI 또는 RunPod 경로를 선택합니다.
 - 데이터 작업: 채용공고 조건 크롤러는 `database/crawling/`, 문서 임베딩과 Pinecone 업로드 노트북은 `database/embedding/`에 있습니다.
 - 배포: GitHub Actions가 S3와 SSM으로 프론트/백엔드를 각각 EC2에 배포합니다. 배포 설정은 `.github/workflows/deploy.yml`과 `.deploy/`에 있습니다.
 

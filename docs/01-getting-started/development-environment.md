@@ -75,7 +75,7 @@ VITE_USE_MOCK_API=true
 - `OPENAI_API_KEY`
 - `PINECONE_API_KEY`, `PINECONE_HOST`
 
-`IS_REMOTE_HOST`가 설정되면 MySQL/RDS 환경 변수로 DB에 연결하고, 없으면 로컬 SQLite를 사용합니다. `backend/common`의 AI 모듈은 `backend/.env`를 읽습니다. 근거: `backend/config/settings.py`, `backend/common/report.py`, `backend/common/chat_agent.py`
+`IS_REMOTE_HOST`가 설정되면 MySQL/RDS 환경 변수로 DB에 연결하고, 없으면 로컬 SQLite를 사용합니다. `backend/common`의 AI 모듈은 `backend/.env`를 읽습니다. OpenAI 외에 RunPod 경로를 쓰려면 `RUNPOD_API_KEY`, `RUNPOD_MASKING_ENDPOINT_ID`, `RUNPOD_STAR_ENDPOINT_ID`가 필요합니다. 근거: `backend/config/settings.py`, `backend/common/utils.py`, `backend/common/masking.py`, `backend/common/star_analysis.py`
 
 ## 관련 문서
 
