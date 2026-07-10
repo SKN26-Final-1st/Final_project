@@ -3,6 +3,7 @@ import { Alert, Drawer, Tag } from 'antd';
 import { BookOutlined } from '@ant-design/icons';
 import { Bubble, Sender, type BubbleItemType } from '@ant-design/x';
 import { apiClient } from '../../api/backendClient';
+import { isRequestCancelled } from '../../api/httpClient';
 import type { JdItem } from '../../api/adapters';
 import type { ChatMessage } from '../../data/appConfig';
 import { InlineLoading } from '../common/InlineLoading';
@@ -10,47 +11,87 @@ import { InlineLoading } from '../common/InlineLoading';
 type JdChatState = Parameters<typeof apiClient.sendJdChatMessage>[0]['state'];
 
 type JdChatDrawerProps = {
+  apiKey?: string;
   open: boolean;
   selectedJd: JdItem | null;
   onClose: () => void;
   onRefresh: () => Promise<unknown>;
 };
 
-export function JdChatDrawer({ open, selectedJd, onClose, onRefresh }: JdChatDrawerProps) {
+export function JdChatDrawer({ apiKey, open, selectedJd, onClose, onRefresh }: JdChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [state, setState] = useState<JdChatState>();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const startedJdIdRef = useRef<string | null>(null);
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
   const isCompleted = Boolean(state?.end_chat);
 
-  const sendMessages = useCallback(async (nextMessages: ChatMessage[]) => {
+  const cancelActiveRequest = useCallback(() => {
+    requestIdRef.current += 1;
+    requestControllerRef.current?.abort();
+    requestControllerRef.current = null;
+  }, []);
+
+  const sendMessages = useCallback(async (
+    nextMessages: ChatMessage[],
+    requestState: JdChatState | undefined,
+  ) => {
     if (!selectedJd) {
       return;
     }
 
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    requestControllerRef.current = controller;
     setLoading(true);
     setErrorMessage('');
 
     try {
       const response = await apiClient.sendJdChatMessage({
+        apiKey,
         jobDescriptionId: Number(selectedJd.id),
         messages: nextMessages,
-        state,
+        signal: controller.signal,
+        state: requestState,
       });
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      await onRefresh();
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
       setMessages([...nextMessages, response.data.response]);
       setState(response.data.state);
-      await onRefresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'JD 채팅 요청에 실패했습니다.');
+      if (requestId === requestIdRef.current && !isRequestCancelled(error)) {
+        setErrorMessage(error instanceof Error ? error.message : 'JD 채팅 요청에 실패했습니다.');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        requestControllerRef.current = null;
+        setLoading(false);
+      }
     }
-  }, [onRefresh, selectedJd, state]);
+  }, [apiKey, onRefresh, selectedJd]);
 
   useEffect(() => {
     if (!open || !selectedJd) {
+      cancelActiveRequest();
+
+      if (!open) {
+        startedJdIdRef.current = null;
+      }
+
       return;
     }
 
@@ -62,8 +103,10 @@ export function JdChatDrawer({ open, selectedJd, onClose, onRefresh }: JdChatDra
     setMessages([]);
     setState(undefined);
     setInput('');
-    void sendMessages([]);
-  }, [open, selectedJd, sendMessages]);
+    void sendMessages([], undefined);
+  }, [cancelActiveRequest, open, selectedJd, sendMessages]);
+
+  useEffect(() => () => cancelActiveRequest(), [cancelActiveRequest]);
 
   const submitMessage = async () => {
     const text = input.trim();
@@ -75,10 +118,13 @@ export function JdChatDrawer({ open, selectedJd, onClose, onRefresh }: JdChatDra
     const nextMessages = [...messages, { role: 'user', text } satisfies ChatMessage];
     setMessages(nextMessages);
     setInput('');
-    await sendMessages(nextMessages);
+    await sendMessages(nextMessages, state);
   };
 
   const closeDrawer = () => {
+    cancelActiveRequest();
+    startedJdIdRef.current = null;
+    setLoading(false);
     setErrorMessage('');
     onClose();
   };

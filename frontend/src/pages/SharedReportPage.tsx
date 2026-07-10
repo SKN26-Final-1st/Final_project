@@ -1,8 +1,9 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Alert, Button, Card, Col, Form, Input, InputNumber, List, Row, Space, Tabs, Tag, Typography } from 'antd';
 import { KeyOutlined, LoginOutlined, MessageOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons';
 import { apiClient } from '../api/backendClient';
+import { isRequestCancelled } from '../api/httpClient';
 import type { AnalysisReport, InterviewQuestion, JobDescription, Resume } from '../data/backendTypes';
 import type { AppRoute, ChatMessage } from '../data/appConfig';
 import type { Navigate, ThemeMode } from '../types/app';
@@ -31,6 +32,10 @@ const SHARED_REPORT_STATUS_LABEL: Record<AnalysisReport['status'], string> = {
   processing: '분석 중',
   done: '분석 완료',
   fail: '분석 실패',
+};
+const SHARED_CHAT_INTRO_MESSAGE: ChatMessage = {
+  role: 'assistant',
+  text: '공유 API key로 리포트와 면접 질문을 불러오면 이 화면에서 바로 질문할 수 있습니다.',
 };
 
 function getInitialResumeId(search: string) {
@@ -125,43 +130,87 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
   const location = useLocation();
   const [form] = Form.useForm<SharedLookupForm>();
   const [bundle, setBundle] = useState<SharedBundle | null>(null);
+  const [bundleApiKey, setBundleApiKey] = useState('');
   const [bundleLoading, setBundleLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      text: '공유 API key로 리포트와 면접 질문을 불러오면 이 화면에서 바로 질문할 수 있습니다.',
-    },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([SHARED_CHAT_INTRO_MESSAGE]);
+  const bundleControllerRef = useRef<AbortController | null>(null);
+  const bundleRequestIdRef = useRef(0);
+  const chatControllerRef = useRef<AbortController | null>(null);
+  const chatRequestIdRef = useRef(0);
   const initialResumeId = useMemo(() => getInitialResumeId(location.search), [location.search]);
 
+  const cancelBundleRequest = useCallback(() => {
+    bundleRequestIdRef.current += 1;
+    bundleControllerRef.current?.abort();
+    bundleControllerRef.current = null;
+  }, []);
+
+  const cancelChatRequest = useCallback(() => {
+    chatRequestIdRef.current += 1;
+    chatControllerRef.current?.abort();
+    chatControllerRef.current = null;
+  }, []);
+
+  useEffect(
+    () => () => {
+      cancelBundleRequest();
+      cancelChatRequest();
+    },
+    [cancelBundleRequest, cancelChatRequest],
+  );
+
   const loadSharedBundle = async (values: SharedLookupForm) => {
+    cancelBundleRequest();
+    cancelChatRequest();
+    const controller = new AbortController();
+    const requestId = bundleRequestIdRef.current + 1;
+    bundleRequestIdRef.current = requestId;
+    bundleControllerRef.current = controller;
     setBundleLoading(true);
+    setChatLoading(false);
     setError(null);
 
     try {
-      const response = await apiClient.getSharedResumeBundle(values.resumeId, values.apiKey.trim());
+      const response = await apiClient.getSharedResumeBundle(
+        values.resumeId,
+        values.apiKey.trim(),
+        { signal: controller.signal },
+      );
+
+      if (requestId !== bundleRequestIdRef.current) {
+        return;
+      }
+
+      cancelChatRequest();
       setBundle(response.data);
+      setBundleApiKey(values.apiKey.trim());
+      setChatMessages([SHARED_CHAT_INTRO_MESSAGE]);
+      setChatInput('');
     } catch (nextError) {
-      setBundle(null);
-      setError(nextError instanceof Error ? nextError.message : '공유 결과를 불러오지 못했습니다.');
+      if (requestId === bundleRequestIdRef.current && !isRequestCancelled(nextError)) {
+        setBundle(null);
+        setBundleApiKey('');
+        setError(nextError instanceof Error ? nextError.message : '공유 결과를 불러오지 못했습니다.');
+      }
     } finally {
-      setBundleLoading(false);
+      if (requestId === bundleRequestIdRef.current) {
+        bundleControllerRef.current = null;
+        setBundleLoading(false);
+      }
     }
   };
 
   const sendSharedChat = async () => {
-    if (!bundle || chatLoading) {
+    if (!bundle || bundleLoading || chatLoading) {
       return;
     }
 
-    const values = form.getFieldsValue();
-    const apiKey = values.apiKey?.trim();
     const trimmed = chatInput.trim();
 
-    if (!apiKey || !trimmed) {
+    if (!bundleApiKey || !trimmed) {
       return;
     }
 
@@ -172,20 +221,40 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
     };
     const nextVisibleMessages = [...chatMessages, visibleUserMessage];
 
+    cancelChatRequest();
+    const controller = new AbortController();
+    const requestId = chatRequestIdRef.current + 1;
+    chatRequestIdRef.current = requestId;
+    chatControllerRef.current = controller;
     setChatMessages(nextVisibleMessages);
     setChatInput('');
     setChatLoading(true);
     setError(null);
 
     try {
-      const response = await apiClient.sendChatMessage(trimmed, [...chatMessages, contextMessage], apiKey);
+      const response = await apiClient.sendChatMessage(
+        trimmed,
+        [...chatMessages, contextMessage],
+        bundleApiKey,
+        { authFailurePolicy: 'local', signal: controller.signal },
+      );
+
+      if (requestId !== chatRequestIdRef.current) {
+        return;
+      }
+
       setChatMessages((current) => [...current, response.data]);
     } catch (nextError) {
-      setChatMessages(chatMessages);
-      setChatInput(trimmed);
-      setError(nextError instanceof Error ? nextError.message : '채팅 응답을 불러오지 못했습니다.');
+      if (requestId === chatRequestIdRef.current && !isRequestCancelled(nextError)) {
+        setChatMessages(chatMessages);
+        setChatInput(trimmed);
+        setError(nextError instanceof Error ? nextError.message : '채팅 응답을 불러오지 못했습니다.');
+      }
     } finally {
-      setChatLoading(false);
+      if (requestId === chatRequestIdRef.current) {
+        chatControllerRef.current = null;
+        setChatLoading(false);
+      }
     }
   };
 
@@ -392,13 +461,13 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
                         placeholder="리포트나 질문지에 대해 물어보세요."
                         onChange={(event) => setChatInput(event.target.value)}
                         onPressEnter={() => void sendSharedChat()}
-                        disabled={chatLoading}
+                        disabled={bundleLoading || chatLoading}
                       />
                       <Button
                         type="primary"
                         icon={<SendOutlined />}
                         loading={chatLoading}
-                        disabled={!bundle || !chatInput.trim()}
+                        disabled={bundleLoading || !bundle || !chatInput.trim()}
                         onClick={() => void sendSharedChat()}
                       >
                         전송
