@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { isRequestCancelled, isSessionAuthExpiredError } from '../../api/httpClient';
 import { queryKeys } from '../../api/queryKeys';
 
 export function useInvalidateAppData() {
@@ -19,4 +20,8 @@ export function getMutationErrorMessage(error: unknown, fallback: string) {
   }
 
   return message || fallback;
+}
+
+export function shouldSuppressMutationError(error: unknown) {
+  return isRequestCancelled(error) || isSessionAuthExpiredError(error);
 }

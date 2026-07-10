@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MyPage } from './MyPage';
 import type { CompanyProfile, UserProfile } from '../api/adapters';
 import type { RunApiAction } from '../types/app';
@@ -10,6 +10,8 @@ import type { AuthMode } from '../utils/apiKeySession';
 const deleteAccount = vi.hoisted(() => vi.fn());
 const saveUserProfile = vi.hoisted(() => vi.fn());
 const login = vi.hoisted(() => vi.fn());
+const abortAuthenticatedRequests = vi.hoisted(() => vi.fn());
+const resetAuthExpiryHandling = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/backendClient', () => ({
   apiClient: {
@@ -17,6 +19,12 @@ vi.mock('../api/backendClient', () => ({
     login,
     saveUserProfile,
   },
+}));
+
+vi.mock('../api/httpClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/httpClient')>()),
+  abortAuthenticatedRequests,
+  resetAuthExpiryHandling,
 }));
 
 const profile: UserProfile = {
@@ -78,6 +86,10 @@ function renderMyPage(authMode: AuthMode = 'account') {
 }
 
 describe('MyPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('계정 삭제를 destructive modal 확인 후 실행하고 세션을 정리한다', async () => {
     deleteAccount.mockResolvedValue({
       error: false,
@@ -87,6 +99,11 @@ describe('MyPage', () => {
     const user = userEvent.setup();
     const { navigate, queryClient, runApiAction, setIsAuthenticated } = renderMyPage();
     queryClient.setQueryData(['app-data', 'account', 'none'], { account: 'deleted-user' });
+    queryClient.setQueryData(['checklist', '31'], { content: 'deleted checklist' });
+    queryClient.getMutationCache().build(queryClient, {
+      mutationKey: ['account-delete'],
+      mutationFn: async () => ({ deleted: true }),
+    });
 
     await user.click(screen.getByRole('button', { name: '계정 삭제' }));
 
@@ -99,7 +116,8 @@ describe('MyPage', () => {
       expect(deleteAccount).toHaveBeenCalledTimes(1);
     });
     expect(runApiAction).toHaveBeenCalledWith('account-delete', expect.any(Function), expect.any(Function));
-    expect(queryClient.getQueriesData({ queryKey: ['app-data'] })).toEqual([]);
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+    expect(queryClient.getMutationCache().getAll()).toEqual([]);
     expect(setIsAuthenticated).toHaveBeenCalledWith(false);
     expect(navigate).toHaveBeenCalledWith('/login');
   });
@@ -108,5 +126,35 @@ describe('MyPage', () => {
     renderMyPage('apiKey');
 
     expect(screen.queryByRole('button', { name: '계정 삭제' })).not.toBeInTheDocument();
+  });
+
+  it('비밀번호 변경 후 재로그인이 완료되면 인증 세대를 갱신한다', async () => {
+    saveUserProfile.mockResolvedValue({
+      error: false,
+      message: '계정 수정사항을 저장했습니다.',
+      data: { updated_at: '2026-07-10T00:00:00Z' },
+    });
+    login.mockResolvedValue({
+      error: false,
+      message: '로그인되었습니다.',
+      data: { authenticated: true },
+    });
+    const user = userEvent.setup();
+    renderMyPage();
+
+    await user.type(screen.getByLabelText('현재 비밀번호'), 'old-password');
+    await user.type(screen.getByLabelText('새 비밀번호'), 'new-password');
+    await user.type(screen.getByLabelText('새 비밀번호 확인'), 'new-password');
+    await user.click(screen.getByRole('button', { name: /저장/ }));
+
+    await waitFor(() => {
+      expect(login).toHaveBeenCalledWith('hong', 'new-password');
+    });
+    expect(abortAuthenticatedRequests).toHaveBeenCalledTimes(1);
+    expect(resetAuthExpiryHandling).toHaveBeenCalledTimes(1);
+    expect(abortAuthenticatedRequests.mock.invocationCallOrder[0]).toBeLessThan(
+      resetAuthExpiryHandling.mock.invocationCallOrder[0],
+    );
+    expect(resetAuthExpiryHandling.mock.invocationCallOrder[0]).toBeLessThan(login.mock.invocationCallOrder[0]);
   });
 });

@@ -13,6 +13,8 @@ import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import type { UserProfile } from '../api/adapters';
 import { apiClient } from '../api/backendClient';
+import { abortAuthenticatedRequests, resetAuthExpiryHandling } from '../api/httpClient';
+import { clearAuthenticatedQueryState } from '../api/queryClient';
 import { queryKeys } from '../api/queryKeys';
 import { useAppDataQuery } from '../hooks/useAppDataQuery';
 import type { Navigate, RunApiAction } from '../types/app';
@@ -104,6 +106,8 @@ export function MyPage({
         const response = await apiClient.saveUserProfile(body);
 
         if (passwordChanged && securityValues.password) {
+          abortAuthenticatedRequests();
+          resetAuthExpiryHandling();
           await apiClient.login(profile.username, securityValues.password);
 
           return {
@@ -132,7 +136,7 @@ export function MyPage({
       () => apiClient.deleteAccount(),
       () => {
         setDeleteModalOpen(false);
-        queryClient.removeQueries({ queryKey: queryKeys.appData() });
+        clearAuthenticatedQueryState(queryClient);
         setIsAuthenticated(false);
         navigate('/login');
       },

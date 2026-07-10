@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
+import { BackendRequestError } from '../api/httpClient';
 import { useApiAction } from './useApiAction';
 
 describe('useApiAction', () => {
@@ -90,5 +91,54 @@ describe('useApiAction', () => {
       vi.clearAllTimers();
       vi.useRealTimers();
     }
+  });
+
+  test('does not show an alert or run failure rollback for a cancelled request', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() => useApiAction());
+
+    await act(async () => {
+      await result.current.runApiAction(
+        'chat',
+        () => Promise.reject(new BackendRequestError('요청이 취소되었습니다.', {
+          authFailurePolicy: 'session',
+          backendError: false,
+          cancelled: true,
+          endpoint: 'chat',
+          isAuthError: false,
+        })),
+        undefined,
+        onError,
+      );
+    });
+
+    expect(result.current.alert).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
+    expect(result.current.loadingKey).toBeNull();
+  });
+
+  test('does not duplicate an alert for an authentication error handled by the app session flow', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() => useApiAction());
+
+    await act(async () => {
+      await result.current.runApiAction(
+        'protected-save',
+        () => Promise.reject(new BackendRequestError('403: Authentication is required.', {
+          authFailurePolicy: 'session',
+          backendError: true,
+          cancelled: false,
+          endpoint: 'report/modify',
+          isAuthError: true,
+          status: 200,
+        })),
+        undefined,
+        onError,
+      );
+    });
+
+    expect(result.current.alert).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
+    expect(result.current.loadingKey).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../../api/backendClient';
 import type { ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
-import { useInvalidateAppData } from './useMutationHelpers';
+import { shouldSuppressMutationError, useInvalidateAppData } from './useMutationHelpers';
 
 function alertSuccess<T>(showAlert: ShowAlert, response: ApiResponse<T>) {
   showAlert({
@@ -12,6 +12,10 @@ function alertSuccess<T>(showAlert: ShowAlert, response: ApiResponse<T>) {
 }
 
 function alertError(showAlert: ShowAlert, error: unknown) {
+  if (shouldSuppressMutationError(error)) {
+    return;
+  }
+
   showAlert({
     type: 'error',
     message: error instanceof Error ? error.message : 'API 요청이 실패했습니다.',
