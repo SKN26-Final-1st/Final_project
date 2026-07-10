@@ -46,6 +46,7 @@
 | `/api/authkey/add/` | POST | 세션 | `name`, 선택 `description`, `credit_limit` | `{error:false,data:AuthKey}` |
 | `/api/authkey/get/` | POST | 세션 | 없음 | `{error:false,data:AuthKey[]}` |
 | `/api/authkey/modify/` | POST | 세션 | `id`, 수정 필드 또는 `delete:true` | `{error:false}` |
+| `/api/authkey/credit/` | POST | API 키 | 없음 | `{error:false,data:{credit:number}}` |
 
 `authkey/get`은 `value`를 마스킹합니다. `authorized_resume` 수정 시 중복 id와 권한 없는 resume id를 검증합니다.
 
@@ -56,11 +57,11 @@
 | `/api/jd/add/` | POST | 세션 | `job_name`, 선택 `career_level`, `required_skill` 등 | `{error:false,data:JobDescription}` |
 | `/api/jd/get/` | POST | 세션 또는 API 키 | 없음 | `{error:false,data:JobDescription[]}` |
 | `/api/jd/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:JobDescription}` |
-| `/api/jd/analyze/` | POST | 세션 또는 API 키 | `id` | `{error:false,data:Checklist[]}` |
+| `/api/jd/analyze/` | POST | 세션 또는 API 키 | `id`, 선택 `query`, `cnt` | `{error:false,data:JobDescription}` |
 
 상태값은 `prepare`, `on_going`, `closed`만 허용합니다.
 
-`jd/analyze`는 `id`만 허용합니다. 해당 JD의 기존 체크리스트 개수를 확인한 뒤 부족한 항목을 `backend/common/checklist.py`로 생성하고 저장된 전체 체크리스트를 반환합니다. API 키 요청은 `authorized_resume`으로 접근 가능한 JD에 한해 허용됩니다.
+`jd/analyze`는 체크리스트 생성을 시작하고 JD의 `checklist_status`(`onqueue`, `processing`, `done`, `fail`)를 반환합니다. `query`는 생성 지시, `cnt`는 생성 개수 제한입니다. API 키 요청은 `authorized_resume`으로 접근 가능한 JD에 한해 허용됩니다.
 
 ## 체크리스트
 
@@ -110,6 +111,9 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 | 경로 | 메서드 | 인증 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
 | `/api/chat/` | POST | 세션 또는 API 키 | `chat: [{role,message}]` | `{error:false,response:{role:"agent",message}}` |
+| `/api/jd_chat/` | POST | 세션 또는 API 키 | `job_description_id`, `chat`, 선택 `state` | `{error:false,response,state}` |
+
+`jd_chat`은 회사/JD의 누락 필드를 대화로 수집합니다. 응답 `state`는 `ignored_field`, `focus_field`, `end_chat`을 포함하고, 분석된 허용 필드는 해당 `JobDescription` 또는 `CompanyInfo`에 즉시 저장됩니다.
 
 요청 규칙:
 
