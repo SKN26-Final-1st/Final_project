@@ -31,7 +31,7 @@
 
 ## LLM 분석
 
-`backend/api/tasks.py`의 `analyze_and_save_report(report_id)`가 DB에서 분석 입력을 모으고, `backend/common/report.py`의 `invoke(company_dict, jd_dict, checklist, resume_dict)`가 전체 LLM 분석을 수행합니다.
+`backend/api/tasks.py`의 `analyze_and_save_report(report_id)`가 DB에서 분석 입력을 모으고, `backend/common/analysis_graph.py`의 `invoke(company_dict, jd_dict, checklist, resume_dict)`가 전체 LLM 분석을 수행합니다.
 
 입력 구성:
 
@@ -51,14 +51,14 @@
 
 모델명:
 
-- 리포트 파이프라인(운영): `gpt-4o-mini` — `backend/common/report.py`
+- 분석·평가 기본 모델: `gpt-4o-mini`; 면접 질문 생성 모델: `gpt-4.1` — `backend/common/analysis_agent.py`
 - 임베딩 노트북: `text-embedding-3-small`
 
-운영 API(`resume_analyze`)는 `backend/api/tasks.py`를 거쳐 `report.py`만 사용합니다. 근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`
+운영 API(`resume_analyze`)는 `backend/api/tasks.py`를 거쳐 `analysis_graph.py`를 사용합니다. 분석 실패 시 차감한 계정/API 키 크레딧을 환불합니다. 근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`
 
 ## 구조화 응답
 
-`report.py`는 Pydantic 모델을 응답 스키마로 사용합니다.
+`analysis_agent.py`는 Pydantic 모델을 구조화 출력 스키마로 사용합니다. 그래프는 마스킹 → STAR 분석 → 체크리스트 적합도 → 품질 피드백 → 면접 질문 → 품질 피드백 → 리포트 → 품질 피드백 순으로 실행합니다.
 
 - `InterviewQuestionsStructure`
 - `FitChecklistStructure`
@@ -82,9 +82,9 @@ OpenAI SDK의 `client.beta.chat.completions.parse`가 있으면 parse를 사용�
 
 ## JD 체크리스트 생성 API
 
-`POST /api/jd/analyze/`는 `{ id }`를 받아 해당 JD의 체크리스트를 AI로 보강합니다. 기존 체크리스트 수가 `backend/common/checklist.py`의 `CHECKLIST_COUNT`보다 적으면 부족한 개수만 생성하고, 저장된 전체 체크리스트 목록을 반환합니다.
+`POST /api/jd/analyze/`는 `{ id, query?, cnt? }`를 받아 해당 JD의 체크리스트 생성을 시작합니다. `checklist_status`는 `onqueue → processing → done` 또는 `fail`로 바뀌며, Celery worker가 없으면 동기로 실행합니다. 기존 개수를 고려해 `backend/common/checklist_graph.py`의 목표 개수까지만 저장합니다.
 
-근거: `backend/api/views/job_description_endpoints.py`, `backend/common/checklist.py`
+근거: `backend/api/views/job_description_endpoints.py`, `backend/api/tasks.py`, `backend/common/checklist_graph.py`
 
 ## 실패와 예외
 

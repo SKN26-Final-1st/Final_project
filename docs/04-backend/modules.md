@@ -50,28 +50,26 @@
 
 ## Common 모듈
 
-`backend/common/report.py`:
+`backend/common/analysis_graph.py`, `analysis_agent.py`:
 
-- OpenAI 클라이언트 생성
-- 지원서/회사/JD 요약
-- 체크리스트 생성
-- 지원서 적합성 판정
-- 면접 질문 생성
-- 최종 리포트 생성
-- 운영 API(`resume_analyze`)가 import하는 유일한 리포트 모듈
+- 입력 마스킹과 자기소개서 STAR 구조화
+- 체크리스트 적합성 판정
+- 면접 질문과 최종 리포트 생성
+- `feedback_graph.py`를 통한 생성 결과 평가·보정
 
 `backend/api/tasks.py`:
 
 - Celery worker 가용성 확인
 - `AnalysisReport.status`를 `processing`/`done`으로 전환
-- `CompanyInfo`, `JobDescription`, `Resume`, `Checklist`를 읽어 `report.py`에 전달
+- `CompanyInfo`, `JobDescription`, `Resume`, `Checklist`를 읽어 `analysis_graph.invoke()`에 전달
+- 분석 실패 시 차감한 계정/API 키 크레딧 환불
 - Celery worker가 없을 때 `resume_analyze`의 동기 fallback으로도 사용
 
-`backend/common/eval/`:
+`llm/eval/`:
 
 - `middle_report_eval.ipynb`, `middle_report2_eval.ipynb`, `middle_report3_eval.ipynb`: 리포트 파이프라인 평가 노트북
 - `chat_eval.ipynb`: 채팅 파이프라인 평가
-- `goldset_mock_data_fixed.csv`: 리포트 평가 골드셋
+- `masking_quality_eval.ipynb`, `star_eval.ipynb`: 마스킹·STAR 품질 평가
 
 `backend/common/chat_agent.py`:
 
