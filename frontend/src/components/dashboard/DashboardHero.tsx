@@ -39,10 +39,10 @@ export function DashboardHero({ dashboard, navigate, showAlert, reloadData }: Da
           채용 공고, 지원자, AI 분석 리포트 흐름을 한 화면에서 확인하고 다음 액션으로 바로 이동합니다.
         </p>
         <Space className="hero-actions" wrap>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/jd')}>
+          <Button aria-label="새 채용 공고" type="primary" icon={<PlusOutlined />} onClick={() => navigate('/jd')}>
             새 채용 공고
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={refreshDashboard}>
+          <Button aria-label="대시보드 새로고침" icon={<ReloadOutlined />} onClick={refreshDashboard}>
             새로고침
           </Button>
         </Space>
@@ -127,7 +127,12 @@ export function DashboardHero({ dashboard, navigate, showAlert, reloadData }: Da
           </div>
         </div>
 
-        <Button block icon={<FileSearchOutlined />} onClick={() => navigate('/cover-letter')}>
+        <Button
+          aria-label="분석 리포트 확인"
+          block
+          icon={<FileSearchOutlined />}
+          onClick={() => navigate('/analysis-report')}
+        >
           분석 리포트 확인
         </Button>
       </aside>
