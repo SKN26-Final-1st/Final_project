@@ -132,6 +132,7 @@ export function MyPage({
       () => apiClient.deleteAccount(),
       () => {
         setDeleteModalOpen(false);
+        queryClient.removeQueries({ queryKey: queryKeys.appData() });
         setIsAuthenticated(false);
         navigate('/login');
       },
