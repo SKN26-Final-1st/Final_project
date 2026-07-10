@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalysisReportPage } from './AnalysisReportPage';
@@ -10,6 +10,7 @@ const saveReport = vi.hoisted(() => vi.fn());
 const deleteReport = vi.hoisted(() => vi.fn());
 const setSelectedReportId = vi.hoisted(() => vi.fn());
 const reloadData = vi.hoisted(() => vi.fn());
+const showAlert = vi.fn();
 
 vi.mock('../api/backendClient', () => ({
   apiClient: {
@@ -280,7 +281,7 @@ describe('AnalysisReportPage', () => {
   it('긴 리포트 배열 섹션은 일부만 먼저 보여주고 전체 보기로 펼친다', async () => {
     const user = userEvent.setup();
 
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     expect(screen.getByText('역량 1')).toBeInTheDocument();
     expect(screen.getByText('역량 2')).toBeInTheDocument();
@@ -294,7 +295,7 @@ describe('AnalysisReportPage', () => {
   it('질문 카드를 클릭하면 카드 안에서 답변과 의도가 펼쳐진다', async () => {
     const user = userEvent.setup();
 
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     await user.click(screen.getByRole('tab', { name: '질문 추천' }));
 
@@ -318,7 +319,7 @@ describe('AnalysisReportPage', () => {
   it('리포트 목록을 검색하고 motive/collaboration 분석을 표시한다', async () => {
     const user = userEvent.setup();
 
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     expect(screen.getByText('지원 동기 분석')).toBeInTheDocument();
     expect(screen.getByText('협업 방식 분석')).toBeInTheDocument();
@@ -342,7 +343,7 @@ describe('AnalysisReportPage', () => {
   it('지원자 하위에 여러 리포트를 트리로 보여주고 reportId 단위로 선택한다', async () => {
     const user = userEvent.setup();
 
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     const tree = screen.getByRole('tree', { name: '리포트 트리' });
     const hongReports = within(tree).getByRole('group', { name: '홍길동 리포트' });
@@ -359,7 +360,7 @@ describe('AnalysisReportPage', () => {
   it('완료된 리포트를 수정 저장할 때 report/modify payload에 허용 필드만 보낸다', async () => {
     const user = userEvent.setup();
 
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     await user.click(screen.getByRole('button', { name: /리포트 수정/ }));
     const summaryInput = screen.getByLabelText('전체 평가 요약 수정');
@@ -386,9 +387,29 @@ describe('AnalysisReportPage', () => {
     expect(reloadData).toHaveBeenCalled();
   });
 
+  it('리포트 저장이 실패하면 오류를 알리고 편집 상태를 유지한다', async () => {
+    const user = userEvent.setup();
+    saveReport.mockRejectedValueOnce(new Error('리포트 저장에 실패했습니다.'));
+
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+
+    await user.click(screen.getByRole('button', { name: /리포트 수정/ }));
+    await user.click(screen.getByRole('button', { name: /리포트 저장/ }));
+
+    await waitFor(() => {
+      expect(showAlert).toHaveBeenCalledWith({
+        type: 'error',
+        message: '리포트 저장에 실패했습니다.',
+      });
+    });
+    expect(screen.getByRole('button', { name: /리포트 저장/ })).toBeInTheDocument();
+  });
+
   it('리포트 별점 클릭 시 user_feedback만 수정 payload로 보낸다', async () => {
     const user = userEvent.setup();
-    const { container } = render(<AnalysisReportPage navigate={vi.fn()} />);
+    const { container } = render(
+      <AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />,
+    );
 
     expect(screen.getAllByText('vanalysis-graph-v1').length).toBeGreaterThan(0);
     expect(screen.getByText('평가 없음')).toBeInTheDocument();
@@ -403,7 +424,7 @@ describe('AnalysisReportPage', () => {
   });
 
   it('진행 중 리포트는 N/A 등급 대신 분석 상태를 표시한다', () => {
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     const processingReports = screen.getByRole('group', { name: '이처리 리포트' });
     const processingCard = within(processingReports).getByRole('button', { name: /분석 중/ });
@@ -413,7 +434,7 @@ describe('AnalysisReportPage', () => {
   });
 
   it('입력 기반 추천검색어를 여러 개 선택해 리포트 목록을 좁히고 해제한다', () => {
-    render(<AnalysisReportPage navigate={vi.fn()} />);
+    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
 
     expect(screen.queryByLabelText('리포트 빠른 필터')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '질문 있음' })).not.toBeInTheDocument();
