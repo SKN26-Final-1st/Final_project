@@ -43,7 +43,7 @@ export function DashboardPage({ mode, navigate, showAlert }: DashboardPageProps)
 
         <Row gutter={pageSectionGutter} className="section-row dashboard-section-row">
           <Col xs={24} xl={15}>
-            <ApplicantReviewTable applicants={dashboard.applicants} showAlert={showAlert} />
+            <ApplicantReviewTable applicants={dashboard.applicants} />
           </Col>
           <Col xs={24} xl={9}>
             <AnalysisSummaryPanel

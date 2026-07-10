@@ -37,7 +37,16 @@ type ReportEditFormValues = {
   concern: string;
   check_point: string;
   final_comment: string;
-  review_text: string;
+};
+
+type ReportFeedbackDraft = {
+  reportId: number | null;
+  sourceRating: number;
+  sourceReviewText: string;
+  rating: number;
+  reviewText: string;
+  savedRating: number;
+  savedReviewText: string;
 };
 
 const REPORT_SEARCH_SUGGESTIONS = [
@@ -140,6 +149,21 @@ function getReportFeedbackValue(report: AnalysisReport) {
   return typeof value === 'number' && value >= 1 && value <= 5 ? value : 0;
 }
 
+function createReportFeedbackDraft(report?: AnalysisReport | null): ReportFeedbackDraft {
+  const rating = report ? getReportFeedbackValue(report) : 0;
+  const reviewText = report?.review_text ?? '';
+
+  return {
+    reportId: report?.id ?? null,
+    sourceRating: rating,
+    sourceReviewText: reviewText,
+    rating,
+    reviewText,
+    savedRating: rating,
+    savedReviewText: reviewText,
+  };
+}
+
 function getReportDeleteWarning(report: AnalysisReport) {
   if (report.status === 'onqueue') {
     return {
@@ -197,7 +221,6 @@ function reportEditInitialValues(report: AnalysisReport): ReportEditFormValues {
     concern: toTextareaValue(report.concern),
     check_point: toTextareaValue(report.check_point),
     final_comment: report.final_comment,
-    review_text: report.review_text ?? '',
   };
 }
 
@@ -215,7 +238,6 @@ function reportEditPayload(id: number, values: ReportEditFormValues) {
     concern: toTextareaList(values.concern),
     check_point: toTextareaList(values.check_point),
     final_comment: values.final_comment.trim(),
-    review_text: values.review_text.trim(),
   };
 }
 
@@ -353,6 +375,7 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [isSavingFeedback, setIsSavingFeedback] = useState(false);
+  const [feedbackDraft, setFeedbackDraft] = useState<ReportFeedbackDraft>(() => createReportFeedbackDraft());
   const [deleteTargetItem, setDeleteTargetItem] = useState<AnalysisReportItem | null>(null);
   const [isDeletingReport, setIsDeletingReport] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
@@ -424,6 +447,25 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   const motiveItems = displaySelectedItem ? toList(displaySelectedItem.report.motive) : [];
   const collaborationItems = displaySelectedItem ? toList(displaySelectedItem.report.collaboration) : [];
   const isEditingReport = Boolean(displaySelectedItem && editingReportId === displaySelectedItem.report.id);
+  const selectedFeedbackReport = displaySelectedItem?.report ?? null;
+  const selectedFeedbackReportId = selectedFeedbackReport?.id ?? null;
+  const selectedFeedbackRating = selectedFeedbackReport ? getReportFeedbackValue(selectedFeedbackReport) : 0;
+  const selectedFeedbackReviewText = selectedFeedbackReport?.review_text ?? '';
+  const activeFeedbackDraft =
+    feedbackDraft.reportId === selectedFeedbackReportId &&
+    feedbackDraft.sourceRating === selectedFeedbackRating &&
+    feedbackDraft.sourceReviewText === selectedFeedbackReviewText
+      ? feedbackDraft
+      : createReportFeedbackDraft(selectedFeedbackReport);
+  const feedbackRatingChanged =
+    activeFeedbackDraft.rating >= 1 &&
+    activeFeedbackDraft.rating <= 5 &&
+    activeFeedbackDraft.rating !== activeFeedbackDraft.savedRating;
+  const normalizedFeedbackReviewText = activeFeedbackDraft.reviewText.trim();
+  const feedbackReviewTextChanged =
+    normalizedFeedbackReviewText !== activeFeedbackDraft.savedReviewText.trim();
+  const hasFeedbackChanges = feedbackRatingChanged || feedbackReviewTextChanged;
+  const feedbackEnabled = Boolean(selectedFeedbackReport && canSaveReportFeedback(selectedFeedbackReport));
 
   useEffect(() => {
     if (displaySelectedItem && selectedReportId !== String(displaySelectedItem.report.id)) {
@@ -486,31 +528,103 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
     }
   };
 
-  const saveReportFeedback = async (value: number) => {
-    if (!displaySelectedItem || !canSaveReportFeedback(displaySelectedItem.report) || value < 1 || value > 5) {
+  const saveReportFeedback = async () => {
+    if (
+      !selectedFeedbackReport ||
+      !feedbackEnabled ||
+      isSavingFeedback ||
+      !hasFeedbackChanges
+    ) {
       return;
     }
+
+    const payload: {
+      id: number;
+      user_feedback?: number;
+      review_text?: string;
+    } = { id: selectedFeedbackReport.id };
+
+    if (feedbackRatingChanged) {
+      payload.user_feedback = activeFeedbackDraft.rating;
+    }
+
+    if (feedbackReviewTextChanged) {
+      payload.review_text = normalizedFeedbackReviewText;
+    }
+
+    const savedReportId = selectedFeedbackReport.id;
+    const savedDraft = activeFeedbackDraft;
 
     setIsSavingFeedback(true);
 
     try {
-      const response = await apiClient.saveReport(
-        { id: displaySelectedItem.report.id, user_feedback: value },
-        apiKey,
-      );
+      const response = await apiClient.saveReport(payload, apiKey);
       await reloadData();
+      const savedRating =
+        response.data.user_feedback !== undefined
+          ? getReportFeedbackValue(response.data)
+          : payload.user_feedback ?? savedDraft.savedRating;
+      const savedReviewText =
+        response.data.review_text !== undefined
+          ? response.data.review_text ?? ''
+          : payload.review_text ?? savedDraft.savedReviewText;
+
+      setFeedbackDraft((current) =>
+        current.reportId === savedReportId
+          ? {
+              ...savedDraft,
+              reportId: savedReportId,
+              rating: savedRating,
+              reviewText: savedReviewText,
+              savedRating,
+              savedReviewText,
+            }
+          : current,
+      );
       showAlert({
         type: 'success',
-        message: response.message ?? '리포트 평가를 저장했습니다.',
+        message: response.message ?? '사용자 리뷰를 저장했습니다.',
       });
     } catch (error) {
       showAlert({
         type: 'error',
-        message: error instanceof Error ? error.message : '리포트 평가를 저장하지 못했습니다.',
+        message: error instanceof Error ? error.message : '사용자 리뷰를 저장하지 못했습니다.',
       });
     } finally {
       setIsSavingFeedback(false);
     }
+  };
+
+  const updateFeedbackRating = (rating: number) => {
+    if (
+      !selectedFeedbackReport ||
+      !feedbackEnabled ||
+      isSavingFeedback ||
+      rating < 1 ||
+      rating > 5
+    ) {
+      return;
+    }
+
+    setFeedbackDraft((current) => ({
+      ...(current.reportId === selectedFeedbackReport.id
+        ? current
+        : createReportFeedbackDraft(selectedFeedbackReport)),
+      rating,
+    }));
+  };
+
+  const updateFeedbackReviewText = (reviewText: string) => {
+    if (!selectedFeedbackReport || !feedbackEnabled || isSavingFeedback) {
+      return;
+    }
+
+    setFeedbackDraft((current) => ({
+      ...(current.reportId === selectedFeedbackReport.id
+        ? current
+        : createReportFeedbackDraft(selectedFeedbackReport)),
+      reviewText,
+    }));
   };
 
   const openDeleteReportModal = () => {
@@ -662,15 +776,6 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
                   {displaySelectedItem.report.version !== undefined && displaySelectedItem.report.version !== null ? (
                     <Tag color="blue">v{displaySelectedItem.report.version}</Tag>
                   ) : null}
-                  <div className="analysis-report-feedback" aria-label="리포트 사용자 평가">
-                    <span>{getReportFeedbackValue(displaySelectedItem.report) ? '사용자 평가' : '평가 없음'}</span>
-                    <Rate
-                      allowClear={false}
-                      disabled={isSavingFeedback || !canSaveReportFeedback(displaySelectedItem.report)}
-                      value={getReportFeedbackValue(displaySelectedItem.report)}
-                      onChange={(value) => void saveReportFeedback(value)}
-                    />
-                  </div>
                 </div>
                 <div className="analysis-report-detail-toolbar">
                   {isEditingReport ? (
@@ -717,6 +822,64 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
                     </Space>
                   )}
                 </div>
+                <section className="analysis-report-feedback" aria-labelledby="analysis-report-feedback-title">
+                  <div className="analysis-report-feedback-header">
+                    <div>
+                      <h3 id="analysis-report-feedback-title">사용자 리뷰</h3>
+                      <p>분석 결과의 유용성을 별점과 의견으로 남겨주세요.</p>
+                    </div>
+                    <span className="analysis-report-feedback-value" aria-live="polite">
+                      {activeFeedbackDraft.rating ? `${activeFeedbackDraft.rating}점 선택됨` : '별점 미선택'}
+                    </span>
+                  </div>
+                  <div className="analysis-report-feedback-rating">
+                    <span>별점</span>
+                    <Rate
+                      allowClear={false}
+                      aria-label={`사용자 리뷰 별점 ${
+                        activeFeedbackDraft.rating ? `${activeFeedbackDraft.rating}점` : '선택 안 함'
+                      }`}
+                      aria-disabled={isSavingFeedback || !feedbackEnabled}
+                      aria-describedby={!feedbackEnabled ? 'analysis-report-feedback-disabled-reason' : undefined}
+                      disabled={isSavingFeedback || !feedbackEnabled}
+                      value={activeFeedbackDraft.rating}
+                      onChange={updateFeedbackRating}
+                    />
+                  </div>
+                  <label htmlFor="analysis-report-feedback-text">사용자 의견</label>
+                  <Input.TextArea
+                    id="analysis-report-feedback-text"
+                    aria-label="사용자 리뷰 의견"
+                    aria-describedby={!feedbackEnabled ? 'analysis-report-feedback-disabled-reason' : undefined}
+                    autoSize={{ minRows: 3, maxRows: 7 }}
+                    disabled={isSavingFeedback || !feedbackEnabled}
+                    placeholder="분석 결과에서 유용했거나 보완이 필요한 점을 입력하세요."
+                    value={activeFeedbackDraft.reviewText}
+                    onChange={(event) => updateFeedbackReviewText(event.target.value)}
+                  />
+                  <div className="analysis-report-feedback-footer">
+                    <p
+                      id={!feedbackEnabled ? 'analysis-report-feedback-disabled-reason' : undefined}
+                      className="analysis-report-feedback-note"
+                    >
+                      {feedbackEnabled
+                        ? hasFeedbackChanges
+                          ? '저장하지 않은 리뷰 변경사항이 있습니다.'
+                          : '저장된 사용자 리뷰입니다.'
+                        : '분석이 완료된 리포트만 평가할 수 있습니다.'}
+                    </p>
+                    <Button
+                      aria-label="리뷰 저장"
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      loading={isSavingFeedback}
+                      disabled={!feedbackEnabled || isSavingFeedback || !hasFeedbackChanges}
+                      onClick={() => void saveReportFeedback()}
+                    >
+                      리뷰 저장
+                    </Button>
+                  </div>
+                </section>
                 <Tabs
                   defaultActiveKey="report"
                   items={[
@@ -821,13 +984,6 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
                                     placeholder="최종 코멘트를 입력하세요"
                                   />
                                 </Form.Item>
-                                <Form.Item label="검토 의견" name="review_text">
-                                  <Input.TextArea
-                                    aria-label="검토 의견 수정"
-                                    autoSize={{ minRows: 3, maxRows: 7 }}
-                                    placeholder="검토 의견을 입력하세요"
-                                  />
-                                </Form.Item>
                               </div>
                             </Form>
                           ) : (
@@ -913,10 +1069,6 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
                               <section className="analysis-report-section">
                                 <h3>최종 코멘트</h3>
                                 <p>{displaySelectedItem.report.final_comment || '최종 코멘트가 없습니다.'}</p>
-                              </section>
-                              <section className="analysis-report-section">
-                                <h3>검토 의견</h3>
-                                <p>{displaySelectedItem.report.review_text || '검토 의견이 없습니다.'}</p>
                               </section>
                             </>
                           )}

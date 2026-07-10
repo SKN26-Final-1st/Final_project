@@ -1,33 +1,15 @@
-import { Button, Progress, Table } from 'antd';
+import { Progress, Table } from 'antd';
 import { SectionCard } from '../common/SectionCard';
 import type { ApplicantRow } from '../../api/adapters';
-import type { ShowAlert } from '../../types/app';
 import { statusTag } from '../../utils/statusTag';
 
 type ApplicantReviewTableProps = {
   applicants: ApplicantRow[];
-  showAlert: ShowAlert;
 };
 
-export function ApplicantReviewTable({ applicants, showAlert }: ApplicantReviewTableProps) {
+export function ApplicantReviewTable({ applicants }: ApplicantReviewTableProps) {
   return (
-    <SectionCard
-      className="applicant-review-card"
-      title="지원자 검토 목록"
-      extra={
-        <Button
-          type="link"
-          onClick={() =>
-            showAlert({
-              type: 'info',
-              message: '지원자 상세 목록 화면은 API 연동 단계에서 연결합니다.',
-            })
-          }
-        >
-          자세히
-        </Button>
-      }
-    >
+    <SectionCard className="applicant-review-card" title="지원자 검토 목록">
       <Table
         className="desktop-data-table"
         size="middle"

@@ -30,7 +30,7 @@ const routeChecks = [
   {
     route: '/dashboard',
     root: '.dashboard-page',
-    actionSelectors: ['.dashboard-page .hero-actions .ant-btn', '.dashboard-page .applicant-review-card .ant-btn'],
+    actionSelectors: ['.dashboard-page .hero-actions .ant-btn'],
   },
   {
     route: '/jd',
