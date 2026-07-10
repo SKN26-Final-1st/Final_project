@@ -24,6 +24,7 @@ export type ChatContextCollection = {
   title: string;
   detail: string;
   count?: string;
+  queryable: boolean;
 };
 
 export type ChatContextSource = {
@@ -43,40 +44,15 @@ export type ChatContextPrompt = {
 export const chatScopeOptions: { key: ChatContextScope; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'jd', label: 'JD' },
-  { key: 'report', label: '분석 리포트' },
-  { key: 'question', label: '면접 질문' },
   { key: 'guide', label: '사용 가이드' },
 ];
-
-function findResume(resumes: Resume[], resumeId?: number) {
-  if (!resumeId) {
-    return null;
-  }
-
-  return resumes.find((resume) => resume.id === resumeId) ?? null;
-}
-
-function findJd(jdList: JdItem[], resume?: Resume | null) {
-  return resume ? jdList.find((jd) => Number(jd.id) === resume.job_description_id) ?? null : null;
-}
-
-function applicantJdLabel(resume: Resume | null, jd: JdItem | null) {
-  const applicant = resume?.name || '지원자 정보 없음';
-  const jdTitle = jd?.title || '연결 JD 없음';
-  return `${applicant} · ${jdTitle}`;
-}
 
 function recentItems<T>(items: T[], limit: number) {
   return items.slice(-limit).reverse();
 }
 
-function questionKey(question: InterviewQuestion, index: number) {
-  return question.id ? `question-${question.id}` : `question-${question.resume_id ?? 'report'}-${index}`;
-}
-
 export function buildChatContextData({
   jdList,
-  resumes,
   analysisReports,
   interviewQuestions,
 }: ChatContextInput) {
@@ -87,26 +63,30 @@ export function buildChatContextData({
       title: 'JD',
       detail: 'AI 채팅이 실제로 참조할 수 있는 JD',
       count: `${jdList.length}개`,
+      queryable: true,
     },
     {
       key: 'report',
       icon: <FileSearchOutlined />,
       title: '분석 리포트',
-      detail: '화면에서 확인 가능한 분석 결과',
+      detail: '리포트 화면에서 확인하는 관련 기록',
       count: `${analysisReports.length}개`,
+      queryable: false,
     },
     {
       key: 'question',
       icon: <QuestionOutlined />,
       title: '면접 질문',
-      detail: '리포트에 포함된 추천 질문',
+      detail: '리포트 화면에서 확인하는 추천 질문',
       count: `${interviewQuestions.length}개`,
+      queryable: false,
     },
     {
       key: 'guide',
       icon: <BookOutlined />,
       title: '사용 가이드',
       detail: '앱 사용법 검색 가능',
+      queryable: true,
     },
   ];
 
@@ -118,53 +98,13 @@ export function buildChatContextData({
     scope: 'jd',
   }));
 
-  const reportSources: ChatContextSource[] = recentItems(analysisReports, 3).map((report) => {
-    const resume = findResume(resumes, report.resume_id);
-    const jd = findJd(jdList, resume);
-
-    return {
-      key: `report-${report.id}`,
-      title: applicantJdLabel(resume, jd),
-      description: `${report.overall_grade || 'N/A'} 등급 · ${report.overall_summary || '요약 없음'}`,
-      icon: <HistoryOutlined />,
-      scope: 'report',
-    };
-  });
-
-  const questionSources: ChatContextSource[] = recentItems(interviewQuestions, 3).map((question, index) => {
-    const resume = findResume(resumes, question.resume_id);
-    const jd = findJd(jdList, resume);
-
-    return {
-      key: questionKey(question, index),
-      title: question.question,
-      description: applicantJdLabel(resume, jd),
-      icon: <HistoryOutlined />,
-      scope: 'question',
-    };
-  });
-  const sources = [...jdSources, ...reportSources, ...questionSources];
+  const sources = jdSources;
 
   const prompts: ChatContextPrompt[] = [
     ...recentItems(jdList, 2).map((jd) => ({
       key: `prompt-jd-${jd.id}`,
       label: `${jd.title} JD에서 확인해야 할 핵심 조건을 정리해줘`,
       scope: 'jd' as const,
-    })),
-    ...recentItems(analysisReports, 2).map((report) => {
-      const resume = findResume(resumes, report.resume_id);
-      const jd = findJd(jdList, resume);
-
-      return {
-        key: `prompt-report-${report.id}`,
-        label: `${applicantJdLabel(resume, jd)} 분석 리포트의 우려 사항을 정리해줘`,
-        scope: 'report' as const,
-      };
-    }),
-    ...recentItems(interviewQuestions, 2).map((question, index) => ({
-      key: `prompt-${questionKey(question, index)}`,
-      label: `${question.question} 질문의 의도와 후속 질문을 정리해줘`,
-      scope: 'question' as const,
     })),
   ];
 

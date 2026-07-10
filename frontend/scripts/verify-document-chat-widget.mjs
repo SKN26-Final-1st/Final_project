@@ -99,6 +99,8 @@ const report = {
   concern: [],
   check_point: [],
   final_comment: 'Proceed to interview.',
+  status: 'done',
+  created_at: '2026-01-01',
 };
 const question = {
   id: 701,

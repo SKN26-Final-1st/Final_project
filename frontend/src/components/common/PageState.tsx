@@ -8,7 +8,7 @@ type PageLoadingProps = {
 
 export function PageLoading({ title = '데이터를 불러오는 중입니다.' }: PageLoadingProps) {
   return (
-    <Card>
+    <Card role="status" aria-label={title} aria-busy="true">
       <Skeleton active paragraph={{ rows: 8 }} title={{ width: title.length * 12 }} />
     </Card>
   );
@@ -41,5 +41,9 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({ description, action }: EmptyStateProps) {
-  return <Empty description={description}>{action}</Empty>;
+  return (
+    <div role="region" aria-label={description}>
+      <Empty description={description}>{action}</Empty>
+    </div>
+  );
 }

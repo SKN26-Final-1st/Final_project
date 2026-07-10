@@ -10,7 +10,7 @@ import { SearchSuggestions, type SearchSuggestion } from '../components/common/S
 import { SectionCard } from '../components/common/SectionCard';
 import type { AnalysisReport, InterviewQuestion } from '../data/backendTypes';
 import { useAnalysisReportPageData, type AnalysisReportItem } from '../hooks/useAnalysisReportPageData';
-import type { Navigate } from '../types/app';
+import type { Navigate, ShowAlert } from '../types/app';
 import { getStoredApiKey } from '../utils/apiKeySession';
 import { pageSectionGutter } from '../utils/layout';
 import {
@@ -22,6 +22,7 @@ import {
 
 type AnalysisReportPageProps = {
   navigate: Navigate;
+  showAlert: ShowAlert;
 };
 
 type ReportEditFormValues = {
@@ -344,7 +345,7 @@ function CompactQuestionList({ questions }: { questions: InterviewQuestion[] }) 
   );
 }
 
-export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
+export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPageProps) {
   const { refreshing, reloadData, reportItems, reportTreeItems, selectedReportId, setSelectedReportId } =
     useAnalysisReportPageData();
   const [reportForm] = Form.useForm<ReportEditFormValues>();
@@ -465,9 +466,21 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
     setIsSavingReport(true);
 
     try {
-      await apiClient.saveReport(reportEditPayload(displaySelectedItem.report.id, values), apiKey);
+      const response = await apiClient.saveReport(
+        reportEditPayload(displaySelectedItem.report.id, values),
+        apiKey,
+      );
       await reloadData();
       setEditingReportId(null);
+      showAlert({
+        type: 'success',
+        message: response.message ?? '분석 리포트를 저장했습니다.',
+      });
+    } catch (error) {
+      showAlert({
+        type: 'error',
+        message: error instanceof Error ? error.message : '분석 리포트를 저장하지 못했습니다.',
+      });
     } finally {
       setIsSavingReport(false);
     }
@@ -481,8 +494,20 @@ export function AnalysisReportPage({ navigate }: AnalysisReportPageProps) {
     setIsSavingFeedback(true);
 
     try {
-      await apiClient.saveReport({ id: displaySelectedItem.report.id, user_feedback: value }, apiKey);
+      const response = await apiClient.saveReport(
+        { id: displaySelectedItem.report.id, user_feedback: value },
+        apiKey,
+      );
       await reloadData();
+      showAlert({
+        type: 'success',
+        message: response.message ?? '리포트 평가를 저장했습니다.',
+      });
+    } catch (error) {
+      showAlert({
+        type: 'error',
+        message: error instanceof Error ? error.message : '리포트 평가를 저장하지 못했습니다.',
+      });
     } finally {
       setIsSavingFeedback(false);
     }

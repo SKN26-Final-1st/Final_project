@@ -77,7 +77,7 @@ export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
     {
       key: 'document-intro',
       role: 'ai',
-      content: '현재 계정의 JD와 사용 가이드를 중심으로 답변을 도와드릴게요. 리포트와 면접 질문은 추천 자료에서만 확인할 수 있습니다.',
+      content: '현재 계정의 JD와 사용 가이드를 기준으로 답변합니다. 리포트와 면접 질문은 리포트 화면에서 확인해주세요.',
       header: 'HumouR AI',
     },
     ...chatMessages.map((message, index) => ({
@@ -143,7 +143,7 @@ export function DocumentChatFab({ navigate }: DocumentChatFabProps) {
             <div className="document-recommendation-panel-head">
               <div>
                 <strong>추천 자료</strong>
-                <span>현재 계정에 실제 저장된 데이터만 표시합니다.</span>
+                <span>AI 답변에 참조할 수 있는 JD만 표시합니다.</span>
               </div>
               <Button
                 aria-label="추천 자료 닫기"

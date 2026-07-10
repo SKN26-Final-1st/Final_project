@@ -151,7 +151,7 @@ export default function App() {
       case '/cover-letter':
         return <CoverLetterPage navigate={navigate} showAlert={showAlert} />;
       case '/analysis-report':
-        return <AnalysisReportPage navigate={navigate} />;
+        return <AnalysisReportPage navigate={navigate} showAlert={showAlert} />;
       case '/chat':
         return <ChatPage />;
       case '/mypage':

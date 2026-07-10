@@ -74,7 +74,7 @@ function renderMyPage(authMode: AuthMode = 'account') {
     </QueryClientProvider>,
   );
 
-  return { navigate, runApiAction, setIsAuthenticated };
+  return { navigate, queryClient, runApiAction, setIsAuthenticated };
 }
 
 describe('MyPage', () => {
@@ -85,7 +85,8 @@ describe('MyPage', () => {
       data: { delete: true },
     });
     const user = userEvent.setup();
-    const { navigate, runApiAction, setIsAuthenticated } = renderMyPage();
+    const { navigate, queryClient, runApiAction, setIsAuthenticated } = renderMyPage();
+    queryClient.setQueryData(['app-data', 'account', 'none'], { account: 'deleted-user' });
 
     await user.click(screen.getByRole('button', { name: '계정 삭제' }));
 
@@ -98,6 +99,7 @@ describe('MyPage', () => {
       expect(deleteAccount).toHaveBeenCalledTimes(1);
     });
     expect(runApiAction).toHaveBeenCalledWith('account-delete', expect.any(Function), expect.any(Function));
+    expect(queryClient.getQueriesData({ queryKey: ['app-data'] })).toEqual([]);
     expect(setIsAuthenticated).toHaveBeenCalledWith(false);
     expect(navigate).toHaveBeenCalledWith('/login');
   });
