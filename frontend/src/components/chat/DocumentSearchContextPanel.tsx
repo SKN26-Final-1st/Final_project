@@ -36,23 +36,40 @@ export function DocumentSearchContextPanel({
         <div>
           <strong>참조 가능한 데이터</strong>
           <span>
-            AI 답변은 접근 가능한 JD와 사용 가이드를 중심으로 생성됩니다. 리포트와 면접 질문은 현재 화면에서 확인할 수
-            있는 관련 자료로만 표시합니다.
+            AI 답변은 접근 가능한 JD와 사용 가이드를 기준으로 생성됩니다. 리포트와 면접 질문은 관련 기록 수만 표시합니다.
           </span>
         </div>
       </div>
 
       <Row gutter={[12, 12]} className="document-collection-grid">
-        {collections.map((item) => (
-          <Col xs={24} sm={12} key={item.key}>
-            <button type="button" className="document-collection-card" onClick={() => setChatInput(`${item.title}에 대해 알려줘`)}>
+        {collections.map((item) => {
+          const content = (
+            <>
               <span className="document-collection-icon">{item.icon}</span>
               <strong>{item.title}</strong>
               <small>{item.detail}</small>
               {item.count && <em>{item.count}</em>}
-            </button>
-          </Col>
-        ))}
+            </>
+          );
+
+          return (
+            <Col xs={24} sm={12} key={item.key}>
+              {item.queryable ? (
+                <button
+                  type="button"
+                  className="document-collection-card"
+                  onClick={() => setChatInput(`${item.title}에 대해 알려줘`)}
+                >
+                  {content}
+                </button>
+              ) : (
+                <div className="document-collection-card is-readonly" aria-label={`${item.title}: ${item.detail}`}>
+                  {content}
+                </div>
+              )}
+            </Col>
+          );
+        })}
       </Row>
 
       <div className="document-suggestions">
