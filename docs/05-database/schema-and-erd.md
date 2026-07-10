@@ -58,6 +58,7 @@ erDiagram
     text hiring_reason
     string work_type
     string status
+    string checklist_status
     datetime created_at
     datetime updated_at
   }
@@ -90,6 +91,9 @@ erDiagram
   AnalysisReport {
     bigint id
     bigint resume_id
+    string version
+    int user_feedback
+    text review_text
     string overall_grade
     text overall_summary
     text candidate_summary
