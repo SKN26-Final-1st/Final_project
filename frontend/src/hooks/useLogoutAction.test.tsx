@@ -28,9 +28,15 @@ describe('useLogoutAction', () => {
     });
   });
 
-  it('계정 로그아웃이 완료되면 이전 계정의 app-data 캐시를 제거한다', async () => {
+  it('계정 로그아웃이 완료되면 query와 mutation을 포함한 전체 사용자 캐시를 제거한다', async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(queryKeys.appData('account', 'none'), { account: 'previous-user' });
+    queryClient.setQueryData(queryKeys.checklist(17), { content: 'private checklist' });
+    queryClient.getMutationCache().build(queryClient, {
+      mutationKey: ['profile-save'],
+      mutationFn: async () => ({ saved: true }),
+    });
+    const cancelQueries = vi.spyOn(queryClient, 'cancelQueries');
     const navigate = vi.fn();
     const setIsAuthenticated = vi.fn();
     const runApiAction = vi.fn(async (_key, action, afterComplete) => {
@@ -53,14 +59,21 @@ describe('useLogoutAction', () => {
       result.current();
     });
 
-    expect(queryClient.getQueriesData({ queryKey: queryKeys.appData() })).toEqual([]);
+    expect(cancelQueries).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+    expect(queryClient.getMutationCache().getAll()).toEqual([]);
     expect(setIsAuthenticated).toHaveBeenCalledWith(false);
     expect(navigate).toHaveBeenCalledWith('/login');
   });
 
-  it('API Key 로그아웃도 제한 접근 캐시를 제거한다', () => {
+  it('API Key 로그아웃도 전체 제한 접근 캐시를 제거한다', () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(queryKeys.appData('apiKey', '12:sample'), { account: 'api-key-user' });
+    queryClient.setQueryData(queryKeys.checklist(22), { content: 'api key checklist' });
+    queryClient.getMutationCache().build(queryClient, {
+      mutationKey: ['report-save'],
+      mutationFn: async () => ({ saved: true }),
+    });
     const clearAuthSession = vi.fn();
     const navigate = vi.fn();
     const { result } = renderHook(
@@ -79,7 +92,8 @@ describe('useLogoutAction', () => {
       result.current();
     });
 
-    expect(queryClient.getQueriesData({ queryKey: queryKeys.appData() })).toEqual([]);
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+    expect(queryClient.getMutationCache().getAll()).toEqual([]);
     expect(clearAuthSession).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith('/login');
   });

@@ -3,6 +3,7 @@ import { EyeInvisibleOutlined, EyeTwoTone, KeyOutlined, LoginOutlined } from '@a
 import { InlineLoading } from '../../components/common/InlineLoading';
 import { AuthScreen } from '../../components/layout/AuthScreen';
 import { apiClient } from '../../api/backendClient';
+import { waitForAuthRecoveryLogout } from '../../utils/authRecovery';
 import type { AuthPageBaseProps } from './types';
 
 type LoginValues = {
@@ -46,7 +47,10 @@ export function LoginPage({
                   onFinish={(values) =>
                     void runApiAction(
                       'login',
-                      () => apiClient.login(values.username, values.password),
+                      async () => {
+                        await waitForAuthRecoveryLogout();
+                        return apiClient.login(values.username, values.password);
+                      },
                       () => onLoginSuccess?.(),
                     )
                   }
@@ -87,7 +91,10 @@ export function LoginPage({
                     const apiKey = values.apiKey.trim();
                     void runApiAction(
                       'api-key-login',
-                      () => apiClient.loginWithApiKey(apiKey),
+                      async () => {
+                        await waitForAuthRecoveryLogout();
+                        return apiClient.loginWithApiKey(apiKey);
+                      },
                       () => onApiKeyLoginSuccess?.(apiKey),
                     );
                   }}

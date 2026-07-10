@@ -6,12 +6,14 @@ import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageError, PageLoading } from './components/common/PageState';
+import { resetAuthExpiryHandling } from './api/httpClient';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
 import type { AppRoute } from './data/appConfig';
 import { radiusTokens, themePalette } from './data/themeTokens';
 import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
+import { useAuthExpiryHandler } from './hooks/useAuthExpiryHandler';
 import { useAuthSession } from './hooks/useAuthSession';
 import { DocumentChatProvider } from './hooks/useDocumentChatState';
 import { useLogoutAction } from './hooks/useLogoutAction';
@@ -36,6 +38,9 @@ const API_KEY_HOME_ROUTE: AppRoute = '/jd';
 export default function App() {
   const routerNavigate = useNavigate();
   const location = useLocation();
+  const navigate = useCallback((nextRoute: AppRoute | string) => {
+    void routerNavigate(nextRoute);
+  }, [routerNavigate]);
   const route = getRouteFromPathname(location.pathname);
   const [mode, setMode] = useState<ThemeMode>('light');
   const { alert, loadingKey, runApiAction, setAlert, showAlert } = useApiAction();
@@ -58,6 +63,7 @@ export default function App() {
   const shouldLoadAppData =
     authChecked && isAuthenticated && !isAuth && !isShared && (!isApiKeyMode || isApiKeyAllowedRoute);
   const { data, loading, error, reload } = useAppData(shouldLoadAppData, authMode, apiKey);
+  useAuthExpiryHandler({ clearAuthSession, navigate });
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -101,9 +107,6 @@ export default function App() {
     [renderedThemeMode],
   );
 
-  const navigate = useCallback((nextRoute: AppRoute | string) => {
-    void routerNavigate(nextRoute);
-  }, [routerNavigate]);
   const logout = useLogoutAction({ authMode, clearAuthSession, navigate, runApiAction, setIsAuthenticated });
 
   const themeSwitch = (
@@ -213,10 +216,12 @@ export default function App() {
             loadingKey={loadingKey}
             runApiAction={runApiAction}
             onLoginSuccess={() => {
+              resetAuthExpiryHandling();
               setIsAuthenticated(true);
               navigate('/dashboard');
             }}
             onApiKeyLoginSuccess={(nextApiKey) => {
+              resetAuthExpiryHandling();
               setApiKeySession(nextApiKey);
               navigate(API_KEY_HOME_ROUTE);
             }}

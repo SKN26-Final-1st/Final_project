@@ -1,52 +1,81 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiClient } from '../api/backendClient';
 import {
+  clearAuthRecoveryRequested,
   clearStoredApiKey,
+  getAuthRecoveryRequested,
   getStoredApiKey,
   setStoredApiKey,
   type AuthMode,
 } from '../utils/apiKeySession';
 
 export function useAuthSession(isShared: boolean) {
-  const [apiKey, setApiKey] = useState<string | null>(() => getStoredApiKey());
-  const [authChecked, setAuthChecked] = useState(() => Boolean(apiKey));
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(apiKey));
-  const [authMode, setAuthMode] = useState<AuthMode>(() => (apiKey ? 'apiKey' : null));
+  const [authRecoveryRequested] = useState(getAuthRecoveryRequested);
+  const [apiKey, setApiKey] = useState<string | null>(() =>
+    authRecoveryRequested ? null : getStoredApiKey(),
+  );
+  const [authChecked, setAuthChecked] = useState(() => authRecoveryRequested || Boolean(apiKey));
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !authRecoveryRequested && Boolean(apiKey));
+  const [authMode, setAuthMode] = useState<AuthMode>(() =>
+    !authRecoveryRequested && apiKey ? 'apiKey' : null,
+  );
+  const profileControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (isShared || apiKey) {
+    if (isShared || apiKey || authRecoveryRequested) {
       return undefined;
     }
 
     let active = true;
+    const controller = new AbortController();
+    profileControllerRef.current = controller;
+    const canApplyResponse = () =>
+      active && profileControllerRef.current === controller && !controller.signal.aborted;
 
     void apiClient
-      .getUserProfile()
+      .getUserProfile({
+        authFailurePolicy: 'local',
+        signal: controller.signal,
+      })
       .then(() => {
-        if (active) {
+        if (canApplyResponse()) {
           setIsAuthenticated(true);
           setAuthMode('account');
         }
       })
       .catch(() => {
-        if (active) {
+        if (canApplyResponse()) {
           setIsAuthenticated(false);
           setAuthMode(null);
         }
       })
       .finally(() => {
-        if (active) {
+        if (canApplyResponse()) {
           setAuthChecked(true);
+          profileControllerRef.current = null;
         }
       });
 
     return () => {
       active = false;
+      controller.abort();
+
+      if (profileControllerRef.current === controller) {
+        profileControllerRef.current = null;
+      }
     };
-  }, [apiKey, isShared]);
+  }, [apiKey, authRecoveryRequested, isShared]);
+
+  const cancelProfileRequest = () => {
+    profileControllerRef.current?.abort();
+    profileControllerRef.current = null;
+  };
 
   const setAccountAuthenticated = (value: boolean) => {
+    cancelProfileRequest();
+
     if (value) {
+      clearAuthRecoveryRequested();
       clearStoredApiKey();
       setApiKey(null);
       setAuthMode('account');
@@ -63,6 +92,8 @@ export function useAuthSession(isShared: boolean) {
   };
 
   const setApiKeySession = (nextApiKey: string) => {
+    cancelProfileRequest();
+    clearAuthRecoveryRequested();
     setStoredApiKey(nextApiKey);
     setApiKey(nextApiKey);
     setAuthMode('apiKey');
@@ -71,6 +102,7 @@ export function useAuthSession(isShared: boolean) {
   };
 
   const clearAuthSession = () => {
+    cancelProfileRequest();
     clearStoredApiKey();
     setApiKey(null);
     setAuthMode(null);

@@ -514,6 +514,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
         onConfirm={() => void confirmDeleteJd()}
       />
       <JdChatDrawer
+        apiKey={getStoredApiKey() ?? undefined}
         open={isJdChatOpen}
         selectedJd={!isCreateMode ? selectedJd : null}
         onClose={() => setIsJdChatOpen(false)}

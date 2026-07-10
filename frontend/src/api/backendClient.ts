@@ -32,6 +32,7 @@ import {
   requestAction,
   requestBackend,
   type BackendEnvelope,
+  type RequestOptions,
 } from './httpClient';
 
 type BackendChatMessage = {
@@ -50,7 +51,10 @@ type JdChatRequest = {
   messages?: ChatMessage[];
   state?: JdChatState;
   apiKey?: string;
+  signal?: AbortSignal;
 };
+
+type RequestControlOptions = Pick<RequestOptions, 'authFailurePolicy' | 'signal'>;
 
 type JdChatPayload = {
   response: BackendChatMessage;
@@ -294,10 +298,10 @@ function toBackendChatMessages(messages: ChatMessage[]): BackendChatMessage[] {
   }));
 }
 
-async function chatRequest(messages: ChatMessage[], apiKey?: string) {
+async function chatRequest(messages: ChatMessage[], apiKey?: string, options: RequestControlOptions = {}) {
   const payload = await requestAction('chat', {
     chat: toBackendChatMessages(messages),
-  }, { apiKey });
+  }, { ...options, apiKey });
   const response = payload.response;
 
   if (!response || typeof response !== 'object') {
@@ -316,7 +320,7 @@ async function chatRequest(messages: ChatMessage[], apiKey?: string) {
   } satisfies ChatMessage;
 }
 
-async function jdChatRequest({ jobDescriptionId, messages = [], state, apiKey }: JdChatRequest): Promise<JdChatPayload> {
+async function jdChatRequest({ jobDescriptionId, messages = [], state, apiKey, signal }: JdChatRequest): Promise<JdChatPayload> {
   const body: Record<string, unknown> = {
     job_description_id: jobDescriptionId,
     chat: toBackendChatMessages(messages),
@@ -326,7 +330,7 @@ async function jdChatRequest({ jobDescriptionId, messages = [], state, apiKey }:
     body.state = state;
   }
 
-  const payload = await requestAction('jd_chat', body, { apiKey });
+  const payload = await requestAction('jd_chat', body, { apiKey, signal });
   const response = payload.response;
   const nextState = payload.state;
 
@@ -389,35 +393,49 @@ function ensureArray<T>(value: T[] | T | null | undefined): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-async function getAccount() {
-  return parseAccount(await requestBackend<Account>('account/get'));
+async function getAccount(options: RequestControlOptions = {}) {
+  return parseAccount(await requestBackend<Account>('account/get', {}, options));
 }
 
-async function getCompanyInfo() {
-  return parseCompanyInfo(await requestBackend<CompanyInfo>('compinfo/get'));
+async function getCompanyInfo(options: RequestControlOptions = {}) {
+  return parseCompanyInfo(await requestBackend<CompanyInfo>('compinfo/get', {}, options));
 }
 
-async function getJobDescriptions(apiKey?: string) {
-  return parseJobDescriptions(await requestBackend<JobDescription[]>('jd/get', {}, { apiKey }));
+async function getJobDescriptions(apiKey?: string, options: RequestControlOptions = {}) {
+  return parseJobDescriptions(await requestBackend<JobDescription[]>('jd/get', {}, { ...options, apiKey }));
 }
 
-async function getResumesForJob(jobDescriptionId: number, apiKey?: string) {
-  const data = await requestBackend<Resume[] | Resume>('resume/get', { job_description_id: jobDescriptionId }, { apiKey });
+async function getResumesForJob(
+  jobDescriptionId: number,
+  apiKey?: string,
+  options: RequestControlOptions = {},
+) {
+  const data = await requestBackend<Resume[] | Resume>(
+    'resume/get',
+    { job_description_id: jobDescriptionId },
+    { ...options, apiKey },
+  );
   return parseResumes(ensureArray(data));
 }
 
-async function getReportsForResume(resumeId: number, apiKey?: string) {
-  return parseAnalysisReports(await requestBackend<AnalysisReport[]>('report/get', { resume_id: resumeId }, { apiKey }));
+async function getReportsForResume(resumeId: number, apiKey?: string, options: RequestControlOptions = {}) {
+  return parseAnalysisReports(
+    await requestBackend<AnalysisReport[]>('report/get', { resume_id: resumeId }, { ...options, apiKey }),
+  );
 }
 
-async function getDashboardData(): Promise<DashboardPayload> {
+async function getDashboardData(options: RequestControlOptions = {}): Promise<DashboardPayload> {
   const [account, companyInfo, jobDescriptions] = await Promise.all([
-    getAccount(),
-    getCompanyInfo(),
-    getJobDescriptions(),
+    getAccount(options),
+    getCompanyInfo(options),
+    getJobDescriptions(undefined, options),
   ]);
-  const resumes = (await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id)))).flat();
-  const analysisReports = (await Promise.all(resumes.map((resume) => getReportsForResume(resume.id)))).flat();
+  const resumes = (
+    await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id, undefined, options)))
+  ).flat();
+  const analysisReports = (
+    await Promise.all(resumes.map((resume) => getReportsForResume(resume.id, undefined, options)))
+  ).flat();
 
   return {
     account,
@@ -454,13 +472,20 @@ function buildApiKeyCompanyInfo(): CompanyInfo {
   };
 }
 
-async function getApiKeyDashboardData(apiKey: string): Promise<DashboardPayload> {
+async function getApiKeyDashboardData(
+  apiKey: string,
+  options: RequestControlOptions = {},
+): Promise<DashboardPayload> {
   const [jobDescriptions, creditData] = await Promise.all([
-    getJobDescriptions(apiKey),
-    requestBackend<ApiKeyCreditPayload>('authkey/credit', {}, { apiKey }),
+    getJobDescriptions(apiKey, options),
+    requestBackend<ApiKeyCreditPayload>('authkey/credit', {}, { ...options, apiKey }),
   ]);
-  const resumes = (await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id, apiKey)))).flat();
-  const analysisReports = (await Promise.all(resumes.map((resume) => getReportsForResume(resume.id, apiKey)))).flat();
+  const resumes = (
+    await Promise.all(jobDescriptions.map((job) => getResumesForJob(job.id, apiKey, options)))
+  ).flat();
+  const analysisReports = (
+    await Promise.all(resumes.map((resume) => getReportsForResume(resume.id, apiKey, options)))
+  ).flat();
 
   return {
     account: buildApiKeyAccount(creditData.credit),
@@ -496,8 +521,8 @@ function buildRecruitmentPreview(companyInfo: CompanyInfo, jobDescription?: JobD
   };
 }
 
-async function getDashboardSource() {
-  return getDashboardData();
+async function getDashboardSource(options: RequestControlOptions = {}) {
+  return getDashboardData(options);
 }
 
 async function getResumeSourceForJob(jobDescriptionId: number) {
@@ -557,9 +582,15 @@ function sanitizeAccountModifyBody(body: AccountModifyBody): Record<string, unkn
   return allowedBody;
 }
 
-async function getSharedResumeBundle(resumeId: number, apiKey: string) {
+async function getSharedResumeBundle(
+  resumeId: number,
+  apiKey: string,
+  options: RequestControlOptions = {},
+) {
   const resumes = parseResumes(
-    ensureArray(await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }, { apiKey })),
+    ensureArray(
+      await requestBackend<Resume[] | Resume>('resume/get', { id: resumeId }, { ...options, apiKey }),
+    ),
   );
   const resume = resumes.find((item) => item.id === resumeId) ?? resumes[0];
 
@@ -568,8 +599,8 @@ async function getSharedResumeBundle(resumeId: number, apiKey: string) {
   }
 
   const [jobDescriptions, reports] = await Promise.all([
-    getJobDescriptions(apiKey),
-    getReportsForResume(resume.id, apiKey),
+    getJobDescriptions(apiKey, options),
+    getReportsForResume(resume.id, apiKey, options),
   ]);
   const jobDescription = jobDescriptions.find((item) => item.id === resume.job_description_id) ?? null;
 
@@ -589,14 +620,15 @@ function unsupportedBackendFeature(featureName: string): never {
 export const apiClient = {
   ping: async () => toApiResponse('백엔드 연결을 확인했습니다.', await pingRequest()),
 
-  getDashboard: async () => toApiResponse('대시보드 데이터를 불러왔습니다.', await getDashboardSource()),
+  getDashboard: async (options: RequestControlOptions = {}) =>
+    toApiResponse('대시보드 데이터를 불러왔습니다.', await getDashboardSource(options)),
 
-  getApiKeyDashboard: async (apiKey: string) =>
-    toApiResponse('API Key 접근 데이터를 불러왔습니다.', await getApiKeyDashboardData(apiKey)),
+  getApiKeyDashboard: async (apiKey: string, options: RequestControlOptions = {}) =>
+    toApiResponse('API Key 접근 데이터를 불러왔습니다.', await getApiKeyDashboardData(apiKey, options)),
 
   loginWithApiKey: async (apiKey: string) => {
     try {
-      await getApiKeyDashboardData(apiKey);
+      await getApiKeyDashboardData(apiKey, { authFailurePolicy: 'local' });
     } catch {
       throw new Error('API Key가 유효하지 않거나 접근 권한이 없습니다.');
     }
@@ -683,17 +715,18 @@ export const apiClient = {
     return toApiResponse('면접 질문 목록을 불러왔습니다.', dashboard.interview_questions);
   },
 
-  getUserProfile: async () => toApiResponse('계정 정보를 불러왔습니다.', await getAccount()),
+  getUserProfile: async (options: RequestControlOptions = {}) =>
+    toApiResponse('계정 정보를 불러왔습니다.', await getAccount(options)),
 
   login: async (username: string, password: string) => {
     await loginRequest(username, password);
-    const account = await getAccount();
+    const account = await getAccount({ authFailurePolicy: 'local' });
 
     return toApiResponse('로그인되었습니다.', { authenticated: true, account });
   },
 
-  logout: async () => {
-    await requestAction('logout');
+  logout: async (options: RequestControlOptions = {}) => {
+    await requestAction('logout', {}, options);
 
     return toApiResponse('로그아웃되었습니다.', { logout: true });
   },
@@ -710,10 +743,10 @@ export const apiClient = {
     return toApiResponse('회사 정보가 저장되었습니다.', { updated_at: new Date().toISOString() });
   },
 
-  getAuthKeys: async () =>
+  getAuthKeys: async (options: RequestControlOptions = {}) =>
     toApiResponse(
       '인증 키 목록을 불러왔습니다.',
-      parseAuthKeys(await requestBackend<AuthKey[]>('authkey/get')),
+      parseAuthKeys(await requestBackend<AuthKey[]>('authkey/get', {}, options)),
     ),
 
   addAuthKey: async (body: AuthKeyAddBody) => {
@@ -806,9 +839,10 @@ export const apiClient = {
     question: string,
     messages: ChatMessage[] = [],
     apiKey?: string,
+    options: RequestControlOptions = {},
   ): Promise<ApiResponse<ChatMessage>> => {
     const chatMessages = messages.length ? messages : [{ role: 'user', text: question } satisfies ChatMessage];
-    return toApiResponse('AI 응답이 추가되었습니다.', await chatRequest(chatMessages, apiKey));
+    return toApiResponse('AI 응답이 추가되었습니다.', await chatRequest(chatMessages, apiKey, options));
   },
 
   sendJdChatMessage: async (request: JdChatRequest) => {
@@ -890,6 +924,13 @@ export const apiClient = {
 
   downloadTemplateDocument: async () => unsupportedBackendFeature('템플릿 문서 다운로드'),
 
-  getSharedResumeBundle: async (resumeId: number, apiKey: string) =>
-    toApiResponse('공유 분석 결과를 불러왔습니다.', await getSharedResumeBundle(resumeId, apiKey)),
+  getSharedResumeBundle: async (
+    resumeId: number,
+    apiKey: string,
+    options: RequestControlOptions = {},
+  ) =>
+    toApiResponse(
+      '공유 분석 결과를 불러왔습니다.',
+      await getSharedResumeBundle(resumeId, apiKey, { ...options, authFailurePolicy: 'local' }),
+    ),
 };

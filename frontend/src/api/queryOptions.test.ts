@@ -1,5 +1,13 @@
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { appDataQueryOptions } from './queryOptions';
+
+const loadAppData = vi.hoisted(() => vi.fn());
+const loadApiKeyAppData = vi.hoisted(() => vi.fn());
+
+vi.mock('./appDataService', () => ({
+  loadApiKeyAppData,
+  loadAppData,
+}));
 
 function getRefetchInterval(options: ReturnType<typeof appDataQueryOptions>) {
   if (typeof options.refetchInterval !== 'function') {
@@ -31,6 +39,10 @@ function makePartialQuery(data: Record<string, unknown>) {
 }
 
 describe('appDataQueryOptions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test('polls while an analysis report is queued or processing', () => {
     const refetchInterval = getRefetchInterval(appDataQueryOptions());
 
@@ -56,5 +68,20 @@ describe('appDataQueryOptions', () => {
 
     expect(refetchInterval(makePartialQuery({ jdList: [] }))).toBe(false);
     expect(refetchInterval(makePartialQuery({ analysisReports: [] }))).toBe(false);
+  });
+
+  test('forwards the TanStack Query abort signal to account and API Key loaders', async () => {
+    const accountController = new AbortController();
+    const apiKeyController = new AbortController();
+    loadAppData.mockResolvedValue({});
+    loadApiKeyAppData.mockResolvedValue({});
+    const accountOptions = appDataQueryOptions(true, 'account', null);
+    const apiKeyOptions = appDataQueryOptions(true, 'apiKey', 'shared-key');
+
+    await accountOptions.queryFn?.({ signal: accountController.signal } as never);
+    await apiKeyOptions.queryFn?.({ signal: apiKeyController.signal } as never);
+
+    expect(loadAppData).toHaveBeenCalledWith(accountController.signal);
+    expect(loadApiKeyAppData).toHaveBeenCalledWith('shared-key', apiKeyController.signal);
   });
 });

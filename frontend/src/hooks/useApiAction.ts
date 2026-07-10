@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isRequestCancelled, isSessionAuthExpiredError } from '../api/httpClient';
 import type { ApiResponse } from '../data/backendTypes';
 import type { AlertState } from '../types/app';
 
@@ -52,6 +53,10 @@ export function useApiAction() {
         });
         afterComplete?.(response);
       } catch (nextError) {
+        if (isRequestCancelled(nextError) || isSessionAuthExpiredError(nextError)) {
+          return;
+        }
+
         const errorMessage = nextError instanceof Error ? nextError.message : 'API 요청이 실패했습니다.';
 
         showAlert({

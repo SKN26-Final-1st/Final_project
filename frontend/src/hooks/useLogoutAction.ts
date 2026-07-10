@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/backendClient';
-import { queryKeys } from '../api/queryKeys';
+import { clearAuthenticatedQueryState } from '../api/queryClient';
 import type { Navigate, RunApiAction } from '../types/app';
 import type { AuthMode } from '../utils/apiKeySession';
 
@@ -24,14 +24,14 @@ export function useLogoutAction({
 
   return useCallback(() => {
     if (authMode === 'apiKey') {
-      queryClient.removeQueries({ queryKey: queryKeys.appData() });
+      clearAuthenticatedQueryState(queryClient);
       clearAuthSession();
       navigate('/login');
       return;
     }
 
     void runApiAction('logout', () => apiClient.logout(), () => {
-      queryClient.removeQueries({ queryKey: queryKeys.appData() });
+      clearAuthenticatedQueryState(queryClient);
       setIsAuthenticated(false);
       navigate('/login');
     });

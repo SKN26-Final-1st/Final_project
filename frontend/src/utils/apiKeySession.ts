@@ -1,4 +1,5 @@
 export const API_KEY_SESSION_STORAGE_KEY = 'humour.apiKey';
+const AUTH_RECOVERY_SESSION_STORAGE_KEY = 'humour.authRecovery';
 
 export type AuthMode = 'account' | 'apiKey' | null;
 
@@ -28,6 +29,30 @@ export function clearStoredApiKey() {
   }
 
   window.sessionStorage.removeItem(API_KEY_SESSION_STORAGE_KEY);
+}
+
+export function markAuthRecoveryRequested() {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.setItem(AUTH_RECOVERY_SESSION_STORAGE_KEY, 'true');
+}
+
+export function getAuthRecoveryRequested() {
+  if (!canUseSessionStorage()) {
+    return false;
+  }
+
+  return window.sessionStorage.getItem(AUTH_RECOVERY_SESSION_STORAGE_KEY) === 'true';
+}
+
+export function clearAuthRecoveryRequested() {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(AUTH_RECOVERY_SESSION_STORAGE_KEY);
 }
 
 export function getApiKeyFingerprint(apiKey: string | null | undefined) {

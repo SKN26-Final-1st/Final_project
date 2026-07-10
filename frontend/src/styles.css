@@ -4570,6 +4570,30 @@ button,
   margin-bottom: var(--section-inner-gap);
 }
 
+.app-error-boundary-screen {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: var(--layout-gap, 24px);
+  background: var(--bg, #f5f7fa);
+}
+
+.app-error-boundary-screen .ant-result {
+  width: min(640px, 100%);
+}
+
+@media (max-width: 767px) and (max-height: 800px) {
+  .auth-main:has(.auth-login-tabs) {
+    align-content: start;
+    gap: 20px;
+    padding: 24px 0;
+  }
+
+  .auth-main:has(.auth-login-tabs) > .auth-card {
+    order: -1;
+  }
+}
+
 .auth-screen {
   min-height: 100vh;
   padding: var(--layout-gap);

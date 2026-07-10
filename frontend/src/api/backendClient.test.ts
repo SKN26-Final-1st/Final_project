@@ -87,11 +87,54 @@ describe('backendClient', () => {
       ),
     );
 
+    const onAuthExpired = vi.fn();
+    const { setAuthExpiryHandler } = await import('./httpClient');
+    setAuthExpiryHandler(onAuthExpired);
     const { apiClient } = await import('./backendClient');
 
     await expect(apiClient.login('unknown-user', 'wrong-password')).rejects.toThrow(
       '아이디 또는 비밀번호가 올바르지 않습니다.',
     );
+    expect(onAuthExpired).not.toHaveBeenCalled();
+  });
+
+  test('keeps invalid API Key login validation as a local form error', async () => {
+    server.use(
+      http.post('/api/jd/get/', () =>
+        HttpResponse.json({ error: true, message: '403: Authentication is required.' }),
+      ),
+      http.post('/api/authkey/credit/', () =>
+        HttpResponse.json({ error: true, message: '403: Authentication is required.' }),
+      ),
+    );
+    const onAuthExpired = vi.fn();
+    const { resetAuthExpiryHandling, setAuthExpiryHandler } = await import('./httpClient');
+    resetAuthExpiryHandling();
+    setAuthExpiryHandler(onAuthExpired);
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.loginWithApiKey('invalid-key')).rejects.toThrow(
+      'API Key가 유효하지 않거나 접근 권한이 없습니다.',
+    );
+    expect(onAuthExpired).not.toHaveBeenCalled();
+  });
+
+  test('keeps shared API Key lookup failures on the shared screen', async () => {
+    server.use(
+      http.post('/api/resume/get/', () =>
+        HttpResponse.json({ error: true, message: '403: Authentication is required.' }),
+      ),
+    );
+    const onAuthExpired = vi.fn();
+    const { resetAuthExpiryHandling, setAuthExpiryHandler } = await import('./httpClient');
+    resetAuthExpiryHandling();
+    setAuthExpiryHandler(onAuthExpired);
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.getSharedResumeBundle(1, 'invalid-shared-key')).rejects.toThrow(
+      '403: Authentication is required.',
+    );
+    expect(onAuthExpired).not.toHaveBeenCalled();
   });
 
   test('queued resume analysis returns a request accepted message', async () => {
