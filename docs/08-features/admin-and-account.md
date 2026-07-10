@@ -24,6 +24,8 @@ AuthKey API 연동:
 - `apiClient.saveAuthKey()` → `POST /api/authkey/modify/`
 - `apiClient.deleteAuthKey()` → `POST /api/authkey/modify/` with `delete: true`
 
+키 생성·증액 시 계정 크레딧이 키의 `credit_limit`으로 이동하고, 감액·삭제 시 남은 크레딧이 계정으로 반환됩니다. 키 목록 API는 실제 키 대신 끝 4자리만 남긴 마스킹 값을 반환합니다. API 키 사용 화면은 `POST /api/authkey/credit/`로 잔여 크레딧을 조회합니다.
+
 운영 지표(포인트, 면접방 등)는 `AdminData`와 화면 내부 계산을 사용합니다. 근거: `frontend/src/api/adapters.ts`, `frontend/src/pages/AdminPage.tsx`
 
 ## 계정 메뉴

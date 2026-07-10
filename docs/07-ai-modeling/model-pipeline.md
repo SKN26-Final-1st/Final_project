@@ -1,104 +1,53 @@
 # 모델 파이프라인
 
-## 지원서 분석 모델
+운영 지원서 분석은 `backend/common/analysis_graph.py`의 LangGraph 파이프라인이 담당합니다. API 진입점은 `POST /api/resume/analyze/`, 저장 오케스트레이션은 `backend/api/tasks.py`입니다.
 
-위치: `backend/common/report.py`
-
-모델:
-
-- `MODEL_NAME = "gpt-4o-mini"` — `backend/common/report.py`
-
-기본 생성량:
-
-- 면접 질문: `QUESTION_COUNT = 10`
-- 적합도 체크리스트: `CHECKLIST_COUNT = 10`
-
-기본 DB 데이터:
-
-- `Python/Java/Node, REST API, DB 설계, 인증/권한, 서버 배포 경험`
-
-## 처리 단계
+## 처리 흐름
 
 ```mermaid
 flowchart TD
-  Resume["resume_dict"] --> SumResume["sum_resume"]
-  Company["company_dict"] --> SumCompany["sum_company"]
-  JD["jd_dict"] --> SumJD["sum_jd"]
-  SumCompany --> Checklist["make_fit_checklist"]
-  SumJD --> Checklist
-  Checklist --> Fit["check_resume_fit"]
-  SumResume --> Fit
-  Fit --> Questions["make_interview_questions"]
-  SumResume --> Questions
-  SumCompany --> Questions
-  SumJD --> Questions
-  Fit --> Report["make_report"]
-  SumResume --> Report
-  Questions --> Result["questions"]
-  Report --> Result2["report"]
+  Input["회사·JD·체크리스트·지원서"] --> Mask["masking.py"]
+  Mask --> Star["star_analysis.py"]
+  Star --> Fit["체크리스트 적합도"]
+  Fit --> FitQA["feedback_graph 품질 검증"]
+  FitQA --> Questions["면접 질문 10개"]
+  Questions --> QuestionQA["질문 품질 검증"]
+  QuestionQA --> Report["최종 분석 리포트"]
+  Report --> ReportQA["리포트 품질 검증"]
+  ReportQA --> Save["AnalysisReport 저장"]
 ```
 
-## 프롬프트 역할
+- `analysis_agent.py`: 적합도, 면접 질문, 최종 리포트의 Pydantic 구조화 출력
+- `analysis_prompt.py`: 프롬프트와 평가 기준, 파이프라인 버전 `1.0`
+- `feedback_agent.py`, `feedback_graph.py`: 근거 데이터와 생성 결과를 비교해 최대 3회 보정
+- `masking.py`: 회사·사람·학교·프로젝트 등 민감 식별자를 토큰화
+- `star_analysis.py`: 자기소개서 문항을 STAR 구조로 정규화하고 원문 품질을 보존
 
-`report.py`의 prompt 상수:
+## 모델과 실행 경로
 
-- `RESUME_SUMMARY_SYSTEM_PROMPT`: 지원자 핵심 역량/경험/학력 요약
-- `COMPANY_SUMMARY_SYSTEM_PROMPT`: 회사 규모/조직/서비스/인재상 요약
-- `JD_SUMMARY_SYSTEM_PROMPT`: 포지션 요건/업무/근무 형태 요약
-- `FIT_CHECKLIST_SYSTEM_PROMPT`: 회사/JD 기준 체크리스트 생성
-- `CHECK_RESUME_FIT_SYSTEM_PROMPT`: 지원서 요약과 체크리스트 충족 여부 판정
-- `INTERVIEW_QUESTION_SYSTEM_PROMPT`: 질문/모범 답안/질문 의도 생성
-- `REPORT_SYSTEM_PROMPT`: 최종 분석 리포트 생성
+- 분석·검증 기본 모델: `gpt-4o-mini`
+- 면접 질문 생성 모델: `gpt-4.1`
+- 마스킹·STAR: 해당 RunPod endpoint 환경 변수가 있으면 RunPod를 우선 사용하고, 없거나 실패하면 OpenAI 경로를 사용
+- RunPod 배포 자산: `runpod/masking_handler.py`, `runpod/star_handler.py` 및 각 docker 파일
 
-## 구조화 스키마
+필요한 환경 변수는 `OPENAI_API_KEY`, 선택적으로 `RUNPOD_API_KEY`, `RUNPOD_MASKING_ENDPOINT_ID`, `RUNPOD_STAR_ENDPOINT_ID`입니다.
 
-Pydantic 모델:
+## 저장과 비용
 
-- `InterviewQuestionAnswer`
-- `InterviewQuestionsStructure`
-- `FitChecklistStructure`
-- `ChecklistCheckItem`
-- `ChecklistCheckStructure`
-- `ReportStructure`
+`resume_analyze`는 분석 전 `AnalysisReport(status="onqueue")`를 생성합니다. 활성 구독자가 아니면 계정 또는 API 키에서 100 크레딧을 원자적으로 차감합니다. worker가 있으면 Celery에 위임하고, 없으면 동기로 실행합니다. 실패 시 상태를 `fail`로 바꾸고 차감분을 환불합니다.
 
-`_create_structured_completion()`은 OpenAI SDK의 parse 지원 여부에 따라 structured parse 또는 JSON object 검증을 사용합니다.
+저장 필드는 `version`, `overall_grade`, `overall_summary`, `candidate_summary`, `checklist`, `competency_analysis`, `fit_analysis`, `motive`, `collaboration`, `strength`, `concern`, `check_point`, `interview_question`, `final_comment`입니다. 사용자는 이후 `user_feedback`과 `review_text`를 저장할 수 있습니다.
 
-## 실험 버전과 평가
+## 학습과 평가 자산
 
-운영 API는 `report.py`만 import합니다. 근거: `backend/api/views/resume_endpoints.py`
+- `llm/eval/`: 채팅, RAG, 리포트, 마스킹, STAR 평가
+- `llm/train_star_masking/masking/`: 마스킹 모델 학습 실험
+- `llm/train_star_masking/star/`: STAR 모델 학습 실험
 
-| 모듈 | 용도 | 모델 | 비고 |
-| --- | --- | --- | --- |
-| `report.py` | 운영 파이프라인 | `gpt-4o-mini` | `backend/api/tasks.py`가 호출 |
-
-평가 노트북(`backend/common/eval/`):
-
-- `middle_report_eval.ipynb` — 구버전 `report.py` 대비 Ver1/Ver2 평가
-- `middle_report2_eval.ipynb` — 과거 실험 버전 평가 노트북
-- `middle_report3_eval.ipynb` — 과거 실험 버전 평가 노트북
-- `chat_eval.ipynb` — 채팅 파이프라인 평가
-- `goldset_mock_data_fixed.csv` — 리포트 평가용 골드셋
-
-현재 tracked 소스에는 `report2.py`, `report3.py`가 없으므로, `middle_report2_eval.ipynb`와 `middle_report3_eval.ipynb`를 재실행하려면 노트북 내부 import 경로와 필요한 실험 소스 복원이 먼저 필요합니다. 노트북은 로컬 Jupyter에서 OpenAI API 키가 필요합니다. 결과 CSV는 노트북 내부 경로에 저장되며 운영 DB와는 분리됩니다.
-
-## 채팅 모델
-
-위치: `backend/common/chat_agent.py`, `backend/common/chat_graph.py`
-
-모델:
-
-- `LLM_MODEL = "gpt-4o-mini"`
-- `TEMPERATURE = 0`
-
-채팅 그래프 단계:
-
-1. `fall_case_node`: 범위 밖, HR 데이터 질문, 앱 매뉴얼 질문을 분류합니다.
-2. `context_extractor_node`: HR 질문에 필요한 이전 대화의 수치/값을 추출합니다.
-3. `hr_analyst_node`: 접근 가능한 JD 데이터 기반으로 답변합니다.
-4. `app_manual_rag_node`: Pinecone에서 앱 사용법 문서를 검색하고 답변합니다.
-5. `summary_node`: 여러 답변을 하나로 병합합니다.
+노트북은 실험 자산이며 운영 Django 코드에서 직접 실행하지 않습니다.
 
 ## 관련 문서
 
 - [분석 파이프라인](../04-backend/analysis-pipeline.md)
 - [검색과 저장소](retrieval-and-storage.md)
+- [지원서 분석 기능](../08-features/resume-analysis.md)

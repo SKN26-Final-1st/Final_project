@@ -72,6 +72,14 @@
 - `/api/jd/get/`
 - `/api/jd/modify/`
 
+## JD 작성 보조 채팅
+
+`/jd` 화면의 `JdChatDrawer`는 `POST /api/jd_chat/`를 사용해 회사 정보와 JD의 누락 필드를 대화로 채웁니다. 프런트엔드는 `ignored_field`, `focus_field`, `end_chat` 상태를 다음 요청에 전달하며, 서버가 반영한 필드를 받은 뒤 JD와 회사 데이터 캐시를 갱신합니다.
+
+체크리스트 생성 중에는 `checklist_status`를 표시하고, 실패 상태는 사용자가 초기화한 뒤 다시 요청할 수 있습니다.
+
+근거: `frontend/src/components/jd/JdChatDrawer.tsx`, `frontend/src/components/jd/JdChecklistPanel.tsx`, `backend/api/views/chat_endpoints.py`
+
 ## 모집 공고 작성
 
 화면: `/recruitment-post`

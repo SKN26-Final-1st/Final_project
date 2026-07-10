@@ -7,11 +7,12 @@ flowchart LR
   User["채용 담당자"] --> Frontend["React/Vite 프론트엔드"]
   Frontend --> Api["Django API"]
   Api --> DB["SQLite 또는 MySQL"]
-  Api --> Report["OpenAI 리포트 생성"]
+  Api --> Report["LangGraph 분석·검증"]
   Api --> ChatGraph["LangGraph 채팅"]
   ChatGraph --> Pinecone["Pinecone user_manual"]
   ChatGraph --> OpenAI["OpenAI Chat/Embedding"]
   Report --> OpenAI
+  Report --> RunPod["RunPod 마스킹·STAR"]
   Crawlers["database/crawling"] --> Csv["CSV 조건 데이터"]
   Notebooks["database/embedding"] --> Pinecone
 ```
@@ -33,7 +34,11 @@ flowchart LR
 - `backend/config/urls.py`: `/admin/`, `/api/` 루트 연결
 - `backend/api/models.py`: 도메인 모델과 `to_dict()` 직렬화
 - `backend/api/views/`: 도메인별 POST 기반 API 핸들러 (`account_endpoints.py`, `resume_endpoints.py` 등)
-- `backend/common/report.py`: 지원서 분석 리포트/질문 생성(운영)
+- `backend/common/analysis_graph.py`: 마스킹, STAR 구조화, 적합도 판정, 질문·리포트 생성과 품질 검증을 연결하는 운영 그래프
+- `backend/common/analysis_agent.py`: 구조화 출력 기반 적합도·면접 질문·리포트 생성
+- `backend/common/feedback_graph.py`: 생성 결과를 최대 3회 평가·보정
+- `backend/common/masking.py`, `star_analysis.py`: OpenAI/RunPod 실행 경로 선택
+- `backend/common/jd_chat_graph.py`: 회사/JD 누락 필드를 대화로 수집하고 저장
 - `backend/api/tasks.py`: Celery 작업과 동기 fallback으로 분석 리포트 저장
 - `backend/common/chat_graph.py`: 채팅 그래프 오케스트레이션
 - `backend/common/chat_agent.py`: LLM agent, Pinecone 검색, 프롬프트
