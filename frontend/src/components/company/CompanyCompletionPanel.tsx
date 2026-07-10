@@ -13,6 +13,7 @@ export function CompanyCompletionPanel({ company }: CompanyCompletionPanelProps)
       <Divider />
       <List
         dataSource={company.employStyle}
+        locale={{ emptyText: '등록된 선호 인재상이 없습니다.' }}
         renderItem={(item) => (
           <List.Item>
             <CheckCircleOutlined className="success-icon" />
