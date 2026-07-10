@@ -41,10 +41,10 @@ export type AppData = {
   interviewQuestions: InterviewQuestion[];
 };
 
-export async function loadAppData(): Promise<AppData> {
+export async function loadAppData(signal?: AbortSignal): Promise<AppData> {
   const [dashboard, authKeys] = await Promise.all([
-    apiClient.getDashboard(),
-    apiClient.getAuthKeys().catch(() => ({ data: [] as AuthKey[] })),
+    apiClient.getDashboard({ signal }),
+    apiClient.getAuthKeys({ signal }).catch(() => ({ data: [] as AuthKey[] })),
   ]);
   const dashboardSource = dashboard.data;
   const account = dashboardSource.account;
@@ -113,8 +113,8 @@ function mapDashboardSourceToAppData(
   };
 }
 
-export async function loadApiKeyAppData(apiKey: string): Promise<AppData> {
-  const dashboard = await apiClient.getApiKeyDashboard(apiKey);
+export async function loadApiKeyAppData(apiKey: string, signal?: AbortSignal): Promise<AppData> {
+  const dashboard = await apiClient.getApiKeyDashboard(apiKey, { signal });
 
   return mapDashboardSourceToAppData(dashboard.data);
 }

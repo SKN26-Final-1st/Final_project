@@ -26,16 +26,16 @@ export function appDataQueryOptions(
 
   return queryOptions({
     queryKey: queryKeys.appData(effectiveMode, getApiKeyFingerprint(apiKey)),
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       if (effectiveMode === 'apiKey') {
         if (!apiKey) {
           throw new Error('API Key가 없습니다. 다시 로그인해 주세요.');
         }
 
-        return loadApiKeyAppData(apiKey);
+        return loadApiKeyAppData(apiKey, signal);
       }
 
-      return loadAppData();
+      return loadAppData(signal);
     },
     enabled,
     refetchInterval: (query) =>

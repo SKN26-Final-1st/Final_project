@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { abortAuthenticatedRequests } from './httpClient';
 
 export function createQueryClient() {
   return new QueryClient({
@@ -14,4 +15,10 @@ export function createQueryClient() {
       },
     },
   });
+}
+
+export function clearAuthenticatedQueryState(queryClient: QueryClient) {
+  abortAuthenticatedRequests();
+  void queryClient.cancelQueries();
+  queryClient.clear();
 }

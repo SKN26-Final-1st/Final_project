@@ -6,8 +6,12 @@ export type BackendEnvelope<T> = {
   message?: string;
 } & Record<string, unknown>;
 
+export type AuthFailurePolicy = 'session' | 'local';
+
 export type RequestOptions = {
   apiKey?: string;
+  authFailurePolicy?: AuthFailurePolicy;
+  signal?: AbortSignal;
 };
 
 type ApiKeyAxiosConfig = AxiosRequestConfig & {
@@ -16,6 +20,74 @@ type ApiKeyAxiosConfig = AxiosRequestConfig & {
 
 const API_ROOT = '/api';
 const CREDIT_SHORTAGE_MESSAGE = 'Credit이 부족합니다.';
+const LOCAL_AUTH_FAILURE_ENDPOINTS = new Set([
+  'checkuser',
+  'login',
+  'passqestion',
+  'passreset',
+  'signin',
+]);
+const AUTH_FAILURE_MESSAGE_PATTERN =
+  /authentication\s+(?:is\s+)?required|not\s+authenticated|login\s+required|인증이?\s*필요|로그인이?\s*필요/i;
+
+type BackendRequestErrorDetails = {
+  authGeneration?: number;
+  authFailurePolicy: AuthFailurePolicy;
+  backendError: boolean;
+  cancelled: boolean;
+  endpoint: string;
+  isAuthError: boolean;
+  status?: number;
+};
+
+export class BackendRequestError extends Error {
+  readonly authGeneration: number;
+  readonly authFailurePolicy: AuthFailurePolicy;
+  readonly backendError: boolean;
+  readonly cancelled: boolean;
+  readonly endpoint: string;
+  readonly isAuthError: boolean;
+  readonly status?: number;
+
+  constructor(message: string, details: BackendRequestErrorDetails) {
+    super(message);
+    this.name = 'BackendRequestError';
+    this.authGeneration = details.authGeneration ?? authGeneration;
+    this.authFailurePolicy = details.authFailurePolicy;
+    this.backendError = details.backendError;
+    this.cancelled = details.cancelled;
+    this.endpoint = details.endpoint;
+    this.isAuthError = details.isAuthError;
+    this.status = details.status;
+  }
+}
+
+type AuthExpiryHandler = (error: BackendRequestError) => void | Promise<void>;
+
+let authExpiryHandler: AuthExpiryHandler | null = null;
+let authExpiryHandled = false;
+let authGeneration = 0;
+const authenticatedRequestControllers = new Set<AbortController>();
+
+export function setAuthExpiryHandler(handler: AuthExpiryHandler) {
+  authExpiryHandler = handler;
+
+  return () => {
+    if (authExpiryHandler === handler) {
+      authExpiryHandler = null;
+    }
+  };
+}
+
+export function resetAuthExpiryHandling() {
+  authExpiryHandled = false;
+  authGeneration += 1;
+}
+
+export function abortAuthenticatedRequests() {
+  authenticatedRequestControllers.forEach((controller) => controller.abort());
+  authenticatedRequestControllers.clear();
+}
 
 export const httpClient = axios.create({
   baseURL: API_ROOT,
@@ -116,6 +188,124 @@ export function getRequestErrorMessage(error: unknown, fallback: string) {
   return toFriendlyMessage(error instanceof Error ? error.message : fallback);
 }
 
+export function isRequestCancelled(error: unknown) {
+  return error instanceof BackendRequestError
+    ? error.cancelled
+    : axios.isCancel(error) || (axios.isAxiosError(error) && error.code === 'ERR_CANCELED');
+}
+
+export function isSessionAuthExpiredError(error: unknown) {
+  return error instanceof BackendRequestError
+    && error.authFailurePolicy === 'session'
+    && error.isAuthError;
+}
+
+function getAuthFailurePolicy(endpoint: string, options: RequestOptions) {
+  if (options.authFailurePolicy) {
+    return options.authFailurePolicy;
+  }
+
+  return LOCAL_AUTH_FAILURE_ENDPOINTS.has(endpoint.replace(/^\/+|\/+$/g, '')) ? 'local' : 'session';
+}
+
+function isAuthenticationFailure(message: string, status?: number) {
+  return status === 401 || status === 403 || AUTH_FAILURE_MESSAGE_PATTERN.test(message);
+}
+
+function createBackendRequestError(
+  message: string,
+  endpoint: string,
+  authFailurePolicy: AuthFailurePolicy,
+  options: Partial<
+    Pick<BackendRequestErrorDetails, 'authGeneration' | 'backendError' | 'cancelled' | 'status'>
+  > = {},
+) {
+  const cancelled = options.cancelled ?? false;
+
+  return new BackendRequestError(message, {
+    authGeneration: options.authGeneration,
+    authFailurePolicy,
+    backendError: options.backendError ?? false,
+    cancelled,
+    endpoint,
+    isAuthError: !cancelled && isAuthenticationFailure(message, options.status),
+    status: options.status,
+  });
+}
+
+function toBackendRequestError(
+  error: unknown,
+  endpoint: string,
+  authFailurePolicy: AuthFailurePolicy,
+  requestGeneration: number,
+  fallback: string,
+) {
+  if (error instanceof BackendRequestError) {
+    return error;
+  }
+
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  const responseData = axios.isAxiosError(error) ? error.response?.data : undefined;
+  const backendError = Boolean(status && status >= 400) || Boolean(
+    responseData
+      && typeof responseData === 'object'
+      && 'error' in responseData
+      && responseData.error,
+  );
+  const cancelled = isRequestCancelled(error);
+  const message = cancelled ? '요청이 취소되었습니다.' : getRequestErrorMessage(error, fallback);
+
+  return createBackendRequestError(message, endpoint, authFailurePolicy, {
+    authGeneration: requestGeneration,
+    backendError,
+    cancelled,
+    status,
+  });
+}
+
+function notifyAuthExpiry(error: BackendRequestError) {
+  if (
+    error.authFailurePolicy !== 'session'
+    || !error.isAuthError
+    || error.cancelled
+    || error.authGeneration !== authGeneration
+    || authExpiryHandled
+    || !authExpiryHandler
+  ) {
+    return;
+  }
+
+  authExpiryHandled = true;
+  void Promise.resolve(authExpiryHandler(error)).catch(() => undefined);
+}
+
+function createRequestLifecycle(options: RequestOptions, authFailurePolicy: AuthFailurePolicy) {
+  if (authFailurePolicy === 'local') {
+    return {
+      dispose: () => undefined,
+      signal: options.signal,
+    };
+  }
+
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort(options.signal?.reason);
+  authenticatedRequestControllers.add(controller);
+
+  if (options.signal?.aborted) {
+    abortFromCaller();
+  } else {
+    options.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
+  return {
+    dispose: () => {
+      options.signal?.removeEventListener('abort', abortFromCaller);
+      authenticatedRequestControllers.delete(controller);
+    },
+    signal: controller.signal,
+  };
+}
+
 httpClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const headers = AxiosHeaders.from(config.headers);
   const apiKey = (config as InternalAxiosRequestConfig & RequestOptions).apiKey;
@@ -146,6 +336,10 @@ function requestConfig(options: RequestOptions = {}) {
     config.apiKey = options.apiKey;
   }
 
+  if (options.signal) {
+    config.signal = options.signal;
+  }
+
   return config;
 }
 
@@ -154,21 +348,40 @@ export async function requestBackend<T>(
   body: Record<string, unknown> = {},
   options: RequestOptions = {},
 ): Promise<T> {
+  const authFailurePolicy = getAuthFailurePolicy(endpoint, options);
+  const requestGeneration = authGeneration;
+  const requestLifecycle = createRequestLifecycle(options, authFailurePolicy);
+
   try {
     const response = await httpClient.post<BackendEnvelope<T> | T | string>(
       normalizeEndpoint(endpoint),
       body,
-      requestConfig(options),
+      requestConfig({ ...options, signal: requestLifecycle.signal }),
     );
     const payload = normalizePayload<T>(response.data, response.status, response.statusText);
 
     if (payload.error) {
-      throw new Error(payload.message || `API 요청 실패: ${endpoint}`);
+      throw createBackendRequestError(
+        payload.message || `API 요청 실패: ${endpoint}`,
+        endpoint,
+        authFailurePolicy,
+        { authGeneration: requestGeneration, backendError: true, status: response.status },
+      );
     }
 
     return payload.data as T;
   } catch (error) {
-    throw new Error(getRequestErrorMessage(error, `API 요청 실패: ${endpoint}`));
+    const requestError = toBackendRequestError(
+      error,
+      endpoint,
+      authFailurePolicy,
+      requestGeneration,
+      `API 요청 실패: ${endpoint}`,
+    );
+    notifyAuthExpiry(requestError);
+    throw requestError;
+  } finally {
+    requestLifecycle.dispose();
   }
 }
 
@@ -177,20 +390,39 @@ export async function requestAction(
   body: Record<string, unknown> = {},
   options: RequestOptions = {},
 ) {
+  const authFailurePolicy = getAuthFailurePolicy(endpoint, options);
+  const requestGeneration = authGeneration;
+  const requestLifecycle = createRequestLifecycle(options, authFailurePolicy);
+
   try {
     const response = await httpClient.post<BackendEnvelope<unknown> | string>(
       normalizeEndpoint(endpoint),
       body,
-      requestConfig(options),
+      requestConfig({ ...options, signal: requestLifecycle.signal }),
     );
     const payload = normalizePayload<unknown>(response.data, response.status, response.statusText);
 
     if (payload.error) {
-      throw new Error(payload.message || `API 요청 실패: ${endpoint}`);
+      throw createBackendRequestError(
+        payload.message || `API 요청 실패: ${endpoint}`,
+        endpoint,
+        authFailurePolicy,
+        { authGeneration: requestGeneration, backendError: true, status: response.status },
+      );
     }
 
     return payload;
   } catch (error) {
-    throw new Error(getRequestErrorMessage(error, `API 요청 실패: ${endpoint}`));
+    const requestError = toBackendRequestError(
+      error,
+      endpoint,
+      authFailurePolicy,
+      requestGeneration,
+      `API 요청 실패: ${endpoint}`,
+    );
+    notifyAuthExpiry(requestError);
+    throw requestError;
+  } finally {
+    requestLifecycle.dispose();
   }
 }
