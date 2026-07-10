@@ -40,18 +40,24 @@ backend/
 ├── common/
 │   ├── chat_agent.py
 │   ├── chat_graph.py
-│   ├── checklist.py
-│   ├── checklist_graph.py
+│   ├── analysis_agent.py
 │   ├── analysis_graph.py
-│   ├── feedback.py
+│   ├── analysis_prompt.py
+│   ├── chat_agent.py
+│   ├── chat_graph.py
+│   ├── chat_prompt.py
+│   ├── checklist_agent.py
+│   ├── checklist_graph.py
+│   ├── checklist_prompt.py
+│   ├── feedback_agent.py
 │   ├── feedback_graph.py
-│   ├── jd_form_agent.py
-│   ├── comp_form_agent.py
+│   ├── feedback_prompt.py
+│   ├── jd_chat_agent.py
+│   ├── jd_chat_graph.py
+│   ├── jd_chat_prompt.py
 │   ├── masking.py
-│   ├── report.py
-│   ├── prompt.py
-│   ├── utils.py
-│   └── eval/
+│   ├── star_analysis.py
+│   └── utils.py
 │       ├── chat_eval.ipynb
 │       ├── RAG_eval.py
 │       ├── e2e_eval.py
@@ -186,7 +192,11 @@ runpod/
 └── requirements.txt
 ```
 
-RunPod 구성은 EXAONE 기반 LoRA 마스킹 모델을 serverless handler로 실행하기 위한 보조 배포 자산입니다. `masking_handler.py`는 입력 텍스트를 받아 개인정보·회사명·학교·프로젝트명 등 라벨별 마스킹 후보를 JSON으로 반환합니다.
+RunPod 구성은 EXAONE 기반 LoRA 마스킹 및 STAR 구조화 모델을 serverless handler로 실행하기 위한 배포 자산입니다. `masking_handler.py`는 마스킹 후보를, `star_handler.py`는 자기소개서 항목별 STAR 구조와 원문 품질을 JSON으로 반환합니다.
+
+## 모델 실험
+
+`llm/eval/`에는 채팅·RAG·리포트·마스킹·STAR 평가 코드와 노트북이, `llm/train_star_masking/`에는 마스킹 및 STAR 모델 학습 노트북이 있습니다. 운영 Django 코드는 이 노트북을 직접 import하지 않습니다.
 
 ## 관련 문서
 

@@ -55,7 +55,7 @@ flowchart TD
 sequenceDiagram
   participant UI as Frontend
   participant API as Django API
-  participant Report as backend/common/report.py
+  participant Report as backend/common/analysis_graph.py
   participant DB as Database
   participant LLM as OpenAI
 
@@ -79,7 +79,7 @@ sequenceDiagram
   API-->>UI: AnalysisReport dict
 ```
 
-근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`, `backend/common/report.py`
+근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`, `backend/common/analysis_graph.py`
 
 프론트 `backendClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다. 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다.
 
