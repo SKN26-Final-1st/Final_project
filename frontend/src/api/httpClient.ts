@@ -18,9 +18,7 @@ type ApiKeyAxiosConfig = AxiosRequestConfig & {
   apiKey?: string;
 };
 
-const API_PROXY_TARGET = import.meta.env.VITE_API_PROXY_TARGET?.replace(/\/+$/, '');
-const API_ROOT = API_PROXY_TARGET ? `${API_PROXY_TARGET}/api` : '/api';
-const CSRF_RESPONSE_FIELD = 'csrfToken';
+const API_ROOT = '/api';
 const CREDIT_SHORTAGE_MESSAGE = 'Credit이 부족합니다.';
 const LOCAL_AUTH_FAILURE_ENDPOINTS = new Set([
   'checkuser',
@@ -69,7 +67,6 @@ type AuthExpiryHandler = (error: BackendRequestError) => void | Promise<void>;
 let authExpiryHandler: AuthExpiryHandler | null = null;
 let authExpiryHandled = false;
 let authGeneration = 0;
-let cachedCsrfToken = '';
 const authenticatedRequestControllers = new Set<AbortController>();
 
 export function setAuthExpiryHandler(handler: AuthExpiryHandler) {
@@ -114,32 +111,18 @@ function getCookie(name: string) {
   return '';
 }
 
-function getCsrfTokenFromPayload(payload: unknown) {
-  if (!payload || typeof payload !== 'object') {
-    return '';
-  }
-
-  const record = payload as Record<string, unknown>;
-
-  const value = record[CSRF_RESPONSE_FIELD];
-  return typeof value === 'string' ? value : '';
-}
-
 async function fetchCsrfToken() {
-  const response = await axios.get(`${API_ROOT}/csrf/`, {
+  return axios.get(`${API_ROOT}/csrf/`, {
     withCredentials: true,
   });
-
-  cachedCsrfToken = getCsrfTokenFromPayload(response.data) || cachedCsrfToken;
-  return response;
 }
 
 async function getCsrfToken() {
-  let csrfToken = getCookie('csrftoken') || cachedCsrfToken;
+  let csrfToken = getCookie('csrftoken');
 
   if (!csrfToken) {
     await fetchCsrfToken();
-    csrfToken = getCookie('csrftoken') || cachedCsrfToken;
+    csrfToken = getCookie('csrftoken');
   }
 
   if (!csrfToken) {

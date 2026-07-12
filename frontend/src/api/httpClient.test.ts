@@ -42,27 +42,6 @@ describe('httpClient API key handling', () => {
 
     expect(observedApiKey).toBe('shared-key');
   });
-
-  test('uses csrf token from csrf response body when the cookie is unavailable', async () => {
-    document.cookie = 'csrftoken=; Max-Age=0; path=/';
-    let observedCsrfToken: string | null = null;
-    server.use(
-      http.get('/api/csrf/', () => HttpResponse.json({
-        error: false,
-        message: 'CSRF cookie set',
-        csrfToken: 'body-csrf-token',
-      })),
-      http.post('/api/account/get/', ({ request }) => {
-        observedCsrfToken = request.headers.get('X-CSRFToken');
-        return HttpResponse.json({ error: false, data: { id: 1 } });
-      }),
-    );
-
-    const { requestBackend } = await import('./httpClient');
-    await requestBackend('account/get');
-
-    expect(observedCsrfToken).toBe('body-csrf-token');
-  });
 });
 
 describe('httpClient authentication expiry handling', () => {
