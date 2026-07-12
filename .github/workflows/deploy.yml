@@ -37,6 +37,8 @@ jobs:
 
       - name: 프론트 빌드
         working-directory: frontend
+        env:
+          VITE_API_PROXY_TARGET: ${{ secrets.VITE_API_PROXY_TARGET }}
         run: npm run build
 
       - name: AWS 인증 설정
