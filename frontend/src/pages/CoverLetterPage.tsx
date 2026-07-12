@@ -35,6 +35,7 @@ import {
   getSuggestionQueryFragment,
   toggleSuggestionInSearchText,
 } from '../utils/searchSuggestions';
+import { compareRecent, includesSearchText, normalizeSearchText } from '../utils/searchText';
 import { toTrimmedStringList } from '../utils/stringList';
 
 type CoverLetterPageProps = {
@@ -65,26 +66,6 @@ const LANGUAGE_KEYS = ['language_name', 'test_name', 'score'] as const;
 const AWARD_KEYS = ['award_name', 'award_from', 'time'] as const;
 const TRAINING_KEYS = ['education_name', 'education_from', 'education_description', 'start', 'end'] as const;
 const OTHER_ACTIVITY_KEYS = ['activity_name', 'activity_description', 'start', 'end'] as const;
-
-function normalizeSearchText(value: unknown) {
-  return String(value ?? '').trim().toLowerCase();
-}
-
-function includesSearchText(values: unknown[], query: string) {
-  const normalizedQuery = normalizeSearchText(query);
-
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  return values.some((value) => normalizeSearchText(value).includes(normalizedQuery));
-}
-
-function compareRecent(left?: string, right?: string) {
-  const leftTime = left ? new Date(left).getTime() : 0;
-  const rightTime = right ? new Date(right).getTime() : 0;
-  return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
-}
 
 function matchesCoverSuggestion(row: CoverLetterRow, suggestion: string) {
   if (suggestion === '분석 대기') {
