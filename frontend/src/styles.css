@@ -3333,6 +3333,10 @@ button,
   gap: var(--section-inner-gap);
 }
 
+.analysis-report-readonly-content {
+  display: contents;
+}
+
 .analysis-report-edit-form {
   padding: var(--section-inner-gap);
   border: 1px solid var(--border);
