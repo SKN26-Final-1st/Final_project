@@ -1,455 +1,174 @@
-# Frontend API Integration README
+# 프론트엔드 운영·검증 가이드
 
-이 문서는 frontend에서 실제 Django API로 전환한 범위, 주요 사용자 플로우, 검증 방법, 후순위 MVP 처리 원칙을 정리한다.
+이 문서는 프론트엔드에서 반복 수행하는 수동 인수 테스트, 시나리오별 자동 검증, 후순위 기능 처리 원칙을 정리합니다. 프로젝트 구조와 API 계약처럼 공통 위키에 이미 있는 내용은 중복해서 관리하지 않습니다.
 
-## 현재 상태 요약
+## 먼저 읽을 문서
 
-- 실제 API가 존재하는 MVP 기능은 `src/api/backendClient.ts`를 통해 Django API로 연결되어 있다.
-- session 기반 요청은 `withCredentials`와 `X-CSRFToken`을 사용한다.
-- 공유/비로그인 접근은 `X-API-Key` 헤더를 사용한다.
-- backend 응답은 HTTP status보다 body의 `error: boolean`을 기준으로 처리한다.
-- backend 계약상 확정된 경로/필드는 그대로 사용한다.
-  - `/api/passqestion/`
-  - `/api/resume/analyze/`
-  - `self_intoduction`
-- 면접 질문 전용 API는 없으며, 질문은 `AnalysisReport.interview_question`에서 조회한다.
-- backend API가 아직 없는 후순위 MVP 화면은 삭제하지 않고 보존했다. 다만 nav/sidebar에서는 숨기고, 직접 접근하면 “후순위 MVP / 백엔드 API 연동 예정” 안내를 보여준다.
+- [프론트엔드 개요](../docs/03-frontend/overview.md)
+- [페이지와 라우트](../docs/03-frontend/pages-and-routes.md)
+- [상태와 API 어댑터](../docs/03-frontend/state-and-api-adapters.md)
+- [디자인 시스템](../docs/03-frontend/design-system.md)
+- [API 레퍼런스](../docs/06-api/api-reference.md)
+- [프론트 API ID 매핑](../docs/06-api/frontend-api-id-map.md)
+- [개발 환경](../docs/01-getting-started/development-environment.md)
+- [실행과 운영](../docs/01-getting-started/run-and-operations.md)
 
-## 주요 파일
+## 수동 테스트 전제
 
-- `src/api/httpClient.ts`
-  - Axios 인스턴스, CSRF 쿠키 읽기, credentials 기본값.
-  - `X-API-Key`는 `{ apiKey }` 옵션을 넘긴 요청에만 붙입니다. `VITE_API_KEY`는 읽지 않습니다.
-- `src/api/backendClient.ts`
-  - 실제 API 호출, CSRF, credentials, 명시 `apiKey` 시 `X-API-Key`, `payload.error` 처리.
-- `src/api/backendSchemas.ts`
-  - Django 응답 shape에 맞춘 Zod 스키마와 `parse*` 런타임 검증.
-- `src/data/backendTypes.ts`
-  - Django `to_dict()` 응답 shape에 맞춘 frontend 타입.
-- `src/api/appDataService.ts`
-  - dashboard에서 필요한 account/company/JD/resume/report/interview_question/authkey 데이터를 실제 API로 조합.
-- `src/api/adapters.ts`
-  - backend shape를 화면 view model로 변환.
-- `src/data/appConfig.tsx`
-  - route/menu 정의. 후순위 MVP route는 `mvpStatus: 'planned'`, `visibleInNav: false`.
-- `src/utils/routes.ts`
-  - route 목록. 후순위 MVP route는 직접 접근 보존을 위해 `appRoutes`에는 남아 있다.
-- `scripts/verify-backend-contract.mjs`
-  - frontend 코드가 backend 계약을 지키는지 정적 검증.
-- `scripts/verify-live-django-api.mjs`
-  - 임시 SQLite DB와 Django runserver로 실제 API 시나리오 검증.
-
-## 실제 API 연결 범위
-
-### Auth / Account
-
-연결 화면/함수:
-
-- `src/pages/auth/LoginPage.tsx`, `SignupPage.tsx`, `PasswordResetPage.tsx`
-- `src/pages/AuthPages.tsx` (re-export barrel)
-- `src/pages/MyPage.tsx`
-- `apiClient.checkSignupId`
-- `apiClient.completeSignup`
-- `apiClient.login`
-- `apiClient.logout`
-- `apiClient.getPasswordQuestion`
-- `apiClient.resetPassword`
-- `apiClient.getUserProfile`
-- `apiClient.saveUserProfile`
-
-backend endpoint:
-
-- `POST /api/checkuser/`
-- `POST /api/signin/`
-- `POST /api/login/`
-- `POST /api/logout/`
-- `POST /api/passqestion/`
-- `POST /api/passreset/`
-- `POST /api/account/get/`
-- `POST /api/account/modify/`
-
-주의:
-
-- 회원가입 완료 후 backend가 자동 로그인하지 않으므로 로그인 화면으로 보낸다.
-- 로그인 성공 후 `/api/account/get/`으로 실제 계정을 다시 조회한다.
-- 비밀번호 변경은 `{ formal_password, password }`만 보낸다.
-- `id`, `username`, `account_hash`는 `account/modify` payload에서 제거한다.
-
-### Company
-
-연결 화면/함수:
-
-- `src/pages/CompanyPage.tsx`
-- `apiClient.getCompanyProfile`
-- `apiClient.saveCompanyProfile`
-
-backend endpoint:
-
-- `POST /api/compinfo/get/`
-- `POST /api/compinfo/modify/`
-
-주의:
-
-- `compinfo/get`은 회사 정보가 없으면 backend에서 생성 후 반환한다.
-- 수정 payload는 `company_name`, `employee_count`, `team_composition`, `company_description`, `employ_style`만 보낸다.
-
-### JD
-
-연결 화면/함수:
-
-- `src/pages/JdPage.tsx`
-- `apiClient.getJobDescriptions`
-- `apiClient.addJobDescription`
-- `apiClient.saveJobDescription`
-- `apiClient.deleteJobDescription`
-- `apiClient.generateJdChecklist`
-
-backend endpoint:
-
-- `POST /api/jd/add/`
-- `POST /api/jd/get/`
-- `POST /api/jd/modify/`
-- `POST /api/jd/analyze/`
-
-주의:
-
-- 생성 시 `job_name`, `career_level`, `required_skill`을 필수로 취급한다.
-- `status`는 `prepare`, `on_going`, `closed`만 사용한다.
-- 삭제는 `jd/modify`에 `{ id, delete: true }`를 보낸다.
-- `jd/analyze`는 JD 기반 체크리스트 생성 API이며, 기존 체크리스트가 10개보다 적을 때 부족한 개수만 생성한다.
-
-### Resume / 자소서 / 분석
-
-연결 화면/함수:
-
-- `src/pages/CoverLetterPage.tsx`
-- `apiClient.addResume`
-- `apiClient.saveResume`
-- `apiClient.deleteResume`
-- `apiClient.requestResumeAnalysis`
-
-backend endpoint:
-
-- `POST /api/resume/add/`
-- `POST /api/resume/get/`
-- `POST /api/resume/modify/`
-- `POST /api/resume/analyze/`
-
-주의:
-
-- backend에서는 자소서가 별도 모델이 아니라 `Resume.self_intoduction`에 포함된다.
-- 분석 실행은 JD id가 아니라 resume id로 `/api/resume/analyze/`를 호출해야 한다.
-- JD 화면의 분석 버튼은 연결된 지원서가 정확히 1개이고 체크리스트가 있을 때만 해당 resume id로 분석을 요청한다.
-- `requestJobAnalysis`, `requestCoverLetterAnalysis`는 JD id 기반 분석의 모호성을 피하기 위해 deprecated helper로 남아 있다.
-
-### Report / Interview Question
-
-연결 화면/함수:
-
-- `src/pages/DashboardPage.tsx`
-- `src/pages/ChatPage.tsx`
-- `src/pages/SharedReportPage.tsx`
-- `apiClient.saveReport`
-- `apiClient.deleteReport`
-- `apiClient.saveQuestion`
-
-backend endpoint:
-
-- `POST /api/report/get/`
-- `POST /api/report/modify/`
-
-주의:
-
-- 조회 기준은 `resume_id`다.
-- 리포트 수정과 삭제는 모두 `report/modify`를 사용한다. 삭제는 `{ id, delete: true }` payload를 보낸다.
-- `status=processing`인 리포트는 backend에서 수정/삭제를 거부한다.
-- 면접 질문은 `report.interview_question`에 포함된다. 개별 질문 조회/수정/삭제 API는 없으므로 `saveQuestion`은 `unsupportedBackendFeature()`를 반환한다.
-
-### Chat
-
-연결 화면/함수:
-
-- `src/pages/ChatPage.tsx`
-- `src/components/chat/DocumentChatFab.tsx`
-- `src/pages/SharedReportPage.tsx`
-- `apiClient.sendChatMessage`
-
-backend endpoint:
-
-- `POST /api/chat/`
-
-주의:
-
-- frontend의 `assistant` role은 backend 요청 전 `agent`로 변환한다.
-- backend 응답의 `agent`는 UI에서 `assistant`로 변환한다.
-- backend chat API는 특정 report/question id를 직접 받지 않으므로, 공유 리포트 화면에서는 현재 report/JD/question 요약을 대화 문맥에 포함한다.
-
-### AuthKey / 공유 접근
-
-연결 화면/함수:
-
-- `src/pages/AdminPage.tsx`
-- `src/pages/SharedReportPage.tsx`
-- `apiClient.getAuthKeys`
-- `apiClient.addAuthKey`
-- `apiClient.saveAuthKey`
-- `apiClient.deleteAuthKey`
-- `apiClient.getSharedResumeBundle`
-
-backend endpoint:
-
-- `POST /api/authkey/add/`
-- `POST /api/authkey/get/`
-- `POST /api/authkey/modify/`
-- `POST /api/jd/get/`, `/api/jd/modify/`, `/api/jd/analyze/` with `X-API-Key`
-- `POST /api/checklist/get/`, `/api/checklist/modify/` with `X-API-Key`
-- `POST /api/resume/get/`, `/api/resume/modify/`, `/api/resume/analyze/` with `X-API-Key`
-- `POST /api/report/get/`, `/api/report/modify/` with `X-API-Key`
-- `POST /api/chat/` with `X-API-Key`
-
-주의:
-
-- `authkey/add` 응답에서만 full key가 내려온다.
-- `authkey/get` 응답의 `value`는 마스킹된다.
-- `authorized_resume` 권한 설정은 `authkey/modify`로 한다.
-- 공유 화면은 API key를 URL query에 넣지 않고 입력값으로 받은 뒤 헤더로만 보낸다.
-- API Key 로그인 모드는 `sessionStorage`에 key를 저장하고 `/jd`, `/cover-letter`, `/analysis-report` 접근만 허용한다.
-- `jd/add`, `resume/add`, `checklist/add`는 세션 전용이다.
+- Django 백엔드와 Vite 프론트엔드를 먼저 실행합니다. 실행 방법은 [실행과 운영](../docs/01-getting-started/run-and-operations.md)을 따릅니다.
+- 기본 주소는 백엔드 `http://127.0.0.1:8000`, 프론트엔드 `http://127.0.0.1:5173`입니다.
+- 다른 백엔드를 사용할 때는 `VITE_API_PROXY_TARGET`을 설정합니다. 근거: `vite.config.ts`, `.env.example`
+- 세션 시나리오와 API Key 시나리오는 인증 상태가 다르므로 별도로 검증합니다.
+- LLM, Pinecone, RunPod이 필요한 시나리오는 로컬 또는 운영 환경 변수와 네트워크 연결 상태에 따라 결과가 달라질 수 있습니다.
 
 ## 사용자 플로우별 수동 테스트
 
-아래 플로우는 Django backend가 `127.0.0.1:8000`, Vite frontend가 `127.0.0.1:5173`에서 실행된다는 전제다.
+### 회원가입, 로그인, 로그아웃
 
-### 1. 회원가입 / 로그인 / 로그아웃
+1. `/signup`에서 빈 값과 공백 아이디가 API 호출 전에 차단되는지 확인합니다.
+2. 아이디 중복 확인 후 필수값을 입력해 가입합니다.
+3. 가입 후 `/login`으로 이동하는지 확인합니다.
+4. 새 계정으로 로그인하고 `/dashboard`에서 실제 계정 정보가 표시되는지 확인합니다.
+5. 로그아웃 후 보호 라우트에 접근하면 `/login`으로 이동하는지 확인합니다.
+6. 잘못된 세션 또는 만료된 세션에서 진행 중 요청이 정리되고 로그인 화면으로 복구되는지 확인합니다.
 
-1. `/signup`으로 이동한다.
-2. 아이디 입력 후 “중복 확인”을 누른다.
-3. 빈 값 또는 공백 아이디는 API 호출 없이 validation으로 막히는지 확인한다.
-4. 회원가입 필수값을 입력하고 가입한다.
-5. `/login`으로 이동되는지 확인한다.
-6. 방금 만든 계정으로 로그인한다.
-7. `/dashboard`로 진입하고 실제 계정 정보가 로드되는지 확인한다.
-8. 로그아웃 후 보호 route 접근 시 `/login`으로 redirect되는지 확인한다.
+관련 자동 검증: `scripts/verify-auth-flow.mjs`, `scripts/verify-auth-text-links.mjs`, `tests/e2e/auth-accessibility.spec.ts`
 
-자동 검증:
+### 개인정보와 비밀번호
+
+1. `/mypage`에서 이름, 검증 질문, 검증 답변을 수정합니다.
+2. 저장 후 새로고침해 변경값이 유지되는지 확인합니다.
+3. 현재 비밀번호가 비어 있으면 클라이언트 검증이 동작하는지 확인합니다.
+4. 현재 비밀번호가 틀리면 백엔드 오류가 표시되는지 확인합니다.
+5. 정상 변경 후 로그인 세션이 유지되고 성공 안내가 표시되는지 확인합니다.
+6. 계정 삭제처럼 복구하기 어려운 동작은 확인 모달과 취소 경로를 먼저 검증합니다.
+
+관련 자동 검증: `scripts/verify-live-django-api.mjs`, `src/pages/MyPage.test.tsx`
+
+### 회사 정보
+
+1. `/company`에서 회사명, 인원수, 팀 구성, 회사 소개, 채용 성향을 수정합니다.
+2. 저장 후 재조회했을 때 값이 유지되는지 확인합니다.
+3. 빈 배열, 빈 문자열, 숫자 `0`이 누락되거나 깨지지 않는지 확인합니다.
+4. 저장 중 중복 제출이 차단되고 실패 시 입력 내용이 보존되는지 확인합니다.
+
+관련 자동 검증: `scripts/verify-live-django-api.mjs`, `src/pages/CompanyPage.test.tsx`
+
+### JD와 대화형 작성
+
+1. `/jd`에서 필수 입력 없이 저장할 때 클라이언트 검증이 동작하는지 확인합니다.
+2. JD를 생성하고 목록에서 선택한 뒤 수정·삭제가 가능한지 확인합니다.
+3. 상태를 `prepare`, `on_going`, `closed` 사이에서 변경하고 재조회 결과를 확인합니다.
+4. 대화형 작성 패널에서 메시지를 보내 누락 필드가 갱신되는지 확인합니다.
+5. 체크리스트 생성을 요청하고 `onqueue`/`processing` 상태에서 중복 요청이 차단되는지 확인합니다.
+6. 완료 또는 실패 후 재시도 UI와 체크리스트 목록이 올바르게 갱신되는지 확인합니다.
+
+관련 자동 검증: `scripts/verify-jd-create-flow.mjs`, `src/pages/JdPage.test.tsx`, `src/components/jd/JdChatDrawer.test.tsx`
+
+### 지원서와 분석
+
+1. JD를 선택하고 `/cover-letter`에서 지원자 정보, 역량, 자기소개 항목을 입력합니다.
+2. 저장 후 지원서 목록과 구조화된 미리보기에 값이 표시되는지 확인합니다.
+3. 여러 지원서 사이에서 선택 상태가 유지되고 삭제 후 다음 항목이 정상 선택되는지 확인합니다.
+4. 체크리스트가 준비되지 않은 상태에서는 분석 요청이 차단되는지 확인합니다.
+5. 분석 요청 후 로딩 상태와 credit 변화를 확인합니다.
+6. 성공하면 `/analysis-report?reportId=...`로 이동하거나 리포트 데이터가 갱신되는지 확인합니다.
+7. 실패하면 재시도 가능한 오류 상태가 표시되고 차감 credit이 복구되는지 확인합니다.
+
+관련 자동 검증: `scripts/verify-cover-letter-save-flow.mjs`, `scripts/verify-cover-letter-selection-flow.mjs`, `scripts/verify-analysis-report-page.mjs`
+
+### 분석 리포트와 문서 검색 채팅
+
+1. `/analysis-report`에서 선택한 리포트의 점수, 근거, 면접 질문, 검토 상태를 확인합니다.
+2. 리포트를 검토 완료 또는 보류 상태로 변경하고 재조회 결과를 확인합니다.
+3. 문서 검색 FAB을 열어 현재 화면의 JD·지원서·리포트 문맥이 표시되는지 확인합니다.
+4. 추천 질문과 직접 입력 질문을 각각 전송합니다.
+5. 이전 요청보다 늦게 도착한 응답이 최신 대화를 덮어쓰지 않는지 확인합니다.
+6. 데스크톱과 모바일에서 FAB, 패널, 스크롤 영역이 화면 밖으로 넘치지 않는지 확인합니다.
+
+관련 자동 검증: `scripts/verify-chat-context-real-data.mjs`, `scripts/verify-document-chat-widget.mjs`, `src/hooks/useDocumentChatState.test.tsx`
+
+### API Key 발급과 제한 모드
+
+1. `/admin`에서 이름, 설명, credit limit을 입력해 API Key를 생성합니다.
+2. 생성 직후에만 전체 키가 표시되고 재조회 시 마스킹되는지 확인합니다.
+3. 특정 지원서를 `authorized_resume`에 추가하고 저장합니다.
+4. 로그인 화면에서 API Key로 진입한 뒤 `/jd`, `/cover-letter`, `/analysis-report`만 접근 가능한지 확인합니다.
+5. 제한 모드에서 사이드바와 직접 URL 접근이 동일한 권한 규칙을 적용하는지 확인합니다.
+6. `/shared?resumeId=<id>`에서 전체 키와 지원서 ID를 입력해 공유 리포트를 조회합니다.
+7. 권한이 없는 지원서와 credit이 부족한 키에서 명확한 오류 안내가 표시되는지 확인합니다.
+
+관련 자동 검증: `scripts/verify-admin-authkey-panel.mjs`, `scripts/verify-shared-route.mjs`, `src/pages/SharedReportPage.test.tsx`
+
+## 자동 검증 선택표
+
+모든 명령은 `frontend/`에서 실행합니다. 전체 lint, build, Vitest, Playwright 명령은 [실행과 운영](../docs/01-getting-started/run-and-operations.md)의 검사 명령 절을 참고합니다.
+
+| 변경 범위 | 우선 실행할 검증 |
+| --- | --- |
+| API 경로·요청·응답 필드 | `node scripts/verify-backend-contract.mjs` |
+| 실제 Django CRUD·인증 계약 | `node scripts/verify-live-django-api.mjs` |
+| 인증 화면 | `node scripts/verify-auth-flow.mjs`, `node scripts/verify-auth-text-links.mjs` |
+| 관리자와 API Key | `node scripts/verify-admin-layout.mjs`, `node scripts/verify-admin-authkey-panel.mjs` |
+| JD 생성·삭제 | `node scripts/verify-jd-create-flow.mjs` |
+| 지원서 저장·선택·삭제 | `node scripts/verify-cover-letter-save-flow.mjs`, `node scripts/verify-cover-letter-selection-flow.mjs` |
+| 분석 리포트 | `node scripts/verify-analysis-report-page.mjs` |
+| 공유 리포트 | `node scripts/verify-shared-route.mjs` |
+| 문서 검색 채팅 | `node scripts/verify-chat-context-real-data.mjs`, `node scripts/verify-document-chat-widget.mjs` |
+| 상태 관리 구조 | `node scripts/verify-state-management-refactor.mjs` |
+| 반응형·고정 레이아웃 | `node scripts/verify-viewport-layout.mjs` |
+| 종합 UI 회귀 | `node scripts/verify-qa-stability-fixes.mjs` |
+
+LLM을 포함한 라이브 검증은 필요한 키를 프로세스 환경에 설정한 뒤 다음처럼 실행합니다.
 
 ```powershell
-cd frontend
-node scripts\verify-auth-flow.mjs
-```
-
-### 2. 개인정보 / 비밀번호 변경
-
-1. 로그인 후 `/mypage`로 이동한다.
-2. 이름, 검증 질문, 검증 답변을 수정한다.
-3. 저장 후 새로고침하거나 `/api/account/get/` 재조회 결과가 반영되는지 확인한다.
-4. 비밀번호 변경에서 현재 비밀번호를 비우면 client validation이 동작하는지 확인한다.
-5. 현재 비밀번호 오답은 backend error가 표시되는지 확인한다.
-6. 정상 변경 후 로그인 상태가 유지되고 "비밀번호가 변경되었습니다. 로그인 상태가 유지됩니다." 안내가 표시되는지 확인한다.
-7. 새 비밀번호로 페이지를 새로고침해도 세션이 유지되는지 확인한다.
-
-자동 검증:
-
-```powershell
-cd frontend
-node scripts\verify-live-django-api.mjs
-```
-
-### 3. 회사정보 수정
-
-1. `/company`로 이동한다.
-2. 회사명, 인원수, 팀 구성, 회사 소개, 채용 성향을 수정한다.
-3. 저장 후 다시 조회했을 때 값이 유지되는지 확인한다.
-4. 빈 배열/빈 문자열/숫자 0이 화면에서 깨지지 않는지 확인한다.
-
-자동 검증:
-
-```powershell
-cd frontend
-node scripts\verify-live-django-api.mjs
-```
-
-### 4. JD 생성 / 수정 / 삭제
-
-1. `/jd`로 이동한다.
-2. `job_name`, `career_level`, `required_skill` 없이 저장 시 client validation이 동작하는지 확인한다.
-3. 정상 JD를 생성한다.
-4. 생성된 JD가 목록에 표시되는지 확인한다.
-5. `status`를 `on_going` 또는 `closed`로 수정한다.
-6. 삭제 UI를 사용하는 경우 `{ id, delete: true }` 방식으로 삭제되는지 확인한다.
-
-자동 검증:
-
-```powershell
-cd frontend
-node scripts\verify-live-django-api.mjs
-```
-
-### 5. Resume / 자소서 생성 / 수정 / 분석
-
-1. JD를 하나 생성하거나 선택한다.
-2. `/cover-letter`로 이동한다.
-3. 지원자 이름, 역량, 자기소개 문항/답변을 입력한다.
-4. 저장 후 resume 목록/미리보기에 나타나는지 확인한다.
-5. 분석 요청을 누른다.
-6. loading 상태가 표시되고, 성공 후 `/analysis-report?reportId=...`로 이동하거나 report/questions가 갱신되는지 확인한다.
-7. 리포트 화면 또는 `/chat`에서 분석 결과 기반 질문을 보낸다.
-
-LLM 포함 자동 검증:
-
-```powershell
-cd frontend
 $env:RUN_LLM_E2E='1'
-Get-Content -LiteralPath '..\.env' | ForEach-Object {
-  if ($_ -match '^\s*([^#][^=]+?)\s*=\s*(.*)\s*$') {
-    $name = $matches[1].Trim()
-    $value = $matches[2].Trim().Trim('"').Trim("'")
-    [Environment]::SetEnvironmentVariable($name, $value, 'Process')
-  }
-}
 node scripts\verify-live-django-api.mjs
 ```
 
-`OPENAI_API_KEY`가 없거나 네트워크가 막혀 있으면 LLM 단계는 실패하거나 skip된다. 네트워크 sandbox 환경에서는 권한을 열고 다시 실행해야 한다.
+키가 없거나 외부 네트워크를 사용할 수 없으면 LLM 단계는 실패하거나 건너뛸 수 있습니다. 비밀값은 저장소에 기록하지 않습니다.
 
-### 6. API key 발급 / 권한 설정 / 공유 조회
+## 후순위 MVP 처리 원칙
 
-1. `/admin`으로 이동한다.
-2. API key 이름, 설명, credit limit을 입력하고 생성한다.
-3. 생성 직후 full key가 표시되는지 확인한다.
-4. AuthKey 목록을 다시 조회하면 key가 마스킹되는지 확인한다.
-5. 특정 resume id를 `authorized_resume`에 추가하고 저장한다.
-6. `/shared?resumeId=<id>`로 이동한다.
-7. resume id와 full API key를 입력한다.
-8. 연결 JD, resume, report, questions가 조회되는지 확인한다.
-9. 공유 화면의 chat에서 API key 기반 질문이 가능한지 확인한다.
-10. 권한 없는 resume id로 조회하면 빈 결과 또는 접근 실패 안내가 표시되는지 확인한다.
+백엔드 라우트가 없는 기능을 임의의 API에 연결하지 않습니다. 화면과 라우트는 향후 구현을 위해 보존하고, 사용자에게 개발 예정 상태를 명확히 표시합니다.
 
-자동 검증:
+### 보존된 페이지
 
-```powershell
-cd frontend
-node scripts\verify-shared-route.mjs
-node scripts\verify-live-django-api.mjs
-```
+- `src/pages/RecruitmentPostPage.tsx`: 모집 공고 생성과 PDF 다운로드. 내비게이션에서는 숨기고 직접 접근 시 개발 예정 안내를 표시합니다.
+- `src/pages/CoverLetterTemplatePage.tsx`: 자기소개서 템플릿 생성과 문서 다운로드. 내비게이션에서는 숨기고 직접 접근 시 개발 예정 안내를 표시합니다.
 
-## 후순위 MVP 처리 현황
+두 페이지는 `src/data/appConfig.tsx`에서 `mvpStatus: 'planned'`, `visibleInNav: false`로 관리합니다. 백엔드 API가 추가되면 `src/api/backendClient.ts`의 `unsupportedBackendFeature()` 호출을 실제 요청으로 교체하고 API 문서와 테스트를 함께 갱신합니다.
 
-현재 backend route에 없는 기능은 임의 endpoint를 만들지 않았다. 화면은 나중에 backend API가 완성되면 재사용할 수 있도록 보존한다.
+### 백엔드 미지원 영역
 
-### 보존된 후순위 페이지
-
-- `src/pages/RecruitmentPostPage.tsx`
-  - 모집 공고 생성
-  - 모집 공고 PDF 다운로드
-  - 현재 상태: route는 보존, nav/sidebar에서는 숨김, 직접 접근 시 개발 예정 안내 표시
-  - 남은 작업: 모집 공고 생성/다운로드 backend API가 생기면 `apiClient.generateRecruitmentPost`, `apiClient.downloadRecruitmentPdf`를 실제 호출로 교체
-- `src/pages/CoverLetterTemplatePage.tsx`
-  - 자기소개서 템플릿 문서 생성
-  - 템플릿 문서 다운로드
-  - 현재 상태: route는 보존, nav/sidebar에서는 숨김, 직접 접근 시 개발 예정 안내 표시
-  - 남은 작업: 템플릿 생성/다운로드 backend API가 생기면 `apiClient.generateCoverLetterTemplate`, `apiClient.downloadTemplateDocument`를 실제 호출로 교체
-
-### 기타 backend 미지원 기능
-
-- 플랜 목록 조회
-- 결제/구독 변경
-- 포인트 충전/차감 이력
-- 일반고객/기업고객 구분
-- 조직/멤버/역할 관리
-- 상세 사용 로그/토큰 로그
+- 플랜 목록과 결제·구독 변경
+- 포인트 충전·차감 이력
+- 일반고객·기업고객 구분
+- 조직·멤버·역할 관리
+- 상세 사용량·토큰 로그
 - 면접방 관리
+- 면접 질문 개별 수정·삭제
 
-현재 frontend에서는 실제 backend 필드로 내려오는 값만 표시한다.
+현재 화면에서는 실제 응답에 존재하는 `Account.credit`, `Account.subscribe`, `Account.subscribe_expiration`, `AuthKey.credit_limit`만 사용합니다. 미지원 액션을 동작 가능한 기능처럼 노출하지 않습니다.
 
-- `Account.credit`
-- `Account.subscribe`
-- `Account.subscribe_expiration`
-- `AuthKey.credit_limit`
+## API 연동 체크리스트
 
-결제, 플랜 변경, 포인트 이력처럼 backend API가 없는 액션은 동작 가능한 기능처럼 만들지 않는다.
+- 백엔드 라우트와 요청·응답 필드를 실제 코드에서 먼저 확인합니다.
+- 세션 API는 credentials와 CSRF 처리를 유지합니다.
+- API Key는 필요한 요청에만 명시적으로 전달하고 URL이나 로그에 노출하지 않습니다.
+- HTTP 200이어도 응답의 `error`가 `true`면 실패로 처리합니다.
+- 응답은 `src/api/backendSchemas.ts`에서 런타임 검증하고 화면 모델 변환은 adapter에 둡니다.
+- query key에는 세션/API Key 모드를 구분할 수 있는 값을 포함하고 mutation 후 관련 query를 무효화합니다.
+- 이전 요청 취소와 stale response 차단이 필요한 검색·채팅 흐름을 확인합니다.
+- 오류가 발생해도 사용자가 입력한 폼과 선택 상태를 가능한 한 보존합니다.
+- `passqestion`, `resume/analyze`, `self_intoduction`은 백엔드 계약이 바뀌기 전까지 실제 철자를 유지합니다.
+- `account/modify`에 `id`, `username`, `account_hash`를 보내지 않습니다.
+- 리포트 삭제는 `report/modify`에 `{ id, delete: true }`를 전달합니다.
+- 존재하지 않는 `question/*` 엔드포인트를 호출하지 않습니다.
+- 새 기능에는 관련 Vitest 또는 검증 스크립트를 추가하고 이 선택표를 갱신합니다.
 
-## 검증 명령 모음
+## 문서 유지 원칙
 
-정적 backend 계약 검증:
-
-```powershell
-node frontend\scripts\verify-backend-contract.mjs
-```
-
-라이브 Django API 검증:
-
-```powershell
-cd frontend
-node scripts\verify-live-django-api.mjs
-```
-
-LLM 포함 라이브 Django API 검증:
-
-```powershell
-cd frontend
-$env:RUN_LLM_E2E='1'
-Get-Content -LiteralPath '..\.env' | ForEach-Object {
-  if ($_ -match '^\s*([^#][^=]+?)\s*=\s*(.*)\s*$') {
-    $name = $matches[1].Trim()
-    $value = $matches[2].Trim().Trim('"').Trim("'")
-    [Environment]::SetEnvironmentVariable($name, $value, 'Process')
-  }
-}
-node scripts\verify-live-django-api.mjs
-```
-
-lint:
-
-```powershell
-cd frontend
-npm.cmd run lint
-```
-
-build/typecheck:
-
-```powershell
-cd frontend
-npm.cmd run build
-```
-
-Vitest 단위·통합 테스트:
-
-```powershell
-cd frontend
-npm.cmd run test
-```
-
-Playwright E2E (로그인 접근성):
-
-```powershell
-cd frontend
-npm.cmd run test:e2e
-```
-
-브라우저 smoke:
-
-```powershell
-cd frontend
-node scripts\verify-auth-flow.mjs
-node scripts\verify-auth-text-links.mjs
-node scripts\verify-admin-layout.mjs
-node scripts\verify-admin-authkey-panel.mjs
-node scripts\verify-jd-create-flow.mjs
-node scripts\verify-cover-letter-save-flow.mjs
-node scripts\verify-shared-route.mjs
-```
-
-## 개발 시 체크리스트
-
-- 새 API를 붙일 때 backend route가 실제로 있는지 먼저 확인한다.
-- session API는 CSRF + credentials 유지.
-- 공유 API는 `X-API-Key`를 명시적으로 전달.
-- HTTP 200이어도 `payload.error`가 `true`면 실패로 처리.
-- `passqestion`, `resume/analyze`, `self_intoduction` 철자는 backend 계약이 바뀌기 전까지 유지한다.
-- 오래된 분석 경로 오탈자 표기를 새로 추가하지 않는다.
-- `account/modify`에는 `id`, `username`, `account_hash`를 보내지 않는다.
-- 리포트 삭제는 `report/modify`에 `{ id, delete: true }`를 보낸다.
-- 면접 질문 개별 수정/삭제 API는 없으므로 `question/*` endpoint를 새로 호출하지 않는다.
-- backend API가 없는 기능은 `unsupportedBackendFeature(...)` 또는 “개발 예정” UI로 처리한다.
-- 후순위 MVP 페이지는 삭제하지 말고 route/file을 보존한다.
+- 공통 구조, API 계약, 실행 방법은 `docs/`에서만 관리합니다.
+- 이 파일은 수동 테스트와 프론트엔드 작업 규칙만 관리합니다.
+- 라우트나 기능 상태가 바뀌면 관련 위키 페이지와 이 파일의 테스트 절차를 함께 확인합니다.

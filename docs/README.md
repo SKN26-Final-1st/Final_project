@@ -62,9 +62,9 @@
 
 - [배포와 인프라](09-deployment/deployment.md)
 
-## API 연동 상세
+## 프론트엔드 운영·검증
 
-프론트엔드 Django API 연동 범위, 검증 스크립트, 후순위 MVP 처리 원칙은 [frontend/README.md](../frontend/README.md)에 별도로 정리되어 있습니다.
+프론트엔드 수동 인수 테스트, 시나리오별 검증 스크립트, 후순위 MVP 처리 원칙은 [프론트엔드 운영·검증 가이드](../frontend/README.md)에 별도로 정리되어 있습니다.
 
 ## 문서 유지보수 규칙
 

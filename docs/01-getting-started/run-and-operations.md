@@ -85,7 +85,7 @@ node scripts/verify-backend-contract.mjs
 node scripts/verify-live-django-api.mjs
 ```
 
-상세 시나리오와 나머지 스크립트 실행 방법은 [프론트엔드 API 연동 README](../../frontend/README.md)를 참고하세요.
+수동 인수 테스트와 변경 범위별 스크립트 선택 방법은 [프론트엔드 운영·검증 가이드](../../frontend/README.md)를 참고하세요.
 
 ## 문서 검색 위젯 QA 스크립트
 
@@ -108,4 +108,4 @@ node scripts/verify-live-django-api.mjs
 
 - [프론트엔드 디자인 시스템](../03-frontend/design-system.md)
 - [배포와 인프라](../09-deployment/deployment.md)
-- [프론트엔드 API 연동 README](../../frontend/README.md)
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md)

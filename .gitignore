@@ -3,6 +3,7 @@
 # =============================================================================
 backend/.venv/
 backend/db.sqlite3
+backend/db.sqlite3.bak_*
 backend/staticfiles/
 
 .elasticbeanstalk/logs/
@@ -152,6 +153,9 @@ Desktop.ini
 # =============================================================================
 # Custom — scratch test dirs/files (keep formal test suites)
 # =============================================================================
+.codex_tmp/
+.tmp-dashboard-shots/
+.tmp-mypage-shots/
 **/test*
 !*/tests.py
 !**/*.test.ts

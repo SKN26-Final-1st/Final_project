@@ -51,14 +51,16 @@
 
 ```env
 VITE_USE_MOCK_API=true
+VITE_API_PROXY_TARGET=http://0.0.0.0
 ```
 
 주의:
 
 - `VITE_USE_MOCK_API`는 현재 `backendClient.ts`에서 참조하지 않습니다. mock API 모드는 제거되었고, 프론트는 항상 Django API를 호출합니다.
+- `VITE_API_PROXY_TARGET`은 Vite 개발 서버의 `/api` 프록시 대상입니다. 설정하지 않으면 `http://127.0.0.1:8000`을 사용합니다. 일반적인 로컬 실행에서는 기본값을 사용하고, 컨테이너나 원격 백엔드에 연결할 때만 덮어씁니다.
 - `frontend/.env.example`에 `VITE_API_KEY`가 없으며, `httpClient.ts`도 `VITE_API_KEY`를 읽지 않습니다. `X-API-Key`는 공유 리포트처럼 호출부가 `{ apiKey }`를 명시할 때만 전달됩니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/pages/SharedReportPage.tsx`
 
-로컬 개발 시 Vite dev server가 `/api`를 `http://127.0.0.1:8000`으로 프록시하므로 별도 API base URL 설정은 필요 없습니다. 근거: `frontend/vite.config.ts`
+로컬 개발 시 Vite dev server가 `/api`를 기본적으로 `http://127.0.0.1:8000`으로 프록시하므로 별도 API base URL 설정은 필요 없습니다. 근거: `frontend/vite.config.ts`
 
 ### 백엔드
 
@@ -81,4 +83,4 @@ VITE_USE_MOCK_API=true
 
 - [실행과 운영](run-and-operations.md)
 - [배포와 인프라](../09-deployment/deployment.md)
-- [프론트엔드 API 연동 README](../../frontend/README.md)
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md)
