@@ -70,6 +70,7 @@
 
 - `root /var/www/app/frontend`
 - `index index.html`
+- `/api/` 요청을 `http://10.0.94.7`의 백엔드로 proxy하고 `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto` 헤더를 전달합니다.
 - 모든 경로를 `try_files $uri $uri/ /index.html`로 처리해 SPA 라우팅을 지원합니다.
 
 ## 백엔드 배포
@@ -154,6 +155,7 @@
 
 - 현재 필수 Vite 환경 변수는 없습니다. API 키는 빌드 시 주입하지 않고, `/shared` 화면에서 사용자 입력값을 요청마다 `{ apiKey }`로 전달합니다.
 - `frontend/.env.example`의 `VITE_USE_MOCK_API`는 현재 코드에서 참조하지 않습니다.
+- `VITE_API_PROXY_TARGET`은 개발 서버 전용 프록시 설정이며, 운영의 `/api/` 전달은 `.deploy/frontend.conf`가 담당합니다.
 
 ## GitHub Secrets
 
