@@ -4,6 +4,7 @@ import string
 
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from ..models import Account
@@ -14,7 +15,12 @@ from .utils import editable_model_fields
 
 @ensure_csrf_cookie
 def csrf_token(request):
-    return JsonResponse({"error": False, "message": "CSRF cookie set"})
+    token = get_token(request)
+    return JsonResponse({
+        "error": False,
+        "message": "CSRF cookie set",
+        "csrfToken": token,
+    })
 
 
 def account_signin(request):
