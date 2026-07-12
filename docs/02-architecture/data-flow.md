@@ -126,4 +126,4 @@ sequenceDiagram
 
 - [지원서 분석](../08-features/resume-analysis.md)
 - [문서 검색 채팅](../08-features/document-chat.md)
-- [프론트엔드 API 연동 README](../../frontend/README.md)
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md)

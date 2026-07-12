@@ -108,4 +108,4 @@ API Key 모드에서는 `appDataQueryOptions()`가 query key에 `authMode`와 AP
 - [API 레퍼런스](../06-api/api-reference.md)
 - [프론트 API ID 매핑](../06-api/frontend-api-id-map.md)
 - [데이터 흐름](../02-architecture/data-flow.md)
-- [프론트엔드 API 연동 README](../../frontend/README.md)
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md)

@@ -57,6 +57,6 @@
 
 ## 관련 문서
 
-- [프론트엔드 API 연동 README](../../frontend/README.md) — 연동 범위와 검증 스크립트 상세
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md) — 수동 인수 테스트와 시나리오별 검증 상세
 - [프론트 API ID 매핑](../06-api/frontend-api-id-map.md)
 - [실행과 운영](../01-getting-started/run-and-operations.md)

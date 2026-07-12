@@ -77,4 +77,4 @@
 - [상태와 API 어댑터](state-and-api-adapters.md)
 - [페이지와 라우트](pages-and-routes.md)
 - [디자인 시스템](design-system.md)
-- [프론트엔드 API 연동 README](../../frontend/README.md)
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md)

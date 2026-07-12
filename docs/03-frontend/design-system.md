@@ -370,4 +370,4 @@ npm run analyze
 - [페이지와 라우트](pages-and-routes.md)
 - [상태와 API 어댑터](state-and-api-adapters.md)
 - [실행과 운영](../01-getting-started/run-and-operations.md)
-- [프론트엔드 API 연동 README](../../frontend/README.md)
+- [프론트엔드 운영·검증 가이드](../../frontend/README.md)
