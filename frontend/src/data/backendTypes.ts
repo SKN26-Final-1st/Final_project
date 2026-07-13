@@ -36,10 +36,8 @@ export type StatusCode =
 export type Account = {
   id: number;
   username: string;
-  account_hash: string;
   name: string;
   verification_question: string;
-  verification_answer: string;
   credit: number;
   subscribe: boolean;
   subscribe_expiration: DateTimeString;

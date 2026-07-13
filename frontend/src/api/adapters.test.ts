@@ -82,10 +82,8 @@ function makeDashboardSource(analysisReports: AnalysisReport[]): DashboardSource
     account: {
       id: 1,
       username: 'admin@example.com',
-      account_hash: 'hash',
       name: '관리자',
       verification_question: '',
-      verification_answer: '',
       credit: 100,
       subscribe: true,
       subscribe_expiration: now,

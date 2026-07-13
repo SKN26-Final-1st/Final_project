@@ -48,11 +48,11 @@ export type SignupBody = {
   verification_answer: string;
 };
 
-export type AccountModifyBody = Partial<Omit<Account, 'id' | 'username' | 'account_hash'>> & {
+export type AccountModifyBody = Partial<Omit<Account, 'id' | 'username'>> & {
   delete?: boolean;
   formal_password?: string;
   password?: string;
-} & Partial<Pick<Account, 'id' | 'username' | 'account_hash'>>;
+} & Partial<Pick<Account, 'id' | 'username'>>;
 
 export type AuthKeyAddBody = {
   name: string;
