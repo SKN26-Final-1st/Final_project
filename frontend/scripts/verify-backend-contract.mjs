@@ -16,6 +16,15 @@ function assert(condition, message) {
 }
 
 const backendClient = read('frontend/src/api/backendClient.ts');
+const backendClientModules = [
+  read('frontend/src/api/clients/authAccountClient.ts'),
+  read('frontend/src/api/clients/companyAuthKeyClient.ts'),
+  read('frontend/src/api/clients/jdChecklistClient.ts'),
+  read('frontend/src/api/clients/resumeReportClient.ts'),
+  read('frontend/src/api/clients/chatClient.ts'),
+  read('frontend/src/api/services/dashboardSource.ts'),
+  read('frontend/src/api/clients/clientCore.ts'),
+].join('\n');
 const httpClient = read('frontend/src/api/httpClient.ts');
 const authPages = [
   read('frontend/src/pages/AuthPages.tsx'),
@@ -35,7 +44,11 @@ const sidebarNav = [
 const topHeader = read('frontend/src/components/layout/TopHeader.tsx');
 const app = read('frontend/src/App.tsx');
 const useApiAction = read('frontend/src/hooks/useApiAction.ts');
-const sharedReportPage = read('frontend/src/pages/SharedReportPage.tsx');
+const sharedReportPage = [
+  read('frontend/src/pages/SharedReportPage.tsx'),
+  read('frontend/src/components/shared-report/sharedReportTypes.ts'),
+  read('frontend/src/components/shared-report/SharedReportTabs.tsx'),
+].join('\n');
 const recruitmentPostPage = read('frontend/src/pages/RecruitmentPostPage.tsx');
 const coverLetterTemplatePage = read('frontend/src/pages/CoverLetterTemplatePage.tsx');
 const appDataService = read('frontend/src/api/appDataService.ts');
@@ -43,7 +56,7 @@ const adapters = read('frontend/src/api/adapters.ts');
 const backendTypes = read('frontend/src/data/backendTypes.ts');
 const appConfig = read('frontend/src/data/appConfig.tsx');
 const viteConfig = read('frontend/vite.config.ts');
-const backendClientContractSource = `${backendClient}\n${httpClient}`;
+const backendClientContractSource = `${backendClient}\n${backendClientModules}\n${httpClient}`;
 
 const requiredBackendCalls = [
   'ping',
@@ -61,9 +74,15 @@ const requiredBackendCalls = [
   'authkey/add',
   'authkey/get',
   'authkey/modify',
+  'authkey/credit',
   'jd/add',
+  'jd/analyze',
   'jd/get',
   'jd/modify',
+  'jd_chat',
+  'checklist/add',
+  'checklist/get',
+  'checklist/modify',
   'resume/add',
   'resume/get',
   'resume/modify',
@@ -108,42 +127,44 @@ for (const endpoint of requiredBackendCalls) {
 }
 
 assert(
-  /requestBackend<AnalysisReport\[\]>\(['"]report\/get['"]/.test(backendClient),
+  /requestBackend<AnalysisReport\[\]>\(['"]report\/get['"]/.test(backendClientModules),
   'report/get must treat backend data as AnalysisReport[]',
 );
 
 assert(
   /async function pingRequest\(\)[\s\S]*httpClient\.get<unknown>\(['"]\/ping\/['"]\)[\s\S]*ok\s*!==\s*true/.test(
-    backendClient,
+    backendClientModules,
   ),
   'ping must call /api/ping/ as a healthcheck and validate the raw { ok: true } response',
 );
 
 assert(
-  /requestBackend<AnalysisReport>\(['"]resume\/analyze['"],\s*\{\s*id:\s*resume\.id\s*\}\)/.test(
-    backendClient,
+  /requestBackend<AnalysisReport>\(['"]resume\/analyze['"],\s*\{\s*id:\s*resume\.id\s*\},\s*\{\s*apiKey\s*\}\)/.test(
+    backendClientModules,
   ),
   'resume/analyze must send resume.id and consume the returned AnalysisReport payload',
 );
 
 assert(
   /interview_question:\s*InterviewQuestion\[\]/.test(backendTypes) &&
-    /getReportQuestions\(report\)/.test(backendClient) &&
-    !containsEndpoint(backendClient, 'question/get') &&
-    !containsEndpoint(backendClient, 'question/modify'),
+    /getReportQuestions\(report\)/.test(backendClientModules) &&
+    !containsEndpoint(backendClientModules, 'question/get') &&
+    !containsEndpoint(backendClientModules, 'question/modify'),
   'Interview questions must be read from AnalysisReport.interview_question; question/get and question/modify are not current backend routes',
 );
 
 const realApiMethodNames = [
   'ping',
   'getDashboard',
+  'getApiKeyDashboard',
+  'loginWithApiKey',
   'getCompanyProfile',
   'getJobDescriptions',
-  'getCoverLetterDraft',
-  'getCoverLetters',
-  'getAnalysisReport',
-  'getRecruitmentPreview',
-  'getCoverLetterTemplate',
+  'getChecklist',
+  'generateJdChecklist',
+  'addChecklist',
+  'updateChecklist',
+  'deleteChecklist',
   'saveCompanyProfile',
   'getAuthKeys',
   'addAuthKey',
@@ -151,26 +172,26 @@ const realApiMethodNames = [
   'deleteAuthKey',
   'addJobDescription',
   'saveJobDescription',
+  'refreshJdChecklistFailure',
   'deleteJobDescription',
-  'requestJobAnalysis',
   'addResume',
   'saveResume',
   'deleteResume',
-  'uploadCoverLetters',
-  'requestCoverLetterAnalysis',
+  'requestResumeAnalysis',
   'sendChatMessage',
+  'sendJdChatMessage',
   'saveReport',
-  'saveQuestion',
+  'deleteReport',
+  'getSharedResumeBundle',
 ];
 
 for (const method of realApiMethodNames) {
-  const methodBody = getApiClientMethod(backendClient, method);
+  const methodBody = getApiClientMethod(backendClientModules, method);
   assert(!methodBody.includes('USE_MOCK_API'), `${method} must use real backend data instead of USE_MOCK_API`);
   assert(!/ApiResponse\.data/.test(methodBody), `${method} must not read static mock ApiResponse data`);
 }
 
-assert(!/function getDashboardSource\(\)[\s\S]*USE_MOCK_API/.test(backendClient), 'Dashboard source must not switch to local mock data');
-assert(!/function getResumeSourceForJob[\s\S]*USE_MOCK_API/.test(backendClient), 'Resume source must not switch to local mock data');
+assert(!/USE_MOCK_API/.test(backendClientContractSource), 'Backend clients must not switch to local mock data');
 
 assert(
   /apiKey\?:\s*string/.test(backendClientContractSource) &&
@@ -179,7 +200,7 @@ assert(
   'Backend client must support per-request X-API-Key for shared report access',
 );
 
-assert(/getSharedResumeBundle/.test(backendClient), 'Shared resume/report/question bundle API is required');
+assert(/getSharedResumeBundle/.test(backendClientModules), 'Shared resume/report/question bundle API is required');
 assert(/\/shared/.test(appConfig) && /\/shared/.test(app), 'Shared report route must exist');
 
 const recruitmentPostMenu = getRouteMenuObject(appConfig, '/recruitment-post');
@@ -218,16 +239,14 @@ assert(
 );
 
 assert(
-  /async function getJobDescriptions\(apiKey\?: string\)[\s\S]*requestBackend<JobDescription\[\]>\(['"]jd\/get['"],\s*\{\},\s*\{\s*apiKey\s*\}\)/.test(
-    backendClient,
+  /async function getJobDescriptionsRaw\(apiKey\?: string[\s\S]*requestBackend<JobDescription\[\]>\(['"]jd\/get['"][\s\S]*apiKey/.test(
+    backendClientModules,
   ),
   'jd/get must support X-API-Key access for shared and public report flows',
 );
 
 assert(
-  /async function getSharedResumeBundle\(resumeId: number, apiKey: string\)[\s\S]*getJobDescriptions\(apiKey\)/.test(
-    backendClient,
-  ),
+  /async function getSharedResumeBundleRaw[\s\S]*getJobDescriptionsRaw\(apiKey, options\)/.test(backendClientModules),
   'Shared API key bundle must fetch accessible JD data through X-API-Key',
 );
 
@@ -280,27 +299,27 @@ const accountMethodNames = [
 ];
 
 for (const method of accountMethodNames) {
-  const methodBody = getApiClientMethod(backendClient, method);
+  const methodBody = getApiClientMethod(backendClientModules, method);
   assert(!methodBody.includes('USE_MOCK_API'), `${method} must not branch to mock data`);
   assert(!methodBody.includes('authDefaultsApiResponse'), `${method} must not use mock auth defaults`);
 }
 
 assert(
-  /login:\s*async\s*\(\s*username:\s*string,\s*password:\s*string\s*\)[\s\S]*await loginRequest\(username,\s*password\)[\s\S]*await getAccount\(\)/.test(
-    backendClient,
+  /login:\s*async\s*\(\s*username:\s*string,\s*password:\s*string\s*\)[\s\S]*await loginRequest\(username,\s*password\)[\s\S]*await getAccountRaw\(\{\s*authFailurePolicy:\s*['"]local['"]\s*\}\)/.test(
+    backendClientModules,
   ),
   'login must call backend login and then reload the real account',
 );
 
 assert(
-  /completeSignup:\s*async\s*\(body:\s*SignupBody\)[\s\S]*await signinRequest\(\{[\s\S]*username:\s*body\.username[\s\S]*password:\s*body\.password[\s\S]*verification_answer:\s*body\.verification_answer/.test(
-    backendClient,
+  /completeSignup:\s*async\s*\(body:\s*SignupBody\)[\s\S]*await signinRequest\(body\)/.test(
+  backendClientModules,
   ),
   'completeSignup must send the submitted signup fields directly to signin',
 );
 
 assert(
-  /requestAction\(['"]account\/modify['"],\s*sanitizeAccountModifyBody\(body\)\)/.test(backendClient),
+  /requestAction\(['"]account\/modify['"],\s*sanitizeAccountModifyBody\(body\)\)/.test(backendClientModules),
   'saveUserProfile must sanitize blocked account fields before account/modify',
 );
 
@@ -350,13 +369,13 @@ assert(
 
 assert(
   /async function checkUserRequest\(username: string\)[\s\S]*username\.trim\(\)[\s\S]*requestAction\(['"]checkuser['"],\s*\{\s*username:\s*trimmedUsername\s*\}\)/.test(
-    backendClient,
+    backendClientModules,
   ),
   'checkuser must trim username and send POST /api/checkuser/ body as { username: trimmedUsername }',
 );
 
 assert(
-  /async function checkUserRequest\(username: string\)[\s\S]*typeof payload\.valid !== ['"]boolean['"]/.test(backendClient),
+  /async function checkUserRequest\(username: string\)[\s\S]*typeof payload\.valid !== ['"]boolean['"]/.test(backendClientModules),
   'checkuser must read top-level valid:boolean and reject malformed responses',
 );
 
@@ -370,19 +389,11 @@ assert(
   'runApiAction must surface the concrete backend/client error message instead of only a generic API failure',
 );
 
-const mockOnlyMethods = [
-  'generateRecruitmentPost',
-  'downloadRecruitmentPdf',
-  'generateCoverLetterTemplate',
-  'downloadTemplateDocument',
-];
-
-for (const method of mockOnlyMethods) {
-  const methodStart = backendClient.indexOf(`${method}:`);
-  assert(methodStart >= 0, `Missing mock-only method ${method}`);
-  const methodBody = getApiClientMethod(backendClient, method);
-  assert(!methodBody.includes('requestAction('), `${method} should remain mock-only until backend endpoint exists`);
-  assert(methodBody.includes('unsupportedBackendFeature'), `${method} must be marked as backend-unsupported`);
-}
+assert(
+  !/unsupportedBackendFeature|generateRecruitmentPost|downloadRecruitmentPdf|generateCoverLetterTemplate|downloadTemplateDocument/.test(
+    backendClientContractSource,
+  ),
+  'Unsupported backend methods with no production callers must not remain on the public API façade',
+);
 
 console.log('Backend contract checks passed.');
