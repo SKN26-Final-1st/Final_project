@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { mapAdmin, mapCoverLetterRows, mapDashboard, type DashboardSource } from './adapters';
+import {
+  mapAdmin,
+  mapAnalysisReport,
+  mapCoverLetterRows,
+  mapDashboard,
+  mapJdList,
+  mapUserProfile,
+  type DashboardSource,
+} from './adapters';
 import type { AnalysisReport, JobDescription, Resume } from '../data/backendTypes';
 
 const now = '2026-06-24T00:00:00+09:00';
@@ -120,5 +128,42 @@ describe('adapters', () => {
     });
     expect(dashboard.insightCards.find((item) => item.title === '분석 대기')?.detail).toContain('1명의 지원서');
     expect(admin.operatingStatus.processingResumes).toBe(1);
+  });
+
+  it('JD와 사용자 profile을 backend 필드에서 기존 view model로 변환한다', () => {
+    const source = makeDashboardSource([]);
+
+    expect(mapJdList(source.job_descriptions, source.resumes, source.analysis_reports)[0]).toMatchObject({
+      id: '10',
+      title: '프론트엔드 개발자',
+      checklistStatus: 'done',
+      stack: ['React'],
+    });
+    expect(mapUserProfile(source.account, source.company_info)).toMatchObject({
+      displayName: '관리자',
+      username: 'admin@example.com',
+      companyName: 'HumouR',
+      subscribeExpirationIso: now,
+    });
+  });
+
+  it('분석 리포트와 질문을 기존 탭 및 채팅 view model로 변환한다', () => {
+    const report = makeReport({
+      status: 'done',
+      overall_grade: 'A',
+      overall_summary: '전체 요약',
+      candidate_summary: '지원자 요약',
+      check_point: ['확인 포인트'],
+    });
+    const question = { resume_id: 1, question: '질문', answer: '답변', purpose: '의도' };
+    const mapped = mapAnalysisReport(report, [resumeWithoutStatus], [jobDescription], [question]);
+
+    expect(mapped).toMatchObject({
+      reportId: '1',
+      applicantName: '홍길동',
+      jobTitle: '프론트엔드 개발자',
+      exampleQuestions: ['질문'],
+    });
+    expect(mapped.tabs.map((tab) => tab.key)).toEqual(['summary', 'checklist', 'competency', 'fit', 'risk', 'comment']);
   });
 });

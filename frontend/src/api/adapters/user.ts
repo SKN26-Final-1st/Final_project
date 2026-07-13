@@ -1,4 +1,5 @@
 import type { Account, CompanyInfo } from '../../data/backendTypes';
+import { formatDateTime, toStringList } from './common';
 
 export type CompanyProfile = {
   name: string;
@@ -21,54 +22,6 @@ export type UserProfile = {
   subscribeExpirationText: string;
   verificationQuestion: string;
 };
-
-function toDisplayText(value: unknown) {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (value === null || value === undefined) {
-    return '';
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '';
-  }
-}
-
-function toStringList(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map(toDisplayText).filter(Boolean);
-}
-
-function formatDateTime(isoDate: string) {
-  if (!isoDate) {
-    return '미설정';
-  }
-
-  const date = new Date(isoDate);
-
-  if (Number.isNaN(date.getTime())) {
-    return isoDate;
-  }
-
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-}
 
 export function mapCompany(data: CompanyInfo): CompanyProfile {
   const teamComposition = toStringList(data.team_composition);
