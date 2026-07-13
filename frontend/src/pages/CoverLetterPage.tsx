@@ -16,8 +16,8 @@ import { useCoverLetterPageData } from '../hooks/useCoverLetterPageData';
 import { COVER_SEARCH_SUGGESTIONS, useCoverLetterFilters } from '../hooks/useCoverLetterFilters';
 import { useJdChecklist } from '../hooks/useJdChecklist';
 import { useResumeMutations } from '../hooks/mutations/useResumeMutations';
+import { useAuthSessionContext } from '../hooks/authSessionContext';
 import type { Navigate, ShowAlert } from '../types/app';
-import { getStoredApiKey } from '../utils/apiKeySession';
 import { getAnalysisCreditCost, getAnalysisCreditText, hasEnoughAnalysisCredit } from '../utils/analysisCredit';
 import { pageSectionGutter } from '../utils/layout';
 import {
@@ -40,15 +40,16 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   const [isCreatingCoverLetter, setIsCreatingCoverLetter] = useState(false);
   const [deleteTargetResume, setDeleteTargetResume] = useState<CoverLetterRow | null>(null);
   const [coverSearchText, setCoverSearchText] = useState('');
+  const { authMode, capabilities } = useAuthSessionContext();
   const { coverRows, jdList, resumes, selectedJdId, selectedResumeId, setSelectedJdId, setSelectedResumeId, userProfile } =
     useCoverLetterPageData();
   const { addResume, analyzeResume, deleteResume, saveResume } = useResumeMutations(showAlert);
-  const isApiKeyMode = Boolean(getStoredApiKey());
+  const isApiKeyMode = authMode === 'apiKey';
   const analysisCreditCost = getAnalysisCreditCost(userProfile, isApiKeyMode);
   const analysisCreditText = getAnalysisCreditText(analysisCreditCost, isApiKeyMode);
   const creditDisabledReason = hasEnoughAnalysisCredit(userProfile, analysisCreditCost) ? undefined : 'Credit이 부족합니다.';
   const analysisCreditDisplayText = creditDisabledReason ? `${analysisCreditText} · Credit 부족` : analysisCreditText;
-  const canCreateResume = !isApiKeyMode;
+  const canCreateResume = capabilities.resume.create;
   const currentResume = useMemo(
     () => resumes.find((resume) => String(resume.id) === selectedResumeId) ?? null,
     [resumes, selectedResumeId],
@@ -74,7 +75,11 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
           ? '연결된 JD에 체크리스트가 없습니다.'
           : undefined;
   const canAnalyze = Boolean(
-    editingResume && !isCreatingCoverLetter && !checklistAnalysisDisabledReason && !creditDisabledReason,
+    capabilities.resume.analyze &&
+      editingResume &&
+      !isCreatingCoverLetter &&
+      !checklistAnalysisDisabledReason &&
+      !creditDisabledReason,
   );
   const {
     filteredRows: filteredCoverRows,
@@ -115,6 +120,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   };
 
   const requestDeleteResume = (resumeId: string) => {
+    if (!capabilities.resume.delete) return;
     const targetResume = coverRows.find((row) => row.key === resumeId);
 
     if (!targetResume) {
@@ -160,6 +166,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   };
 
   const saveCurrentResume = async () => {
+    if (editingResume ? !capabilities.resume.edit : !capabilities.resume.create) return;
     const values = await form.validateFields();
     const allValues = form.getFieldsValue(true) as CoverLetterInputFormValues;
     const jobDescriptionId = values.job_description_id;
@@ -194,7 +201,7 @@ export function CoverLetterPage({ navigate, showAlert }: CoverLetterPageProps) {
   };
 
   const requestAnalysis = async () => {
-    if (!editingResume || checklistAnalysisDisabledReason || creditDisabledReason) {
+    if (!capabilities.resume.analyze || !editingResume || checklistAnalysisDisabledReason || creditDisabledReason) {
       if (checklistAnalysisDisabledReason) {
         showAlert({ type: 'warning', message: checklistAnalysisDisabledReason });
       } else if (creditDisabledReason) {

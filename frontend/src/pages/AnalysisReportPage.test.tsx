@@ -5,6 +5,8 @@ import { AnalysisReportPage } from './AnalysisReportPage';
 import type { JdItem } from '../api/adapters';
 import type { AnalysisReport, Resume } from '../data/backendTypes';
 import type { AnalysisReportItem } from '../hooks/useAnalysisReportPageData';
+import { AuthSessionProvider } from '../hooks/AuthSessionProvider';
+import { getAuthCapabilities } from '../utils/authCapabilities';
 
 const saveReport = vi.hoisted(() => vi.fn());
 const deleteReport = vi.hoisted(() => vi.fn());
@@ -539,9 +541,19 @@ describe('AnalysisReportPage', () => {
   });
 
   it('API Key 모드에서는 리뷰 저장 요청에 현재 API Key를 전달한다', async () => {
-    window.sessionStorage.setItem('humour.apiKey', 'review-api-key');
     const user = userEvent.setup();
-    render(<AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />);
+    render(
+      <AuthSessionProvider
+        value={{
+          apiKey: 'review-api-key',
+          authMode: 'apiKey',
+          authSessionKey: 'opaque-review-session',
+          capabilities: getAuthCapabilities('apiKey'),
+        }}
+      >
+        <AnalysisReportPage navigate={vi.fn()} showAlert={showAlert} />
+      </AuthSessionProvider>,
+    );
 
     const reviewInput = screen.getByLabelText('사용자 리뷰 의견');
     await user.clear(reviewInput);

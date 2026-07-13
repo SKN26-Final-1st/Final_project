@@ -3,7 +3,7 @@ import { apiClient } from '../../api/backendClient';
 import { queryKeys } from '../../api/queryKeys';
 import type { AnalysisReport, ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
-import { getStoredApiKey } from '../../utils/apiKeySession';
+import { useAuthSessionContext } from '../authSessionContext';
 import {
   getMutationErrorMessage,
   shouldSuppressMutationError,
@@ -51,12 +51,16 @@ function alertError(showAlert: ShowAlert, error: unknown) {
 export function useJdMutations(showAlert: ShowAlert) {
   const invalidateAppData = useInvalidateAppData();
   const queryClient = useQueryClient();
-  const apiKey = getStoredApiKey() ?? undefined;
+  const { apiKey: sessionApiKey, capabilities } = useAuthSessionContext();
+  const apiKey = sessionApiKey ?? undefined;
   const invalidateChecklist = (jobDescriptionId: number | string) =>
     queryClient.invalidateQueries({ queryKey: queryKeys.checklist(jobDescriptionId) });
 
   const addJd = useMutation({
-    mutationFn: apiClient.addJobDescription,
+    mutationFn: (body: Parameters<typeof apiClient.addJobDescription>[0]) => {
+      if (!capabilities.jd.create) throw new Error('현재 인증 방식에서는 새 JD를 등록할 수 없습니다.');
+      return apiClient.addJobDescription(body);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -65,8 +69,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const saveJd = useMutation({
-    mutationFn: (body: Parameters<typeof apiClient.saveJobDescription>[0]) =>
-      apiClient.saveJobDescription(body, apiKey),
+    mutationFn: (body: Parameters<typeof apiClient.saveJobDescription>[0]) => {
+      if (!capabilities.jd.edit) throw new Error('현재 인증 방식에서는 JD를 수정할 수 없습니다.');
+      return apiClient.saveJobDescription(body, apiKey);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -75,7 +81,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const deleteJd = useMutation({
-    mutationFn: (id: number) => apiClient.deleteJobDescription(id, apiKey),
+    mutationFn: (id: number) => {
+      if (!capabilities.jd.delete) throw new Error('현재 인증 방식에서는 JD를 삭제할 수 없습니다.');
+      return apiClient.deleteJobDescription(id, apiKey);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -84,7 +93,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const analyzeJd = useMutation<ApiResponse<{ report: AnalysisReport; resume_id: number }>, unknown, number>({
-    mutationFn: (resumeId) => apiClient.requestResumeAnalysis(resumeId, apiKey),
+    mutationFn: (resumeId) => {
+      if (!capabilities.jd.analyze) throw new Error('현재 인증 방식에서는 지원서를 분석할 수 없습니다.');
+      return apiClient.requestResumeAnalysis(resumeId, apiKey);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -93,8 +105,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const generateChecklist = useMutation({
-    mutationFn: (payload: GenerateChecklistPayload) =>
-      apiClient.generateJdChecklist(payload.jdId, apiKey, { query: payload.query, cnt: payload.cnt }),
+    mutationFn: (payload: GenerateChecklistPayload) => {
+      if (!capabilities.jd.analyze) throw new Error('현재 인증 방식에서는 체크리스트를 분석할 수 없습니다.');
+      return apiClient.generateJdChecklist(payload.jdId, apiKey, { query: payload.query, cnt: payload.cnt });
+    },
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -104,7 +118,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const refreshChecklistFailure = useMutation({
-    mutationFn: (id: number) => apiClient.refreshJdChecklistFailure(id, apiKey),
+    mutationFn: (id: number) => {
+      if (!capabilities.jd.edit) throw new Error('현재 인증 방식에서는 JD 상태를 수정할 수 없습니다.');
+      return apiClient.refreshJdChecklistFailure(id, apiKey);
+    },
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -114,7 +131,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const addChecklist = useMutation({
-    mutationFn: (payload: ChecklistAddPayload) => apiClient.addChecklist(payload, apiKey),
+    mutationFn: (payload: ChecklistAddPayload) => {
+      if (!capabilities.checklist.create) throw new Error('현재 인증 방식에서는 체크리스트를 추가할 수 없습니다.');
+      return apiClient.addChecklist(payload, apiKey);
+    },
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(payload.job_description_id);
@@ -123,8 +143,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const updateChecklist = useMutation({
-    mutationFn: (payload: ChecklistUpdatePayload) =>
-      apiClient.updateChecklist({ id: payload.id, content: payload.content }, apiKey),
+    mutationFn: (payload: ChecklistUpdatePayload) => {
+      if (!capabilities.checklist.edit) throw new Error('현재 인증 방식에서는 체크리스트를 수정할 수 없습니다.');
+      return apiClient.updateChecklist({ id: payload.id, content: payload.content }, apiKey);
+    },
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(payload.job_description_id);
@@ -133,7 +155,10 @@ export function useJdMutations(showAlert: ShowAlert) {
   });
 
   const deleteChecklist = useMutation({
-    mutationFn: (payload: ChecklistDeletePayload) => apiClient.deleteChecklist(payload.id, apiKey),
+    mutationFn: (payload: ChecklistDeletePayload) => {
+      if (!capabilities.checklist.delete) throw new Error('현재 인증 방식에서는 체크리스트를 삭제할 수 없습니다.');
+      return apiClient.deleteChecklist(payload.id, apiKey);
+    },
     onSuccess: async (response, payload) => {
       alertSuccess(showAlert, response);
       await invalidateChecklist(payload.job_description_id);

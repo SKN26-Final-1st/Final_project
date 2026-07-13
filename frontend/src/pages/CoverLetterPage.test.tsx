@@ -5,6 +5,8 @@ import { CoverLetterPage } from './CoverLetterPage';
 import type { JdItem } from '../api/adapters';
 import type { CoverLetterRow } from '../api/adapters';
 import type { Resume } from '../data/backendTypes';
+import { AuthSessionProvider } from '../hooks/AuthSessionProvider';
+import { getAuthCapabilities } from '../utils/authCapabilities';
 
 const saveResumeMutateAsync = vi.hoisted(() => vi.fn());
 const addResumeMutateAsync = vi.hoisted(() => vi.fn());
@@ -143,6 +145,24 @@ describe('CoverLetterPage', () => {
     checklistQueryState.items = [{ id: 1, job_description_id: 10, content: 'React 경험 확인' }];
     checklistQueryState.isLoading = false;
     checklistQueryState.isError = false;
+  });
+
+  it('API Key 모드에서는 새 자소서 생성 UI를 숨기고 기존 자소서 분석은 유지한다', () => {
+    render(
+      <AuthSessionProvider
+        value={{
+          apiKey: 'api-key-secret',
+          authMode: 'apiKey',
+          authSessionKey: 'opaque-resume-session',
+          capabilities: getAuthCapabilities('apiKey'),
+        }}
+      >
+        <CoverLetterPage navigate={vi.fn()} showAlert={vi.fn()} />
+      </AuthSessionProvider>,
+    );
+
+    expect(screen.queryAllByText('새 자소서 작성')).toHaveLength(0);
+    expect(screen.getByText('분석 요청')).toBeInTheDocument();
   });
 
   it('저장할 때 이력서 구조화 필드를 목업 JSON 구조로 정리한다', async () => {
