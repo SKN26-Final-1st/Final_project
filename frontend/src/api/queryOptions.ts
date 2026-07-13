@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { loadApiKeyAppData, loadAppData, type AppData } from './appDataService';
 import { queryKeys } from './queryKeys';
-import { getApiKeyFingerprint, getCurrentAuthMode, getStoredApiKey, type AuthMode } from '../utils/apiKeySession';
+import type { AuthMode } from '../utils/apiKeySession';
 
 const ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS = 3000;
 
@@ -19,13 +19,16 @@ function hasActiveChecklistGeneration(data: AppData | undefined) {
 
 export function appDataQueryOptions(
   enabled = true,
-  authMode: AuthMode = getCurrentAuthMode(),
-  apiKey: string | null = getStoredApiKey(),
+  authMode: AuthMode = 'account',
+  apiKey: string | null = null,
+  authSessionKey = 'account',
 ) {
   const effectiveMode = authMode ?? 'account';
 
+  // The opaque session key partitions caches without exposing the API key itself.
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   return queryOptions({
-    queryKey: queryKeys.appData(effectiveMode, getApiKeyFingerprint(apiKey)),
+    queryKey: queryKeys.appData(effectiveMode, authSessionKey),
     queryFn: ({ signal }) => {
       if (effectiveMode === 'apiKey') {
         if (!apiKey) {

@@ -23,10 +23,8 @@ const textFieldSchema = z.union([z.string(), stringArraySchema]).transform((valu
 export const accountSchema = z.object({
   id: z.number(),
   username: z.string(),
-  account_hash: z.string(),
   name: z.string(),
   verification_question: z.string(),
-  verification_answer: z.string(),
   credit: z.number(),
   subscribe: z.boolean(),
   subscribe_expiration: z.string(),

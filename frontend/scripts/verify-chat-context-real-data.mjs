@@ -172,8 +172,12 @@ try {
 
   await page.goto(`${baseUrl}/chat`, { waitUntil: 'networkidle' });
   await page.getByText('Frontend Engineer').first().waitFor({ timeout: 10000 });
-  await page.getByText('Hong Gil Dong').first().waitFor({ timeout: 10000 });
-  await page.getByText('How did you optimize React rendering?').first().waitFor({ timeout: 10000 });
+  if ((await page.getByText('Hong Gil Dong').count()) > 0) {
+    throw new Error('Resume data must not be presented as direct chat context.');
+  }
+  if ((await page.getByText('How did you optimize React rendering?').count()) > 0) {
+    throw new Error('Interview questions must not be presented as direct chat context.');
+  }
   if ((await page.getByText('최근 참조 소스').count()) > 0) {
     throw new Error('Recent reference source section should not be rendered on /chat.');
   }

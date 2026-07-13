@@ -4,9 +4,11 @@ import { XProvider } from '@ant-design/x';
 import { App as AntApp, Switch, Tooltip } from 'antd';
 import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useQueryClient } from '@tanstack/react-query';
 import { FloatingAlert } from './components/common/FloatingAlert';
 import { PageLoading } from './components/common/PageState';
 import { resetAuthExpiryHandling } from './api/httpClient';
+import { clearAuthenticatedQueryState } from './api/queryClient';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
 import { AuthRouteContent } from './components/routing/AuthRouteContent';
@@ -17,16 +19,17 @@ import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthExpiryHandler } from './hooks/useAuthExpiryHandler';
 import { useAuthSession } from './hooks/useAuthSession';
+import { AuthSessionProvider } from './hooks/AuthSessionProvider';
 import { DocumentChatProvider } from './hooks/useDocumentChatState';
 import { useLogoutAction } from './hooks/useLogoutAction';
 import { SharedReportPage } from './pages/SharedReportPage';
 import type { ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
 
-const API_KEY_ALLOWED_ROUTES: AppRoute[] = ['/jd', '/cover-letter', '/analysis-report'];
 const API_KEY_HOME_ROUTE: AppRoute = '/jd';
 
 export default function App() {
+  const queryClient = useQueryClient();
   const routerNavigate = useNavigate();
   const location = useLocation();
   const navigate = useCallback((nextRoute: AppRoute | string) => {
@@ -43,17 +46,19 @@ export default function App() {
     apiKey,
     authChecked,
     authMode,
+    authSessionKey,
+    capabilities,
     clearAuthSession,
     isAuthenticated,
     setApiKeySession,
     setIsAuthenticated,
   } = useAuthSession(isShared);
   const isApiKeyMode = authMode === 'apiKey';
-  const isApiKeyAllowedRoute = API_KEY_ALLOWED_ROUTES.includes(route);
+  const isApiKeyAllowedRoute = capabilities.routes.includes(route);
   const appHomeRoute = isApiKeyMode ? API_KEY_HOME_ROUTE : '/dashboard';
   const shouldLoadAppData =
     authChecked && isAuthenticated && !isAuth && !isShared && (!isApiKeyMode || isApiKeyAllowedRoute);
-  const { data, loading, error, reload } = useAppData(shouldLoadAppData, authMode, apiKey);
+  const { data, loading, error, reload } = useAppData(shouldLoadAppData, authMode, apiKey, authSessionKey);
   useAuthExpiryHandler({ clearAuthSession, navigate });
 
   useEffect(() => {
@@ -83,7 +88,7 @@ export default function App() {
       showAlert={showAlert}
     >
       <AppShell
-        allowedRoutes={isApiKeyMode ? API_KEY_ALLOWED_ROUTES : undefined}
+        allowedRoutes={isApiKeyMode ? capabilities.routes : undefined}
         authMode={authMode}
         route={route}
         mode={mode}
@@ -101,8 +106,7 @@ export default function App() {
           loading={loading}
           error={error}
           hasData={Boolean(data)}
-          isApiKeyMode={isApiKeyMode}
-          isApiKeyAllowedRoute={isApiKeyAllowedRoute}
+          capabilities={capabilities}
           apiKeyHomeRoute={API_KEY_HOME_ROUTE}
           authMode={authMode}
           loadingKey={loadingKey}
@@ -118,8 +122,9 @@ export default function App() {
   );
 
   const pageContent = (
-    <XProvider theme={themeConfig}>
-      <AntApp>
+    <AuthSessionProvider value={{ apiKey, authMode, authSessionKey, capabilities }}>
+      <XProvider theme={themeConfig}>
+        <AntApp>
         <div className="app-root" data-theme={renderedThemeMode}>
           <FloatingAlert alert={alert} onClose={() => setAlert(null)} />
           {isShared ? (
@@ -137,11 +142,13 @@ export default function App() {
               setResetStep={setResetStep}
               showAlert={showAlert}
               onLoginSuccess={() => {
+                clearAuthenticatedQueryState(queryClient);
                 resetAuthExpiryHandling();
                 setIsAuthenticated(true);
                 navigate('/dashboard');
               }}
               onApiKeyLoginSuccess={(nextApiKey) => {
+                clearAuthenticatedQueryState(queryClient);
                 resetAuthExpiryHandling();
                 setApiKeySession(nextApiKey);
                 navigate(API_KEY_HOME_ROUTE);
@@ -158,8 +165,9 @@ export default function App() {
           )}
           {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
         </div>
-      </AntApp>
-    </XProvider>
+        </AntApp>
+      </XProvider>
+    </AuthSessionProvider>
   );
 
   return (

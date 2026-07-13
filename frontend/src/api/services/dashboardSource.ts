@@ -31,10 +31,8 @@ function buildApiKeyAccount(credit: number): Account {
   return {
     id: 0,
     username: 'api-key-user',
-    account_hash: '',
     name: 'API Key 사용자',
     verification_question: '',
-    verification_answer: '',
     credit,
     subscribe: false,
     subscribe_expiration: '',

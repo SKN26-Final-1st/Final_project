@@ -3,8 +3,7 @@ import { parseAccount, parseAnalysisReports, parseAuthKeys, parseJobDescriptions
 
 describe('backendSchemas', () => {
   it('normalizes stable backend response shapes', () => {
-    expect(
-      parseAccount({
+    const parsedAccount = parseAccount({
         id: 1,
         username: 'min',
         account_hash: 'hash',
@@ -14,8 +13,10 @@ describe('backendSchemas', () => {
         credit: 10,
         subscribe: false,
         subscribe_expiration: '',
-      }).username,
-    ).toBe('min');
+      });
+    expect(parsedAccount.username).toBe('min');
+    expect(parsedAccount).not.toHaveProperty('account_hash');
+    expect(parsedAccount).not.toHaveProperty('verification_answer');
 
     expect(
       parseJobDescriptions([

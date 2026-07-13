@@ -21,6 +21,7 @@ type ChecklistDeletePayload = {
 
 type JdChecklistPanelProps = {
   adding: boolean;
+  canAdd?: boolean;
   deleting: boolean;
   generating: boolean;
   generateCount: number;
@@ -72,6 +73,7 @@ function normalizeContent(value: string) {
 
 export function JdChecklistPanel({
   adding,
+  canAdd = true,
   deleting,
   generating,
   generateCount,
@@ -213,30 +215,32 @@ export function JdChecklistPanel({
         <span className="muted">0이면 현재 항목 기준 10개까지 채웁니다.</span>
       </div>
 
-      <div className="jd-checklist-add-form">
-        <Input.TextArea
-          aria-label="새 체크리스트 내용"
-          autoSize={{ minRows: 1, maxRows: 3 }}
-          placeholder="체크리스트 항목 입력"
-          status={addError ? 'error' : undefined}
-          value={newContent}
-          onChange={(event) => {
-            setNewContent(event.target.value);
-            if (addError) {
-              setAddError('');
-            }
-          }}
-        />
-        <Button
-          aria-label="체크리스트 추가"
-          disabled={adding}
-          loading={adding}
-          onClick={() => void submitNewChecklist()}
-        >
-          추가
-        </Button>
-      </div>
-      {addError ? <p className="form-field-error">{addError}</p> : null}
+      {canAdd ? (
+        <>
+          <div className="jd-checklist-add-form">
+            <Input.TextArea
+              aria-label="새 체크리스트 내용"
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              placeholder="체크리스트 항목 입력"
+              status={addError ? 'error' : undefined}
+              value={newContent}
+              onChange={(event) => {
+                setNewContent(event.target.value);
+                if (addError) setAddError('');
+              }}
+            />
+            <Button
+              aria-label="체크리스트 추가"
+              disabled={adding}
+              loading={adding}
+              onClick={() => void submitNewChecklist()}
+            >
+              추가
+            </Button>
+          </div>
+          {addError ? <p className="form-field-error">{addError}</p> : null}
+        </>
+      ) : null}
 
       {loading ? (
         <InlineLoading label="체크리스트 로딩 중" />

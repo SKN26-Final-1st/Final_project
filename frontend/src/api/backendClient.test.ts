@@ -119,6 +119,41 @@ describe('backendClient', () => {
     expect(onAuthExpired).not.toHaveBeenCalled();
   });
 
+  test('keeps verification answers in signup and password reset request payloads only', async () => {
+    const observedBodies: Record<string, unknown>[] = [];
+    server.use(
+      http.post('/api/signin/', async ({ request }) => {
+        observedBodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json({ error: false, data: {} });
+      }),
+      http.post('/api/passreset/', async ({ request }) => {
+        observedBodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json({ error: false, password: 'temporary-password' });
+      }),
+    );
+    const { apiClient } = await import('./backendClient');
+
+    await apiClient.completeSignup({
+      username: 'secure-user',
+      password: 'secure-password',
+      name: 'Secure User',
+      verification_question: 'Question',
+      verification_answer: 'signup-answer',
+    });
+    await apiClient.resetPassword('secure-user', 'reset-answer');
+
+    expect(observedBodies).toEqual([
+      {
+        username: 'secure-user',
+        password: 'secure-password',
+        name: 'Secure User',
+        verification_question: 'Question',
+        verification_answer: 'signup-answer',
+      },
+      { username: 'secure-user', verification_answer: 'reset-answer' },
+    ]);
+  });
+
   test('keeps shared API Key lookup failures on the shared screen', async () => {
     server.use(
       http.post('/api/resume/get/', () =>

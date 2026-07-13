@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../../api/backendClient';
 import type { ApiResponse } from '../../data/backendTypes';
 import type { ShowAlert } from '../../types/app';
-import { getStoredApiKey } from '../../utils/apiKeySession';
+import { useAuthSessionContext } from '../authSessionContext';
 import {
   getMutationErrorMessage,
   shouldSuppressMutationError,
@@ -29,10 +29,14 @@ function alertError(showAlert: ShowAlert, error: unknown) {
 
 export function useResumeMutations(showAlert: ShowAlert) {
   const invalidateAppData = useInvalidateAppData();
-  const apiKey = getStoredApiKey() ?? undefined;
+  const { apiKey: sessionApiKey, capabilities } = useAuthSessionContext();
+  const apiKey = sessionApiKey ?? undefined;
 
   const addResume = useMutation({
-    mutationFn: apiClient.addResume,
+    mutationFn: (body: Parameters<typeof apiClient.addResume>[0]) => {
+      if (!capabilities.resume.create) throw new Error('현재 인증 방식에서는 새 자소서를 등록할 수 없습니다.');
+      return apiClient.addResume(body);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -41,7 +45,10 @@ export function useResumeMutations(showAlert: ShowAlert) {
   });
 
   const saveResume = useMutation({
-    mutationFn: (body: Parameters<typeof apiClient.saveResume>[0]) => apiClient.saveResume(body, apiKey),
+    mutationFn: (body: Parameters<typeof apiClient.saveResume>[0]) => {
+      if (!capabilities.resume.edit) throw new Error('현재 인증 방식에서는 자소서를 수정할 수 없습니다.');
+      return apiClient.saveResume(body, apiKey);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -50,7 +57,10 @@ export function useResumeMutations(showAlert: ShowAlert) {
   });
 
   const analyzeResume = useMutation({
-    mutationFn: (resumeId: number) => apiClient.requestResumeAnalysis(resumeId, apiKey),
+    mutationFn: (resumeId: number) => {
+      if (!capabilities.resume.analyze) throw new Error('현재 인증 방식에서는 자소서를 분석할 수 없습니다.');
+      return apiClient.requestResumeAnalysis(resumeId, apiKey);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();
@@ -59,7 +69,10 @@ export function useResumeMutations(showAlert: ShowAlert) {
   });
 
   const deleteResume = useMutation({
-    mutationFn: (id: number) => apiClient.deleteResume(id, apiKey),
+    mutationFn: (id: number) => {
+      if (!capabilities.resume.delete) throw new Error('현재 인증 방식에서는 자소서를 삭제할 수 없습니다.');
+      return apiClient.deleteResume(id, apiKey);
+    },
     onSuccess: async (response) => {
       alertSuccess(showAlert, response);
       await invalidateAppData();

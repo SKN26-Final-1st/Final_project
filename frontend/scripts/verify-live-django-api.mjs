@@ -15,6 +15,7 @@ const frontendOrigin = 'http://127.0.0.1:5173';
 const python = process.env.PYTHON || 'python';
 
 const cookieJar = new Map();
+let serverOutput = '';
 
 function makeEnv() {
   return {
@@ -70,7 +71,7 @@ function runCommand(command, args, options = {}) {
 }
 
 function startServer() {
-  return spawn(
+  const server = spawn(
     python,
     ['manage.py', 'runserver', `${host}:${port}`, '--noreload', '--settings', 'live_e2e_settings'],
     {
@@ -79,6 +80,15 @@ function startServer() {
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
+
+  server.stdout.on('data', (chunk) => {
+    serverOutput += chunk;
+  });
+  server.stderr.on('data', (chunk) => {
+    serverOutput += chunk;
+  });
+
+  return server;
 }
 
 async function waitForServer(server) {
@@ -87,14 +97,13 @@ async function waitForServer(server) {
 
   while (Date.now() - startedAt < 30000) {
     if (server.exitCode !== null) {
-      throw new Error(`Django server exited before it was ready. exit=${server.exitCode}`);
+      throw new Error(`Django server exited before it was ready. exit=${server.exitCode}\n${serverOutput}`.trim());
     }
 
     try {
-      const response = await fetch(`${baseUrl}/api/csrf/`, {
+      const response = await fetch(`${baseUrl}/api/ping/`, {
         headers: { Origin: frontendOrigin, Referer: `${frontendOrigin}/` },
       });
-      updateCookies(response.headers);
 
       if (response.ok) {
         return;
@@ -106,7 +115,9 @@ async function waitForServer(server) {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 400));
   }
 
-  throw new Error(`Timed out waiting for Django server. ${lastError?.message || ''}`.trim());
+  throw new Error(
+    `Timed out waiting for Django server. ${lastError?.message || ''}\n${serverOutput}`.trim(),
+  );
 }
 
 function readSetCookies(headers) {

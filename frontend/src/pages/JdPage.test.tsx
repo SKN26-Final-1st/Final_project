@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JdPage } from './JdPage';
 import type { JdItem } from '../api/adapters';
 import type { Resume } from '../data/backendTypes';
+import { AuthSessionProvider } from '../hooks/AuthSessionProvider';
+import { getAuthCapabilities } from '../utils/authCapabilities';
 
 const saveJdMutateAsync = vi.hoisted(() => vi.fn());
 const addJdMutateAsync = vi.hoisted(() => vi.fn());
@@ -116,6 +118,27 @@ describe('JdPage', () => {
       message: '체크리스트 실패 상태를 확인했습니다.',
       data: { id: 1, checklist_status: 'done' },
     });
+  });
+
+  it('API Key 모드에서는 생성 UI를 숨기고 기존 JD 편집·분석 UI는 유지한다', () => {
+    render(
+      <AuthSessionProvider
+        value={{
+          apiKey: 'api-key-secret',
+          authMode: 'apiKey',
+          authSessionKey: 'opaque-jd-session',
+          capabilities: getAuthCapabilities('apiKey'),
+        }}
+      >
+        <JdPage navigate={vi.fn()} showAlert={vi.fn()} />
+      </AuthSessionProvider>,
+    );
+
+    expect(screen.queryByText('새 JD 작성')).not.toBeInTheDocument();
+    expect(screen.queryByText('채팅으로 JD 작성')).not.toBeInTheDocument();
+    expect(screen.queryByText('체크리스트 추가')).not.toBeInTheDocument();
+    expect(screen.getByText('저장')).toBeInTheDocument();
+    expect(screen.getByText('체크리스트 분석 요청')).toBeInTheDocument();
   });
 
   it('저장할 때 필수 기술과 우대 기술 배열의 빈 항목을 제거하고 공백을 정리한다', async () => {

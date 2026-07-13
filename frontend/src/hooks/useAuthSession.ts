@@ -1,28 +1,48 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../api/backendClient';
 import {
   clearAuthRecoveryRequested,
   clearStoredApiKey,
+  createAuthSessionKey,
   getAuthRecoveryRequested,
   getStoredApiKey,
   setStoredApiKey,
   type AuthMode,
 } from '../utils/apiKeySession';
+import { getAuthCapabilities } from '../utils/authCapabilities';
+
+type AuthSessionState = {
+  apiKey: string | null;
+  authChecked: boolean;
+  authMode: AuthMode;
+  authSessionKey: string;
+  isAuthenticated: boolean;
+};
 
 export function useAuthSession(isShared: boolean) {
   const [authRecoveryRequested] = useState(getAuthRecoveryRequested);
-  const [apiKey, setApiKey] = useState<string | null>(() =>
-    authRecoveryRequested ? null : getStoredApiKey(),
-  );
-  const [authChecked, setAuthChecked] = useState(() => authRecoveryRequested || Boolean(apiKey));
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !authRecoveryRequested && Boolean(apiKey));
-  const [authMode, setAuthMode] = useState<AuthMode>(() =>
-    !authRecoveryRequested && apiKey ? 'apiKey' : null,
-  );
+  const [session, setSession] = useState<AuthSessionState>(() => {
+    const storedApiKey = authRecoveryRequested ? null : getStoredApiKey();
+    const hasApiKey = Boolean(storedApiKey);
+
+    return {
+      apiKey: storedApiKey,
+      authChecked: authRecoveryRequested || hasApiKey,
+      authMode: hasApiKey ? 'apiKey' : null,
+      authSessionKey: hasApiKey ? createAuthSessionKey() : 'account',
+      isAuthenticated: !authRecoveryRequested && hasApiKey,
+    };
+  });
+  const sessionRef = useRef(session);
   const profileControllerRef = useRef<AbortController | null>(null);
 
+  const commitSession = useCallback((nextSession: AuthSessionState) => {
+    sessionRef.current = nextSession;
+    setSession(nextSession);
+  }, []);
+
   useEffect(() => {
-    if (isShared || apiKey || authRecoveryRequested) {
+    if (isShared || session.apiKey || authRecoveryRequested) {
       return undefined;
     }
 
@@ -38,20 +58,29 @@ export function useAuthSession(isShared: boolean) {
         signal: controller.signal,
       })
       .then(() => {
-        if (canApplyResponse()) {
-          setIsAuthenticated(true);
-          setAuthMode('account');
+        if (canApplyResponse() && sessionRef.current.authMode !== 'apiKey') {
+          commitSession({
+            apiKey: null,
+            authChecked: true,
+            authMode: 'account',
+            authSessionKey: 'account',
+            isAuthenticated: true,
+          });
         }
       })
       .catch(() => {
-        if (canApplyResponse()) {
-          setIsAuthenticated(false);
-          setAuthMode(null);
+        if (canApplyResponse() && sessionRef.current.authMode !== 'apiKey') {
+          commitSession({
+            apiKey: null,
+            authChecked: true,
+            authMode: null,
+            authSessionKey: 'anonymous',
+            isAuthenticated: false,
+          });
         }
       })
       .finally(() => {
         if (canApplyResponse()) {
-          setAuthChecked(true);
           profileControllerRef.current = null;
         }
       });
@@ -64,7 +93,7 @@ export function useAuthSession(isShared: boolean) {
         profileControllerRef.current = null;
       }
     };
-  }, [apiKey, authRecoveryRequested, isShared]);
+  }, [authRecoveryRequested, commitSession, isShared, session.apiKey]);
 
   const cancelProfileRequest = () => {
     profileControllerRef.current?.abort();
@@ -72,50 +101,70 @@ export function useAuthSession(isShared: boolean) {
   };
 
   const setAccountAuthenticated = (value: boolean) => {
+    if (sessionRef.current.authMode === 'apiKey') {
+      return;
+    }
+
     cancelProfileRequest();
 
     if (value) {
       clearAuthRecoveryRequested();
       clearStoredApiKey();
-      setApiKey(null);
-      setAuthMode('account');
-      setIsAuthenticated(true);
-      setAuthChecked(true);
+      commitSession({
+        apiKey: null,
+        authChecked: true,
+        authMode: 'account',
+        authSessionKey: 'account',
+        isAuthenticated: true,
+      });
       return;
     }
 
     clearStoredApiKey();
-    setApiKey(null);
-    setAuthMode(null);
-    setIsAuthenticated(false);
-    setAuthChecked(true);
+    commitSession({
+      apiKey: null,
+      authChecked: true,
+      authMode: null,
+      authSessionKey: 'anonymous',
+      isAuthenticated: false,
+    });
   };
 
   const setApiKeySession = (nextApiKey: string) => {
     cancelProfileRequest();
     clearAuthRecoveryRequested();
     setStoredApiKey(nextApiKey);
-    setApiKey(nextApiKey);
-    setAuthMode('apiKey');
-    setIsAuthenticated(true);
-    setAuthChecked(true);
+    commitSession({
+      apiKey: nextApiKey,
+      authChecked: true,
+      authMode: 'apiKey',
+      authSessionKey: createAuthSessionKey(),
+      isAuthenticated: true,
+    });
   };
 
   const clearAuthSession = () => {
     cancelProfileRequest();
     clearStoredApiKey();
-    setApiKey(null);
-    setAuthMode(null);
-    setIsAuthenticated(false);
-    setAuthChecked(true);
+    commitSession({
+      apiKey: null,
+      authChecked: true,
+      authMode: null,
+      authSessionKey: 'anonymous',
+      isAuthenticated: false,
+    });
   };
 
+  const capabilities = useMemo(() => getAuthCapabilities(session.authMode), [session.authMode]);
+
   return {
-    apiKey,
-    authChecked,
-    authMode,
+    apiKey: session.apiKey,
+    authChecked: session.authChecked,
+    authMode: session.authMode,
+    authSessionKey: session.authSessionKey,
+    capabilities,
     clearAuthSession,
-    isAuthenticated,
+    isAuthenticated: session.isAuthenticated,
     setApiKeySession,
     setIsAuthenticated: setAccountAuthenticated,
   };

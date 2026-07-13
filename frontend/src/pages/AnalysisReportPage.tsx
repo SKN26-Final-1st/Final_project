@@ -23,8 +23,8 @@ import { PageTitle } from '../components/common/PageTitle';
 import { SectionCard } from '../components/common/SectionCard';
 import { useAnalysisReportPageData, type AnalysisReportItem } from '../hooks/useAnalysisReportPageData';
 import { useReportFilters } from '../hooks/useReportFilters';
+import { useAuthSessionContext } from '../hooks/authSessionContext';
 import type { Navigate, ShowAlert } from '../types/app';
-import { getStoredApiKey } from '../utils/apiKeySession';
 import { pageSectionGutter } from '../utils/layout';
 
 type AnalysisReportPageProps = {
@@ -33,6 +33,7 @@ type AnalysisReportPageProps = {
 };
 
 export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPageProps) {
+  const { apiKey: sessionApiKey, authMode, capabilities } = useAuthSessionContext();
   const { refreshing, reloadData, reportItems, reportTreeItems, selectedReportId, setSelectedReportId } =
     useAnalysisReportPageData();
   const {
@@ -53,8 +54,8 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   const [deleteTargetItem, setDeleteTargetItem] = useState<AnalysisReportItem | null>(null);
   const [isDeletingReport, setIsDeletingReport] = useState(false);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
-  const apiKey = getStoredApiKey() ?? undefined;
-  const isApiKeyMode = Boolean(apiKey);
+  const apiKey = sessionApiKey ?? undefined;
+  const isApiKeyMode = authMode === 'apiKey';
   const isEditingReport = Boolean(displaySelectedItem && editingReportId === displaySelectedItem.report.id);
   const selectedFeedbackReport = displaySelectedItem?.report ?? null;
   const selectedFeedbackReportId = selectedFeedbackReport?.id ?? null;
@@ -73,7 +74,9 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   const normalizedFeedbackReviewText = activeFeedbackDraft.reviewText.trim();
   const feedbackReviewTextChanged = normalizedFeedbackReviewText !== activeFeedbackDraft.savedReviewText.trim();
   const hasFeedbackChanges = feedbackRatingChanged || feedbackReviewTextChanged;
-  const feedbackEnabled = Boolean(selectedFeedbackReport && canSaveReportFeedback(selectedFeedbackReport));
+  const feedbackEnabled = Boolean(
+    capabilities.report.feedback && selectedFeedbackReport && canSaveReportFeedback(selectedFeedbackReport),
+  );
 
   useEffect(() => {
     if (displaySelectedItem && selectedReportId !== String(displaySelectedItem.report.id)) {
@@ -88,7 +91,7 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   }, [displaySelectedItem?.report.id, displaySelectedItem, reportForm]);
 
   const startReportEdit = () => {
-    if (!displaySelectedItem || isReportPending(displaySelectedItem.report)) return;
+    if (!capabilities.report.edit || !displaySelectedItem || isReportPending(displaySelectedItem.report)) return;
     reportForm.setFieldsValue(reportEditInitialValues(displaySelectedItem.report));
     setEditingReportId(displaySelectedItem.report.id);
   };
@@ -101,7 +104,7 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   };
 
   const saveReportEdit = async (values: ReportEditFormValues) => {
-    if (!displaySelectedItem || isReportPending(displaySelectedItem.report)) return;
+    if (!capabilities.report.edit || !displaySelectedItem || isReportPending(displaySelectedItem.report)) return;
     setIsSavingReport(true);
 
     try {
@@ -182,7 +185,7 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   };
 
   const openDeleteReportModal = () => {
-    if (!displaySelectedItem || isReportDeleteBlocked(displaySelectedItem.report)) return;
+    if (!capabilities.report.delete || !displaySelectedItem || isReportDeleteBlocked(displaySelectedItem.report)) return;
     setDeleteErrorMessage('');
     setDeleteTargetItem(displaySelectedItem);
   };
@@ -194,7 +197,7 @@ export function AnalysisReportPage({ navigate, showAlert }: AnalysisReportPagePr
   };
 
   const confirmDeleteReport = async () => {
-    if (!deleteTargetItem) return;
+    if (!capabilities.report.delete || !deleteTargetItem) return;
     const deletedReportId = deleteTargetItem.report.id;
     const nextReportItem = filteredReportItems.find((item) => item.report.id !== deletedReportId) ?? null;
     setIsDeletingReport(true);

@@ -75,13 +75,15 @@ describe('appDataQueryOptions', () => {
     const apiKeyController = new AbortController();
     loadAppData.mockResolvedValue({});
     loadApiKeyAppData.mockResolvedValue({});
-    const accountOptions = appDataQueryOptions(true, 'account', null);
-    const apiKeyOptions = appDataQueryOptions(true, 'apiKey', 'shared-key');
+    const accountOptions = appDataQueryOptions(true, 'account', null, 'account-session');
+    const apiKeyOptions = appDataQueryOptions(true, 'apiKey', 'shared-key-last6', 'opaque-session-id');
 
     await accountOptions.queryFn?.({ signal: accountController.signal } as never);
     await apiKeyOptions.queryFn?.({ signal: apiKeyController.signal } as never);
 
     expect(loadAppData).toHaveBeenCalledWith(accountController.signal);
-    expect(loadApiKeyAppData).toHaveBeenCalledWith('shared-key', apiKeyController.signal);
+    expect(loadApiKeyAppData).toHaveBeenCalledWith('shared-key-last6', apiKeyController.signal);
+    expect(JSON.stringify(apiKeyOptions.queryKey)).toBe('["app-data","apiKey","opaque-session-id"]');
+    expect(JSON.stringify(apiKeyOptions.queryKey)).not.toContain('last6');
   });
 });
