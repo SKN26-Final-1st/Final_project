@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Alert, Button, Card, Col, Form, Input, InputNumber, List, Row, Space, Tabs, Tag, Typography } from 'antd';
-import { KeyOutlined, LoginOutlined, MessageOutlined, SearchOutlined, SendOutlined } from '@ant-design/icons';
-import { apiClient } from '../api/backendClient';
-import { isRequestCancelled } from '../api/httpClient';
-import { ReportReadOnlyContent } from '../components/analysis-report/ReportReadOnlyContent';
-import type { AnalysisReport, InterviewQuestion, JobDescription, Resume } from '../data/backendTypes';
-import type { AppRoute, ChatMessage } from '../data/appConfig';
+import { Alert, Button, Form, Space } from 'antd';
+import { LoginOutlined } from '@ant-design/icons';
+import { SharedLookupPanel } from '../components/shared-report/SharedLookupPanel';
+import { SharedReportTabs } from '../components/shared-report/SharedReportTabs';
+import type { SharedLookupValues } from '../components/shared-report/sharedReportTypes';
+import { useSharedReportSession } from '../hooks/useSharedReportSession';
+import type { AppRoute } from '../data/appConfig';
 import type { Navigate, ThemeMode } from '../types/app';
 
 type SharedReportPageProps = {
@@ -15,218 +15,18 @@ type SharedReportPageProps = {
   themeSwitch: ReactNode;
 };
 
-type SharedBundle = {
-  resume: Resume;
-  jobDescription: JobDescription | null;
-  jobDescriptions: JobDescription[];
-  reports: AnalysisReport[];
-  questions: InterviewQuestion[];
-};
-
-type SharedLookupForm = {
-  resumeId: number;
-  apiKey: string;
-};
-
-const SHARED_REPORT_STATUS_LABEL: Record<AnalysisReport['status'], string> = {
-  onqueue: '분석 대기',
-  processing: '분석 중',
-  done: '분석 완료',
-  fail: '분석 실패',
-};
-const SHARED_CHAT_INTRO_MESSAGE: ChatMessage = {
-  role: 'assistant',
-  text: '공유 API key로 리포트와 면접 질문을 불러오면 이 화면에서 바로 질문할 수 있습니다.',
-};
-
 function getInitialResumeId(search: string) {
   const query = new URLSearchParams(search);
   const rawResumeId = query.get('resumeId') ?? query.get('resume_id') ?? '';
   const resumeId = Number(rawResumeId);
-
   return Number.isFinite(resumeId) && resumeId > 0 ? resumeId : undefined;
-}
-
-function toSharedTextList(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => (typeof item === 'string' ? item : item === null || item === undefined ? '' : String(item)))
-      .filter(Boolean);
-  }
-
-  if (typeof value === 'string') {
-    return value
-      .split(/\n+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function getSharedReportStatus(report: AnalysisReport | undefined) {
-  if (!report) {
-    return { label: '분석 전', color: 'default' };
-  }
-
-  return {
-    label: SHARED_REPORT_STATUS_LABEL[report.status],
-    color: report.status === 'done' ? 'green' : report.status === 'fail' ? 'red' : 'gold',
-  };
-}
-
-function formatReportContext(bundle: SharedBundle) {
-  const report = bundle.reports[0];
-  const questions = bundle.questions.map((item) => item.question).join(' / ');
-  const jobDescription = bundle.jobDescription;
-  const requiredSkills = jobDescription ? toSharedTextList(jobDescription.required_skill).join(', ') : '';
-
-  return [
-    jobDescription ? `JD: ${jobDescription.job_name}` : '',
-    requiredSkills ? `JD 필수 역량: ${requiredSkills}` : '',
-    `지원자: ${bundle.resume.name}`,
-    report ? `리포트 요약: ${report.overall_summary}` : '',
-    report ? `확인 포인트: ${report.check_point.join(', ')}` : '',
-    questions ? `면접 질문: ${questions}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
 }
 
 export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPageProps) {
   const location = useLocation();
-  const [form] = Form.useForm<SharedLookupForm>();
-  const [bundle, setBundle] = useState<SharedBundle | null>(null);
-  const [bundleApiKey, setBundleApiKey] = useState('');
-  const [bundleLoading, setBundleLoading] = useState(false);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([SHARED_CHAT_INTRO_MESSAGE]);
-  const bundleControllerRef = useRef<AbortController | null>(null);
-  const bundleRequestIdRef = useRef(0);
-  const chatControllerRef = useRef<AbortController | null>(null);
-  const chatRequestIdRef = useRef(0);
+  const [form] = Form.useForm<SharedLookupValues>();
   const initialResumeId = useMemo(() => getInitialResumeId(location.search), [location.search]);
-
-  const cancelBundleRequest = useCallback(() => {
-    bundleRequestIdRef.current += 1;
-    bundleControllerRef.current?.abort();
-    bundleControllerRef.current = null;
-  }, []);
-
-  const cancelChatRequest = useCallback(() => {
-    chatRequestIdRef.current += 1;
-    chatControllerRef.current?.abort();
-    chatControllerRef.current = null;
-  }, []);
-
-  useEffect(
-    () => () => {
-      cancelBundleRequest();
-      cancelChatRequest();
-    },
-    [cancelBundleRequest, cancelChatRequest],
-  );
-
-  const loadSharedBundle = async (values: SharedLookupForm) => {
-    cancelBundleRequest();
-    cancelChatRequest();
-    const controller = new AbortController();
-    const requestId = bundleRequestIdRef.current + 1;
-    bundleRequestIdRef.current = requestId;
-    bundleControllerRef.current = controller;
-    setBundleLoading(true);
-    setChatLoading(false);
-    setError(null);
-
-    try {
-      const response = await apiClient.getSharedResumeBundle(
-        values.resumeId,
-        values.apiKey.trim(),
-        { signal: controller.signal },
-      );
-
-      if (requestId !== bundleRequestIdRef.current) {
-        return;
-      }
-
-      cancelChatRequest();
-      setBundle(response.data);
-      setBundleApiKey(values.apiKey.trim());
-      setChatMessages([SHARED_CHAT_INTRO_MESSAGE]);
-      setChatInput('');
-    } catch (nextError) {
-      if (requestId === bundleRequestIdRef.current && !isRequestCancelled(nextError)) {
-        setBundle(null);
-        setBundleApiKey('');
-        setError(nextError instanceof Error ? nextError.message : '공유 결과를 불러오지 못했습니다.');
-      }
-    } finally {
-      if (requestId === bundleRequestIdRef.current) {
-        bundleControllerRef.current = null;
-        setBundleLoading(false);
-      }
-    }
-  };
-
-  const sendSharedChat = async () => {
-    if (!bundle || bundleLoading || chatLoading) {
-      return;
-    }
-
-    const trimmed = chatInput.trim();
-
-    if (!bundleApiKey || !trimmed) {
-      return;
-    }
-
-    const visibleUserMessage: ChatMessage = { role: 'user', text: trimmed };
-    const contextMessage: ChatMessage = {
-      role: 'user',
-      text: `${trimmed}\n\n[공유 분석 맥락]\n${formatReportContext(bundle)}`,
-    };
-    const nextVisibleMessages = [...chatMessages, visibleUserMessage];
-
-    cancelChatRequest();
-    const controller = new AbortController();
-    const requestId = chatRequestIdRef.current + 1;
-    chatRequestIdRef.current = requestId;
-    chatControllerRef.current = controller;
-    setChatMessages(nextVisibleMessages);
-    setChatInput('');
-    setChatLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiClient.sendChatMessage(
-        trimmed,
-        [...chatMessages, contextMessage],
-        bundleApiKey,
-        { authFailurePolicy: 'local', signal: controller.signal },
-      );
-
-      if (requestId !== chatRequestIdRef.current) {
-        return;
-      }
-
-      setChatMessages((current) => [...current, response.data]);
-    } catch (nextError) {
-      if (requestId === chatRequestIdRef.current && !isRequestCancelled(nextError)) {
-        setChatMessages(chatMessages);
-        setChatInput(trimmed);
-        setError(nextError instanceof Error ? nextError.message : '채팅 응답을 불러오지 못했습니다.');
-      }
-    } finally {
-      if (requestId === chatRequestIdRef.current) {
-        chatControllerRef.current = null;
-        setChatLoading(false);
-      }
-    }
-  };
-
-  const report = bundle?.reports[0];
-  const reportStatus = getSharedReportStatus(report);
+  const session = useSharedReportSession();
 
   return (
     <div className="shared-report-page">
@@ -249,157 +49,24 @@ export function SharedReportPage({ mode, navigate, themeSwitch }: SharedReportPa
           <p>발급받은 API key를 입력하면 로그인 없이 지원서 분석 리포트와 면접 질문을 조회할 수 있습니다.</p>
         </section>
 
-        <Card className="shared-report-lookup">
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{ resumeId: initialResumeId }}
-            onFinish={(values) => void loadSharedBundle(values)}
-          >
-            <Row gutter={[16, 0]}>
-              <Col xs={24} md={8}>
-                <Form.Item label="Resume ID" name="resumeId" rules={[{ required: true, message: 'resume id를 입력하세요.' }]}>
-                  <InputNumber min={1} precision={0} className="full-width-control" placeholder="예: 12" />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={16}>
-                <Form.Item label="API Key" name="apiKey" rules={[{ required: true, message: 'API key를 입력하세요.' }]}>
-                  <Input.Password prefix={<KeyOutlined />} placeholder="발급받은 key를 입력하세요." />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Space wrap>
-              <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={bundleLoading}>
-                결과 조회
-              </Button>
-              <Alert
-                showIcon
-                type="info"
-                title="API key는 URL에 저장하지 않고 요청 헤더로만 전송됩니다."
-                className="shared-inline-alert"
-              />
-            </Space>
-          </Form>
-        </Card>
+        <SharedLookupPanel
+          form={form}
+          initialResumeId={initialResumeId}
+          loading={session.bundleLoading}
+          onSubmit={(values) => void session.loadSharedBundle(values)}
+        />
 
-        {error && <Alert showIcon type="error" title="요청 실패" description={error} />}
+        {session.error && <Alert showIcon type="error" title="요청 실패" description={session.error} />}
 
-        {bundle ? (
-          <Tabs
-            className="shared-report-tabs"
-            items={[
-              {
-                key: 'report',
-                label: '분석 리포트',
-                children: (
-                  <Card>
-                    <Space direction="vertical" size={16} className="shared-section-stack">
-                      <div>
-                        <Space wrap>
-                          <Tag color="blue">Resume #{bundle.resume.id}</Tag>
-                          <Tag color={reportStatus.color}>{reportStatus.label}</Tag>
-                          {report?.version !== undefined && report.version !== null ? (
-                            <Tag color="geekblue">v{report.version}</Tag>
-                          ) : null}
-                        </Space>
-                        <Typography.Title level={3}>{bundle.resume.name || '이름 없음'}</Typography.Title>
-                      </div>
-                      {bundle.jobDescription ? (
-                        <div className="shared-jd-summary">
-                          <Space wrap>
-                            <Tag color="geekblue">JD #{bundle.jobDescription.id}</Tag>
-                            <Tag color={bundle.jobDescription.status === 'closed' ? 'red' : 'cyan'}>
-                              {bundle.jobDescription.status}
-                            </Tag>
-                          </Space>
-                          <Typography.Title level={4}>{bundle.jobDescription.job_name}</Typography.Title>
-                          <p>{bundle.jobDescription.main_task || '주요 업무 정보 없음'}</p>
-                          <Space wrap>
-                            {(toSharedTextList(bundle.jobDescription.required_skill).length
-                              ? toSharedTextList(bundle.jobDescription.required_skill)
-                              : ['필수 역량 없음']
-                            ).map((skill, index) => (
-                              <Tag key={`${skill}-${index}`}>{skill}</Tag>
-                            ))}
-                          </Space>
-                        </div>
-                      ) : (
-                        <Alert showIcon type="warning" title="API key로 접근 가능한 JD를 찾지 못했습니다." />
-                      )}
-                      {report ? (
-                        <ReportReadOnlyContent report={report} variant="shared" />
-                      ) : (
-                        <Alert showIcon type="warning" title="아직 분석 리포트가 없습니다." />
-                      )}
-                    </Space>
-                  </Card>
-                ),
-              },
-              {
-                key: 'questions',
-                label: '면접 질문',
-                children: (
-                  <Card>
-                    <List
-                      dataSource={bundle.questions}
-                      locale={{ emptyText: '생성된 면접 질문이 없습니다.' }}
-                      renderItem={(question: InterviewQuestion) => (
-                        <List.Item>
-                          <List.Item.Meta
-                            title={question.question}
-                            description={
-                              <Space direction="vertical" size={6}>
-                                <span>{question.purpose || '질문 의도 없음'}</span>
-                                {question.answer && <span>예상 답변: {question.answer}</span>}
-                              </Space>
-                            }
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  </Card>
-                ),
-              },
-              {
-                key: 'chat',
-                label: 'AI 채팅',
-                children: (
-                  <Card>
-                    <div className="shared-chat-log">
-                      {chatMessages.map((message, index) => (
-                        <div className={`shared-chat-bubble ${message.role}`} key={`${message.role}-${index}`}>
-                          {message.text}
-                        </div>
-                      ))}
-                    </div>
-                    <Space.Compact className="shared-chat-input">
-                      <Input
-                        value={chatInput}
-                        placeholder="리포트나 질문지에 대해 물어보세요."
-                        onChange={(event) => setChatInput(event.target.value)}
-                        onPressEnter={() => void sendSharedChat()}
-                        disabled={bundleLoading || chatLoading}
-                      />
-                      <Button
-                        type="primary"
-                        icon={<SendOutlined />}
-                        loading={chatLoading}
-                        disabled={bundleLoading || !bundle || !chatInput.trim()}
-                        onClick={() => void sendSharedChat()}
-                      >
-                        전송
-                      </Button>
-                    </Space.Compact>
-                    <Alert
-                      showIcon
-                      type="info"
-                      icon={<MessageOutlined />}
-                      title="채팅 API는 특정 report id를 직접 받지 않아 현재 화면의 리포트 요약을 대화 맥락에 함께 포함합니다."
-                    />
-                  </Card>
-                ),
-              },
-            ]}
+        {session.bundle ? (
+          <SharedReportTabs
+            bundle={session.bundle}
+            bundleLoading={session.bundleLoading}
+            chatInput={session.chatInput}
+            chatLoading={session.chatLoading}
+            chatMessages={session.chatMessages}
+            onChatInputChange={session.setChatInput}
+            onSendChat={() => void session.sendSharedChat()}
           />
         ) : (
           <Alert showIcon type="warning" title="조회할 공유 결과를 입력하세요." />

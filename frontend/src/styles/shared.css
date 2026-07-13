@@ -1,0 +1,255 @@
+.shared-report-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 10%, transparent), transparent 34rem),
+    linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--primary-soft) 50%, var(--bg)));
+  color: var(--text);
+}
+
+.shared-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: var(--layout-gap) clamp(20px, 5vw, 64px);
+}
+
+.shared-report-main {
+  display: grid;
+  gap: var(--layout-gap);
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: var(--layout-gap) 0 64px;
+}
+
+.shared-report-hero {
+  max-width: 720px;
+}
+
+.shared-report-hero h1 {
+  margin: 8px 0;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.1;
+}
+
+.shared-report-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.shared-report-lookup,
+.shared-report-tabs .ant-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.full-width-control {
+  width: 100%;
+}
+
+.editable-string-list {
+  width: 100%;
+}
+
+.editable-string-list-row {
+  width: 100%;
+}
+
+.editable-string-list-row .ant-input {
+  min-width: 0;
+}
+
+.editable-string-list-row .ant-btn {
+  flex: 0 0 40px;
+}
+
+.collapsible-editable-list-field,
+.structured-resume-list-field,
+.skill-stack-field {
+  display: grid;
+  gap: 10px;
+}
+
+.collapsible-editable-list-summary,
+.skill-stack-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collapsible-editable-list-tags,
+.skill-stack-tags {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.collapsible-editable-list-tags .ant-tag,
+.skill-stack-tags .ant-tag {
+  margin: 0;
+}
+
+.collapsible-editable-list-summary .ant-btn,
+.skill-stack-summary .ant-btn {
+  flex: 0 0 auto;
+}
+
+.collapsible-editable-list-editor,
+.structured-resume-list-editor,
+.skill-stack-editor {
+  width: 100%;
+}
+
+.structured-resume-list-stack {
+  width: 100%;
+}
+
+.structured-resume-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.structured-resume-list-row-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.structured-resume-list-row-fields .ant-form-item {
+  margin-bottom: 0;
+}
+
+.structured-resume-list-field-wide {
+  grid-column: 1 / -1;
+}
+
+.compact-text-list {
+  display: grid;
+  gap: 6px;
+}
+
+.compact-text-list-toggle {
+  justify-self: start;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--primary);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.compact-text-list-toggle.ant-btn-link:not(:disabled):hover,
+.compact-text-list-toggle.ant-btn-link:not(:disabled):focus-visible {
+  background: transparent;
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.shared-inline-alert {
+  padding-block: 6px;
+}
+
+.planned-mvp-alert {
+  margin-bottom: 24px;
+}
+
+.shared-section-stack,
+.shared-chat-input {
+  width: 100%;
+}
+
+.shared-report-copy p {
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+.shared-report-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.shared-report-list li + li {
+  margin-top: 6px;
+}
+
+.shared-report-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.shared-report-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.shared-jd-summary {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface));
+}
+
+.shared-jd-summary h4,
+.shared-jd-summary p {
+  margin: 0 !important;
+}
+
+.shared-jd-summary p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.shared-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  margin-bottom: 16px;
+  overflow: auto;
+}
+
+.shared-chat-bubble {
+  max-width: min(720px, 88%);
+  padding: 12px 14px;
+  border-radius: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.shared-chat-bubble.assistant {
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.shared-chat-bubble.user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: var(--surface);
+}

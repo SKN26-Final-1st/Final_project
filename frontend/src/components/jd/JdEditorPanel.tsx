@@ -1,21 +1,11 @@
 import { Col, Form, Input, Progress, Row, Select, Tag, type FormInstance } from 'antd';
 import type { JdItem } from '../../api/adapters';
+import type { JdEditorFormValues } from '../../models/jdFormModel';
 import { CollapsibleEditableStringListField } from '../common/CollapsibleEditableStringListField';
 
 const { TextArea } = Input;
 
-export type JdEditorFormValues = {
-  job_name: string;
-  education_level: string;
-  major: string;
-  career_level: string;
-  required_skill: string[];
-  preferred_skill: string[];
-  main_task: string;
-  hiring_reason: string;
-  work_type: string;
-  status: 'prepare' | 'on_going' | 'closed';
-};
+export type { JdEditorFormValues } from '../../models/jdFormModel';
 
 type JdEditorPanelProps = {
   form: FormInstance<JdEditorFormValues>;

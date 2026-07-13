@@ -4,7 +4,7 @@ import { FileSearchOutlined, MessageOutlined, PlusOutlined, SaveOutlined } from 
 import { JdChecklistPanel } from '../components/jd/JdChecklistPanel';
 import { JdChatDrawer } from '../components/jd/JdChatDrawer';
 import { JdDeleteModal } from '../components/jd/JdDeleteModal';
-import { JdEditorPanel, type JdEditorFormValues } from '../components/jd/JdEditorPanel';
+import { JdEditorPanel } from '../components/jd/JdEditorPanel';
 import { JdListEmptyState } from '../components/jd/JdListEmptyState';
 import { JdListPanel } from '../components/jd/JdListPanel';
 import { EmptyState } from '../components/common/PageState';
@@ -15,49 +15,22 @@ import type { JdItem } from '../api/adapters';
 import type { JobDescriptionChecklistStatus } from '../data/backendTypes';
 import { useJdPageData } from '../hooks/useJdPageData';
 import { useJdChecklist } from '../hooks/useJdChecklist';
+import { useJdFilters } from '../hooks/useJdFilters';
 import { useJdMutations } from '../hooks/mutations/useJdMutations';
 import type { Navigate, ShowAlert } from '../types/app';
 import { getStoredApiKey } from '../utils/apiKeySession';
 import { getAnalysisCreditCost, getAnalysisCreditText, hasEnoughAnalysisCredit } from '../utils/analysisCredit';
 import { pageSectionGutter } from '../utils/layout';
-import { compareRecent, includesSearchText } from '../utils/searchText';
-import { toTrimmedStringList } from '../utils/stringList';
+import {
+  EMPTY_JD_EDITOR_VALUES,
+  normalizeJdEditorValues,
+  toJdEditorValues,
+  type JdEditorFormValues,
+} from '../models/jdFormModel';
 
 type JdPageProps = {
   navigate: Navigate;
   showAlert: ShowAlert;
-};
-
-function toJdEditorValues(selectedJd: JdItem): JdEditorFormValues {
-  const validStatus = ['prepare', 'on_going', 'closed'].includes(selectedJd.statusCode)
-    ? (selectedJd.statusCode as JdEditorFormValues['status'])
-    : 'prepare';
-
-  return {
-    job_name: selectedJd.title,
-    education_level: selectedJd.educationLevel,
-    major: selectedJd.major,
-    career_level: selectedJd.requiredExperience,
-    required_skill: selectedJd.stack,
-    preferred_skill: selectedJd.preferredStack,
-    main_task: selectedJd.summary,
-    hiring_reason: selectedJd.hiringReason,
-    work_type: selectedJd.employmentType,
-    status: validStatus,
-  };
-}
-
-const EMPTY_JD_EDITOR_VALUES: JdEditorFormValues = {
-  job_name: '',
-  education_level: '',
-  major: '',
-  career_level: '',
-  required_skill: [],
-  preferred_skill: [],
-  main_task: '',
-  hiring_reason: '',
-  work_type: '',
-  status: 'prepare',
 };
 
 function getChecklistGenerateBlockedReason(status: JobDescriptionChecklistStatus) {
@@ -141,30 +114,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
       !checklistAnalysisDisabledReason &&
       !creditDisabledReason,
   );
-  const filteredJdList = useMemo(() => {
-    const filtered = jdList.filter((item) => {
-      const matchesSearch = includesSearchText(
-        [
-          item.title,
-          item.summary,
-          item.stack.join(' '),
-          item.preferredStack.join(' '),
-          item.employmentType,
-          item.status,
-          item.statusCode,
-          item.requiredExperience,
-          item.educationLevel,
-          item.major,
-          item.hiringReason,
-        ],
-        jdSearchText,
-      );
-
-      return matchesSearch;
-    });
-
-    return [...filtered].sort((left, right) => compareRecent(left.updatedAt, right.updatedAt));
-  }, [jdList, jdSearchText]);
+  const filteredJdList = useJdFilters(jdList, jdSearchText);
 
   useEffect(() => {
     if (isCreateMode) {
@@ -198,11 +148,7 @@ export function JdPage({ navigate, showAlert }: JdPageProps) {
     }
 
     const values = await form.validateFields();
-    const normalizedValues = {
-      ...values,
-      required_skill: toTrimmedStringList(values.required_skill),
-      preferred_skill: toTrimmedStringList(values.preferred_skill),
-    };
+    const normalizedValues = normalizeJdEditorValues(values);
 
     if (!normalizedValues.required_skill.length) {
       form.setFields([{ name: 'required_skill', errors: ['필수 기술을 입력하세요.'] }]);

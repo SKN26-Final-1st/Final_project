@@ -1,0 +1,387 @@
+.jd-page {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
+.jd-list {
+  display: grid;
+  gap: var(--section-inner-gap);
+}
+
+.list-query-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--section-inner-gap);
+}
+
+.list-query-controls .list-query-input,
+.list-query-controls .list-query-input.ant-input-affix-wrapper {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: 38px;
+  color: var(--text);
+  border-color: var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-soft));
+  box-shadow: none;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.list-query-controls .list-query-input:hover,
+.list-query-controls .list-query-input.ant-input-affix-wrapper:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.list-query-controls .list-query-input:focus,
+.list-query-controls .list-query-input.ant-input-affix-wrapper-focused {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-strong));
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.list-query-controls .list-query-input .ant-input {
+  color: var(--text);
+}
+
+.list-query-controls .list-query-input .ant-input::placeholder {
+  color: var(--muted);
+}
+
+.list-query-controls .list-query-input .ant-input-clear-icon {
+  color: var(--muted);
+}
+
+.list-query-count {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.search-suggestion-stack {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.search-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.search-suggestion-chip {
+  min-height: 27px;
+  padding: 0 9px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--surface-soft));
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.search-suggestion-chip:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.search-suggestion-chip.selected {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 74%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.search-suggestion-chip:active {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 74%, var(--surface));
+}
+
+.search-suggestion-chip:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 58%, transparent);
+  outline-offset: 2px;
+}
+
+.jd-card {
+  position: relative;
+  display: grid;
+  gap: var(--section-tight-gap);
+  width: 100%;
+  min-width: 0;
+  padding:
+    calc(var(--section-inner-gap) + 4px)
+    calc(var(--section-inner-gap) + 36px)
+    calc(var(--section-inner-gap) + 4px)
+    calc(var(--section-inner-gap) + 4px);
+  color: var(--text);
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-soft));
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.jd-card strong {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.jd-card-delete-button {
+  position: absolute;
+  top: var(--section-inner-gap);
+  right: var(--section-inner-gap);
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--muted);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
+}
+
+.jd-card-delete-button:hover,
+.jd-card-delete-button:focus-visible {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--danger) 20%, transparent);
+  outline-offset: 1px;
+}
+
+.jd-card:hover,
+.jd-card:focus-visible,
+.jd-card.active {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.jd-card.active {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-strong));
+  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
+}
+
+.jd-card span {
+  min-width: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.jd-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--section-tight-gap);
+  align-items: center;
+}
+
+.jd-card-summary {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.jd-card-tags,
+.cover-letter-list-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.jd-empty-state {
+  display: grid;
+  gap: var(--section-tight-gap);
+  min-height: 132px;
+  align-content: center;
+  padding: var(--section-inner-gap);
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.jd-empty-state strong {
+  color: var(--text);
+}
+
+.jd-checklist-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: var(--section-inner-gap);
+  padding-top: var(--section-inner-gap);
+  border-top: 1px solid var(--border);
+}
+
+.jd-checklist-panel-head {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.jd-checklist-generate-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.jd-checklist-panel h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.jd-checklist-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.jd-checklist-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.jd-checklist-empty {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--primary-soft) 58%, var(--surface));
+}
+
+.jd-checklist-empty strong,
+.jd-checklist-empty p {
+  margin: 0;
+}
+
+.jd-checklist-empty strong {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.jd-checklist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.jd-checklist-content {
+  color: var(--text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.jd-checklist-edit-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.jd-checklist-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.form-field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .jd-checklist-add-form,
+  .jd-checklist-generate-controls,
+  .jd-checklist-row {
+    grid-template-columns: 1fr;
+  }
+
+  .jd-checklist-row-actions {
+    justify-content: flex-start;
+  }
+}
+
+.jd-editor-form {
+  display: grid;
+  gap: 4px;
+}
+
+.jd-editor-form .ant-form-item {
+  margin-bottom: calc(var(--section-inner-gap) + 4px);
+}
+
+.jd-editor-form .ant-input,
+.jd-editor-form .ant-select-selector {
+  min-height: 40px;
+}
+
+.jd-editor-form textarea.ant-input {
+  min-height: auto;
+}
+
+.jd-editor-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--section-tight-gap);
+  align-items: center;
+  margin-bottom: var(--section-inner-gap);
+  padding: calc(var(--section-inner-gap) - 2px) var(--section-inner-gap);
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}

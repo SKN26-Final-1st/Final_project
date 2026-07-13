@@ -1,70 +1,28 @@
 import { Collapse, Form, Input, Select, Tag, type FormInstance } from 'antd';
 import type { JdItem } from '../../api/adapters';
+import type {
+  AwardFormValue,
+  CoverLetterInputFormValues,
+  ExperienceFormValue,
+  LanguageFormValue,
+  OtherActivityFormValue,
+  SelfIntroductionFormValue,
+  TrainingFormValue,
+} from '../../models/coverLetterFormModel';
 import { CollapsibleEditableStringListField } from '../common/CollapsibleEditableStringListField';
 import { StructuredResumeListField } from './StructuredResumeListField';
 
-export type EducationDegree = 'bachelor' | 'master' | 'doctoral' | '';
-
-export type EducationLevelFormValue = {
-  final_degree: EducationDegree;
-  bachelor: string;
-  master: string;
-  doctoral: string;
-  summary?: string;
-};
-
-export type ExperienceFormValue = {
-  company_name: string;
-  length: string;
-  position: string;
-  experience_description: string;
-};
-
-export type SelfIntroductionFormValue = {
-  question: string;
-  answer: string;
-};
-
-export type LanguageFormValue = {
-  language_name: string;
-  test_name: string;
-  score: string;
-};
-
-export type AwardFormValue = {
-  award_name: string;
-  award_from: string;
-  time: string;
-};
-
-export type TrainingFormValue = {
-  education_name: string;
-  education_from: string;
-  education_description: string;
-  start: string;
-  end: string;
-};
-
-export type OtherActivityFormValue = {
-  activity_name: string;
-  activity_description: string;
-  start: string;
-  end: string;
-};
-
-export type CoverLetterInputFormValues = {
-  job_description_id?: number;
-  name: string;
-  skill: string[];
-  education_level: EducationLevelFormValue;
-  experience: ExperienceFormValue[];
-  self_intoduction: SelfIntroductionFormValue[];
-  certification: string[];
-  language: LanguageFormValue[];
-  award: AwardFormValue[];
-  training: TrainingFormValue[];
-  other_activity: OtherActivityFormValue[];
-};
+export type {
+  AwardFormValue,
+  CoverLetterInputFormValues,
+  EducationDegree,
+  EducationLevelFormValue,
+  ExperienceFormValue,
+  LanguageFormValue,
+  OtherActivityFormValue,
+  SelfIntroductionFormValue,
+  TrainingFormValue,
+} from '../../models/coverLetterFormModel';
 
 type CoverLetterInputPanelProps = {
   jdList: JdItem[];

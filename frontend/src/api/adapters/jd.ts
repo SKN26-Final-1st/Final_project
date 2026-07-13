@@ -5,6 +5,7 @@ import type {
   Resume,
   StatusCode,
 } from '../../data/backendTypes';
+import { average, gradeToScore, toStringList } from './common';
 
 export type JdItem = {
   id: string;
@@ -30,54 +31,6 @@ const JOB_STATUS_LABEL: Record<JobDescription['status'], string> = {
   on_going: '진행 중',
   closed: '마감',
 };
-
-const GRADE_SCORE: Record<string, number> = {
-  A: 94,
-  B: 82,
-  C: 68,
-  D: 46,
-  F: 20,
-};
-
-function average(values: number[]) {
-  if (!values.length) {
-    return 0;
-  }
-
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-}
-
-function toDisplayText(value: unknown) {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (value === null || value === undefined) {
-    return '';
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '';
-  }
-}
-
-function toStringList(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map(toDisplayText).filter(Boolean);
-}
-
-function gradeToScore(grade?: string) {
-  return grade ? GRADE_SCORE[grade.toUpperCase()] ?? 0 : 0;
-}
 
 function getJobFit(job: JobDescription, resumes: Resume[], analysisReports: AnalysisReport[]) {
   const relatedResumeIds = resumes
