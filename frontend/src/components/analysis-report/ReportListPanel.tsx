@@ -2,7 +2,7 @@ import { Input, Tag } from 'antd';
 import { EmptyState } from '../common/PageState';
 import { SearchSuggestions } from '../common/SearchSuggestions';
 import type { AnalysisReportItem, AnalysisReportTreeItem } from '../../hooks/useAnalysisReportPageData';
-import { REPORT_SEARCH_SUGGESTIONS } from '../../hooks/useReportFilters';
+import { REPORT_SEARCH_SUGGESTIONS } from './reportFilterConfig';
 import { formatReportTimestamp, getReportStatusLabel, isReportPending } from './reportPresentation';
 
 type ReportListPanelProps = {
