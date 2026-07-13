@@ -255,14 +255,15 @@ assert(
   'Shared report page must display the JD that is accessible through the API key',
 );
 
-assert(
-  /type Account = \{[\s\S]*\bid: number;[\s\S]*\busername: string;[\s\S]*\baccount_hash: string;[\s\S]*\}/.test(
-    backendTypes,
-  ),
-  'Account type must match backend to_dict fields, including required id, username, and account_hash',
-);
+const accountType = backendTypes.match(/type Account = \{[\s\S]*?\};/)?.[0] ?? '';
 
-assert(!/\bpassword\??:/.test(backendTypes.match(/type Account = \{[\s\S]*?\};/)?.[0] ?? ''), 'Account type must not include password');
+assert(
+  /\bid: number;/.test(accountType) && /\busername: string;/.test(accountType),
+  'Account type must include the non-sensitive account identity fields',
+);
+assert(!/\bpassword\??:/.test(accountType), 'Account type must not include password');
+assert(!/\baccount_hash\??:/.test(accountType), 'Account response type must discard account_hash');
+assert(!/\bverification_answer\??:/.test(accountType), 'Account response type must discard verification_answer');
 
 assert(
   !/\baccount_id\??:/.test(backendTypes.match(/type AuthKey = \{[\s\S]*?\};/)?.[0] ?? ''),
@@ -385,8 +386,10 @@ assert(
 );
 
 assert(
-  /catch \(nextError\)[\s\S]*const errorMessage = nextError instanceof Error \? nextError\.message/.test(useApiAction),
-  'runApiAction must surface the concrete backend/client error message instead of only a generic API failure',
+  /catch \(nextError\)[\s\S]*normalizeUserFacingErrorMessage\([\s\S]*nextError instanceof Error \? nextError\.message/.test(
+    useApiAction,
+  ),
+  'runApiAction must normalize backend/client errors through the shared user-facing error policy',
 );
 
 assert(
