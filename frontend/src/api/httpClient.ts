@@ -20,6 +20,7 @@ type ApiKeyAxiosConfig = AxiosRequestConfig & {
 
 const API_ROOT = '/api';
 const CREDIT_SHORTAGE_MESSAGE = 'Credit이 부족합니다.';
+const INTERNAL_ERROR_MESSAGE = '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
 const LOCAL_AUTH_FAILURE_ENDPOINTS = new Set([
   'checkuser',
   'login',
@@ -158,14 +159,27 @@ export function normalizePayload<T>(payload: unknown, status: number, statusText
   };
 }
 
-export function getRequestErrorMessage(error: unknown, fallback: string) {
-  const toFriendlyMessage = (message: string) => {
-    if (/not enough credit|credit이 부족|credit 부족|크레딧.*부족|부족.*크레딧/i.test(message)) {
-      return CREDIT_SHORTAGE_MESSAGE;
-    }
+export function normalizeUserFacingErrorMessage(message: string, status?: number) {
+  if (/not enough credit|credit이 부족|credit 부족|크레딧.*부족|부족.*크레딧/i.test(message)) {
+    return CREDIT_SHORTAGE_MESSAGE;
+  }
 
-    return message;
-  };
+  if (/invalid credentials/i.test(message)) {
+    return '아이디 또는 비밀번호가 올바르지 않습니다.';
+  }
+
+  if (status !== undefined && status >= 500) {
+    return INTERNAL_ERROR_MESSAGE;
+  }
+
+  if (/internal server error|detailed_message|traceback|stack trace/i.test(message)) {
+    return INTERNAL_ERROR_MESSAGE;
+  }
+
+  return message;
+}
+
+export function getRequestErrorMessage(error: unknown, fallback: string) {
 
   if (axios.isAxiosError(error)) {
     const responseData = error.response?.data;
@@ -174,18 +188,18 @@ export function getRequestErrorMessage(error: unknown, fallback: string) {
       const message = responseData.message;
 
       if (typeof message === 'string' && message) {
-        return toFriendlyMessage(message);
+        return normalizeUserFacingErrorMessage(message, error.response?.status);
       }
     }
 
     if (typeof responseData === 'string' && responseData) {
-      return toFriendlyMessage(responseData);
+      return normalizeUserFacingErrorMessage(responseData, error.response?.status);
     }
 
-    return toFriendlyMessage(error.message || fallback);
+    return normalizeUserFacingErrorMessage(error.message || fallback, error.response?.status);
   }
 
-  return toFriendlyMessage(error instanceof Error ? error.message : fallback);
+  return normalizeUserFacingErrorMessage(error instanceof Error ? error.message : fallback);
 }
 
 export function isRequestCancelled(error: unknown) {
@@ -362,7 +376,7 @@ export async function requestBackend<T>(
 
     if (payload.error) {
       throw createBackendRequestError(
-        payload.message || `API 요청 실패: ${endpoint}`,
+        normalizeUserFacingErrorMessage(payload.message || `API 요청 실패: ${endpoint}`, response.status),
         endpoint,
         authFailurePolicy,
         { authGeneration: requestGeneration, backendError: true, status: response.status },
@@ -404,7 +418,7 @@ export async function requestAction(
 
     if (payload.error) {
       throw createBackendRequestError(
-        payload.message || `API 요청 실패: ${endpoint}`,
+        normalizeUserFacingErrorMessage(payload.message || `API 요청 실패: ${endpoint}`, response.status),
         endpoint,
         authFailurePolicy,
         { authGeneration: requestGeneration, backendError: true, status: response.status },

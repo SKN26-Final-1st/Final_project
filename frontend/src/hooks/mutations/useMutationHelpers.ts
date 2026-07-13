@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { isRequestCancelled, isSessionAuthExpiredError } from '../../api/httpClient';
+import { isRequestCancelled, isSessionAuthExpiredError, normalizeUserFacingErrorMessage } from '../../api/httpClient';
 import { queryKeys } from '../../api/queryKeys';
 
 export function useInvalidateAppData() {
@@ -19,7 +19,7 @@ export function getMutationErrorMessage(error: unknown, fallback: string) {
     return '분석 기준이 없습니다. 연결된 JD의 체크리스트를 먼저 생성해주세요.';
   }
 
-  return message || fallback;
+  return normalizeUserFacingErrorMessage(message || fallback);
 }
 
 export function shouldSuppressMutationError(error: unknown) {

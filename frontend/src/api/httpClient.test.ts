@@ -44,6 +44,49 @@ describe('httpClient API key handling', () => {
   });
 });
 
+describe('httpClient production-safe error messages', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    document.cookie = 'csrftoken=test-csrf; path=/';
+  });
+
+  test('hides internal server details from an error envelope', async () => {
+    server.use(
+      http.post('/api/report/get/', () =>
+        HttpResponse.json(
+          { error: true, message: '500: Internal server error. detailed_message: private stack' },
+          { status: 500 },
+        ),
+      ),
+    );
+    const { requestBackend } = await import('./httpClient');
+
+    await expect(requestBackend('report/get')).rejects.toThrow(
+      '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+    );
+  });
+
+  test('hides a plain-text HTTP 500 response', async () => {
+    server.use(http.post('/api/report/get/', () => new HttpResponse('private stack trace', { status: 500 })));
+    const { requestBackend } = await import('./httpClient');
+
+    await expect(requestBackend('report/get')).rejects.toThrow(
+      '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+    );
+  });
+
+  test('preserves credit shortage as an actionable message', async () => {
+    server.use(
+      http.post('/api/resume/analyze/', () =>
+        HttpResponse.json({ error: true, message: 'Not enough credit.' }, { status: 400 }),
+      ),
+    );
+    const { requestBackend } = await import('./httpClient');
+
+    await expect(requestBackend('resume/analyze')).rejects.toThrow('Credit이 부족합니다.');
+  });
+});
+
 describe('httpClient authentication expiry handling', () => {
   beforeEach(() => {
     vi.resetModules();
