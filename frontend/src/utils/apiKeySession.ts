@@ -55,14 +55,15 @@ export function clearAuthRecoveryRequested() {
   window.sessionStorage.removeItem(AUTH_RECOVERY_SESSION_STORAGE_KEY);
 }
 
-export function getApiKeyFingerprint(apiKey: string | null | undefined) {
-  if (!apiKey) {
-    return 'none';
+export function createAuthSessionKey() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
   }
 
-  return `${apiKey.length}:${apiKey.slice(-6)}`;
-}
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const values = globalThis.crypto.getRandomValues(new Uint32Array(4));
+    return `session-${Array.from(values, (value) => value.toString(16).padStart(8, '0')).join('')}`;
+  }
 
-export function getCurrentAuthMode(): AuthMode {
-  return getStoredApiKey() ? 'apiKey' : 'account';
+  return `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

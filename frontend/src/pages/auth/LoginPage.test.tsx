@@ -55,4 +55,35 @@ describe('LoginPage auth recovery coordination', () => {
       expect(login).toHaveBeenCalledWith('hong', 'password');
     });
   });
+
+  it('completes only the API Key callback when the API Key form is submitted', async () => {
+    loginWithApiKey.mockResolvedValue({ error: false, data: { authenticated: true } });
+    const onLoginSuccess = vi.fn();
+    const onApiKeyLoginSuccess = vi.fn();
+    const runApiAction = vi.fn(async (_key, action, afterComplete) => {
+      const response = await action();
+      afterComplete?.(response);
+    }) as unknown as RunApiAction;
+    const user = userEvent.setup();
+
+    render(
+      <LoginPage
+        mode="light"
+        navigate={vi.fn()}
+        loadingKey={null}
+        runApiAction={runApiAction}
+        onLoginSuccess={onLoginSuccess}
+        onApiKeyLoginSuccess={onApiKeyLoginSuccess}
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: /API Key/ }));
+    await user.type(screen.getByLabelText('API Key'), 'sk_live_callback_test');
+    await user.click(screen.getByRole('button', { name: /API Key/ }));
+
+    await waitFor(() => {
+      expect(onApiKeyLoginSuccess).toHaveBeenCalledWith('sk_live_callback_test');
+    });
+    expect(onLoginSuccess).not.toHaveBeenCalled();
+  });
 });

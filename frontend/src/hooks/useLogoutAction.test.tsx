@@ -68,7 +68,7 @@ describe('useLogoutAction', () => {
 
   it('API Key 로그아웃도 전체 제한 접근 캐시를 제거한다', () => {
     const queryClient = new QueryClient();
-    queryClient.setQueryData(queryKeys.appData('apiKey', '12:sample'), { account: 'api-key-user' });
+    queryClient.setQueryData(queryKeys.appData('apiKey', 'opaque-api-key-session'), { account: 'api-key-user' });
     queryClient.setQueryData(queryKeys.checklist(22), { content: 'api key checklist' });
     queryClient.getMutationCache().build(queryClient, {
       mutationKey: ['report-save'],

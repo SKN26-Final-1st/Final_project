@@ -12,6 +12,7 @@ import { MyPage } from '../../pages/MyPage';
 import { RecruitmentPostPage } from '../../pages/RecruitmentPostPage';
 import type { AppRoute } from '../../data/appConfig';
 import type { AuthMode } from '../../utils/apiKeySession';
+import { canAccessRoute, type AuthCapabilities } from '../../utils/authCapabilities';
 import type { Navigate, RunApiAction, ShowAlert, ThemeMode } from '../../types/app';
 
 type ProtectedRouteContentProps = {
@@ -19,8 +20,7 @@ type ProtectedRouteContentProps = {
   loading: boolean;
   error: string | null;
   hasData: boolean;
-  isApiKeyMode: boolean;
-  isApiKeyAllowedRoute: boolean;
+  capabilities: AuthCapabilities;
   apiKeyHomeRoute: AppRoute;
   authMode: AuthMode;
   loadingKey: string | null;
@@ -36,7 +36,7 @@ export function ProtectedRouteContent(props: ProtectedRouteContentProps) {
   if (props.loading) return <PageLoading />;
   if (props.error) return <PageError message={props.error} onRetry={() => void props.reload()} />;
   if (!props.hasData) return <PageError message="초기 데이터가 없습니다." onRetry={() => void props.reload()} />;
-  if (props.isApiKeyMode && !props.isApiKeyAllowedRoute) {
+  if (props.authMode === 'apiKey' && !canAccessRoute(props.capabilities, props.route)) {
     return <RouterNavigate to={props.apiKeyHomeRoute} replace />;
   }
 
