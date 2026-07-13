@@ -1,33 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate as RouterNavigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { XProvider } from '@ant-design/x';
-import { App as AntApp, Switch, Tooltip, theme as antdTheme } from 'antd';
+import { App as AntApp, Switch, Tooltip } from 'antd';
 import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { FloatingAlert } from './components/common/FloatingAlert';
-import { PageError, PageLoading } from './components/common/PageState';
+import { PageLoading } from './components/common/PageState';
 import { resetAuthExpiryHandling } from './api/httpClient';
 import { DocumentChatFab } from './components/chat/DocumentChatFab';
 import { AppShell } from './components/layout/AppShell';
+import { AuthRouteContent } from './components/routing/AuthRouteContent';
+import { ProtectedRouteContent } from './components/routing/ProtectedRouteContent';
 import type { AppRoute } from './data/appConfig';
-import { radiusTokens, themePalette } from './data/themeTokens';
+import { createAppThemeConfig } from './data/appThemeConfig';
 import { useApiAction } from './hooks/useApiAction';
 import { useAppData } from './hooks/useAppData';
 import { useAuthExpiryHandler } from './hooks/useAuthExpiryHandler';
 import { useAuthSession } from './hooks/useAuthSession';
 import { DocumentChatProvider } from './hooks/useDocumentChatState';
 import { useLogoutAction } from './hooks/useLogoutAction';
-import { AdminPage } from './pages/AdminPage';
-import { AnalysisReportPage } from './pages/AnalysisReportPage';
-import { LoginPage, PasswordResetPage, SignupPage } from './pages/AuthPages';
-import { ChatPage } from './pages/ChatPage';
-import { CompanyPage } from './pages/CompanyPage';
-import { CoverLetterPage } from './pages/CoverLetterPage';
-import { CoverLetterTemplatePage } from './pages/CoverLetterTemplatePage';
-import { DashboardPage } from './pages/DashboardPage';
-import { JdPage } from './pages/JdPage';
-import { MyPage } from './pages/MyPage';
-import { RecruitmentPostPage } from './pages/RecruitmentPostPage';
 import { SharedReportPage } from './pages/SharedReportPage';
 import type { ThemeMode } from './types/app';
 import { appRoutes, authRoutes, getRouteFromPathname } from './utils/routes';
@@ -69,43 +60,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
 
-  const themeConfig = useMemo(
-    () => {
-      const currentPalette = renderedThemeMode === 'dark' ? themePalette.dark : themePalette.light;
-
-      return {
-        algorithm: renderedThemeMode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
-        token: {
-          colorPrimary: currentPalette.primary,
-          colorInfo: currentPalette.primary,
-          colorSuccess: currentPalette.accent,
-          colorBgBase: currentPalette.background,
-          colorBgContainer: currentPalette.card,
-          colorBorder: currentPalette.border,
-          colorTextBase: currentPalette.text,
-          colorTextSecondary: currentPalette.muted,
-          fontFamily: '"Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif',
-          borderRadius: radiusTokens.md,
-        },
-        components: {
-          Card: {
-            borderRadiusLG: radiusTokens.lg,
-          },
-          Button: {
-            borderRadius: radiusTokens.sm + 2,
-            controlHeight: 40,
-          },
-          Input: {
-            borderRadius: radiusTokens.sm + 2,
-          },
-          Select: {
-            borderRadius: radiusTokens.sm + 2,
-          },
-        },
-      };
-    },
-    [renderedThemeMode],
-  );
+  const themeConfig = useMemo(() => createAppThemeConfig(renderedThemeMode), [renderedThemeMode]);
 
   const logout = useLogoutAction({ authMode, clearAuthSession, navigate, runApiAction, setIsAuthenticated });
 
@@ -120,115 +75,6 @@ export default function App() {
       />
     </Tooltip>
   );
-
-  const renderProtectedPage = () => {
-    if (loading) {
-      return <PageLoading />;
-    }
-
-    if (error) {
-      return <PageError message={error} onRetry={() => void reload()} />;
-    }
-
-    if (!data) {
-      return <PageError message="초기 데이터가 없습니다." onRetry={() => void reload()} />;
-    }
-
-    if (isApiKeyMode && !isApiKeyAllowedRoute) {
-      return <RouterNavigate to={API_KEY_HOME_ROUTE} replace />;
-    }
-
-    switch (route) {
-      case '/admin':
-        return <AdminPage navigate={navigate} showAlert={showAlert} />;
-      case '/company':
-        return (
-          <CompanyPage
-            loadingKey={loadingKey}
-            runApiAction={runApiAction}
-            showAlert={showAlert}
-          />
-        );
-      case '/jd':
-        return <JdPage navigate={navigate} showAlert={showAlert} />;
-      case '/cover-letter':
-        return <CoverLetterPage navigate={navigate} showAlert={showAlert} />;
-      case '/analysis-report':
-        return <AnalysisReportPage navigate={navigate} showAlert={showAlert} />;
-      case '/chat':
-        return <ChatPage />;
-      case '/mypage':
-        return (
-          <MyPage
-            authMode={authMode}
-            loadingKey={loadingKey}
-            navigate={navigate}
-            runApiAction={runApiAction}
-            setIsAuthenticated={setIsAuthenticated}
-          />
-        );
-      case '/recruitment-post':
-        return <RecruitmentPostPage />;
-      case '/cover-letter-template':
-        return <CoverLetterTemplatePage />;
-      case '/dashboard':
-      default:
-        return (
-          <DashboardPage
-            mode={mode}
-            navigate={navigate}
-            showAlert={showAlert}
-          />
-        );
-    }
-  };
-
-  const renderAuthPage = () => {
-    switch (route) {
-      case '/signup':
-        return (
-          <SignupPage
-            mode={renderedThemeMode}
-            navigate={navigate}
-            loadingKey={loadingKey}
-            runApiAction={runApiAction}
-            showAlert={showAlert}
-          />
-        );
-      case '/password-reset':
-        return (
-          <PasswordResetPage
-            mode={renderedThemeMode}
-            navigate={navigate}
-            loadingKey={loadingKey}
-            runApiAction={runApiAction}
-            resetStep={resetStep}
-            setResetStep={setResetStep}
-            showAlert={showAlert}
-          />
-        );
-      case '/login':
-      default:
-        return (
-          <LoginPage
-            mode={renderedThemeMode}
-            navigate={navigate}
-            loadingKey={loadingKey}
-            runApiAction={runApiAction}
-            onLoginSuccess={() => {
-              resetAuthExpiryHandling();
-              setIsAuthenticated(true);
-              navigate('/dashboard');
-            }}
-            onApiKeyLoginSuccess={(nextApiKey) => {
-              resetAuthExpiryHandling();
-              setApiKeySession(nextApiKey);
-              navigate(API_KEY_HOME_ROUTE);
-            }}
-          />
-        );
-    }
-  };
 
   const protectedContent = (
     <DocumentChatProvider
@@ -250,7 +96,23 @@ export default function App() {
         onLogout={logout}
         showAlert={showAlert}
       >
-        {renderProtectedPage()}
+        <ProtectedRouteContent
+          route={route}
+          loading={loading}
+          error={error}
+          hasData={Boolean(data)}
+          isApiKeyMode={isApiKeyMode}
+          isApiKeyAllowedRoute={isApiKeyAllowedRoute}
+          apiKeyHomeRoute={API_KEY_HOME_ROUTE}
+          authMode={authMode}
+          loadingKey={loadingKey}
+          mode={mode}
+          navigate={navigate}
+          reload={reload}
+          runApiAction={runApiAction}
+          setIsAuthenticated={setIsAuthenticated}
+          showAlert={showAlert}
+        />
       </AppShell>
     </DocumentChatProvider>
   );
@@ -265,7 +127,26 @@ export default function App() {
           ) : isAuth && authChecked && isAuthenticated ? (
             <RouterNavigate to={appHomeRoute} replace />
           ) : isAuth ? (
-            renderAuthPage()
+            <AuthRouteContent
+              route={route}
+              mode={renderedThemeMode}
+              navigate={navigate}
+              loadingKey={loadingKey}
+              runApiAction={runApiAction}
+              resetStep={resetStep}
+              setResetStep={setResetStep}
+              showAlert={showAlert}
+              onLoginSuccess={() => {
+                resetAuthExpiryHandling();
+                setIsAuthenticated(true);
+                navigate('/dashboard');
+              }}
+              onApiKeyLoginSuccess={(nextApiKey) => {
+                resetAuthExpiryHandling();
+                setApiKeySession(nextApiKey);
+                navigate(API_KEY_HOME_ROUTE);
+              }}
+            />
           ) : !authChecked ? (
             <PageLoading />
           ) : !isAuthenticated ? (
