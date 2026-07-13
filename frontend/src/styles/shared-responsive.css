@@ -1,0 +1,126 @@
+.app-root[data-theme="dark"] .shared-report-page {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34rem),
+    linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--surface-raised) 72%, var(--bg)));
+}
+
+.app-root[data-theme="dark"] .shared-chat-bubble.assistant {
+  background: var(--surface-soft);
+}
+
+@media (max-width: 420px) {
+  .app-root {
+    --layout-gap: 14px;
+    --section-inner-gap: 7px;
+    --section-tight-gap: 6px;
+    --shell-content-pad: 12px;
+  }
+
+  .mobile-shell-header {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    gap: 8px;
+    min-height: 64px;
+    padding: 8px 12px;
+  }
+
+  .mobile-nav-trigger,
+  .mobile-account-trigger {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+  }
+
+  .mobile-brand-logo {
+    width: min(132px, 40vw);
+    height: 40px;
+  }
+
+  .mobile-brand-logo img {
+    max-width: 128px;
+    height: 30px;
+  }
+
+  .mobile-profile-avatar,
+  .mobile-account-trigger .ant-avatar {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+
+  .dashboard-hero,
+  .page-title,
+  .ant-card .ant-card-body {
+    padding-inline: 12px !important;
+  }
+
+  .top-actions .ant-badge,
+  .top-actions .ant-btn {
+    max-width: 40px;
+  }
+
+  .dashboard-hero h1 {
+    font-size: 24px;
+  }
+
+  .hero-stat {
+    min-height: 64px;
+  }
+
+  .hero-visual {
+    min-height: 150px;
+  }
+
+  .talent-card {
+    min-width: 128px;
+  }
+
+  .talent-card strong,
+  .talent-card em {
+    font-size: 11px;
+  }
+
+  .document-chat-widget {
+    top: 70px;
+    right: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+    max-height: none;
+    border-radius: 18px;
+  }
+
+  .document-chat-widget-main,
+  .document-chat-recommendation-panel {
+    border-radius: 18px;
+  }
+
+  .document-chat-recommendation-panel {
+    right: 12px;
+    left: 12px;
+  }
+
+  .document-chat-widget-title span,
+  .document-chat-widget-actions .ant-btn:first-child {
+    display: none;
+  }
+
+  .mobile-data-card,
+  .selection-card,
+  .jd-card,
+  .task-item,
+  .inline-action-box,
+  .mini-panel {
+    border-radius: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

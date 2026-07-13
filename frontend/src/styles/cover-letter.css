@@ -1,0 +1,415 @@
+.upload-box {
+  border-radius: 16px !important;
+}
+
+.cover-letter-save-hint {
+  display: grid;
+  gap: 6px;
+  margin-bottom: calc(var(--layout-gap) / 2);
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.cover-letter-save-hint strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.cover-letter-save-hint span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.list-panel-hint {
+  margin: 0 0 calc(var(--section-inner-gap) / 1.5);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.cover-letter-save-hint .list-panel-hint {
+  margin-bottom: 10px;
+}
+
+.analysis-credit-cost {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.analysis-credit-cost--danger {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  color: var(--warning);
+}
+
+.split-editor-layout-row > .ant-col {
+  min-width: 0;
+}
+
+.split-editor-layout-row .section-card {
+  height: 100%;
+}
+
+.mypage-layout-grid {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
+.mypage-profile-column,
+.mypage-settings-column,
+.mypage-settings-grid > * {
+  min-width: 0;
+}
+
+.mypage-profile-column {
+  display: flex;
+}
+
+.mypage-settings-grid {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
+.mypage-settings-wide {
+  min-width: 0;
+}
+
+@media (min-width: 1200px) {
+  .mypage-layout-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+
+  .mypage-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mypage-settings-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.cover-letter-list {
+  display: grid;
+  gap: calc(var(--layout-gap) / 2);
+}
+
+.cover-letter-list-card {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 42px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.cover-letter-list-card:hover,
+.cover-letter-list-card:focus-visible,
+.cover-letter-list-card.active {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.cover-letter-list-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.cover-letter-list-card.active {
+  background: var(--primary-soft);
+}
+
+.cover-letter-list-card.warning {
+  background: color-mix(in srgb, color-mix(in srgb, var(--warning) 12%, transparent) 70%, var(--surface));
+}
+
+.cover-letter-list-card.active.warning {
+  background: color-mix(in srgb, var(--primary-soft) 80%, color-mix(in srgb, var(--warning) 12%, transparent));
+}
+
+.cover-letter-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cover-letter-list-head strong,
+.cover-letter-list-jd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cover-letter-list-head strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.cover-letter-list-jd {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.cover-letter-list-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.cover-letter-list-score span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cover-letter-list-score strong {
+  color: var(--primary);
+  font-size: 14px;
+}
+
+.cover-letter-list-updated {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resume-structured-summary {
+  display: grid;
+  gap: 12px;
+  margin-bottom: var(--section-inner-gap);
+  padding-bottom: var(--section-inner-gap);
+  border-bottom: 1px solid var(--border);
+}
+
+.resume-structured-summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resume-structured-summary h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.resume-structured-skills,
+.resume-structured-summary-section {
+  display: grid;
+  gap: 6px;
+}
+
+.resume-structured-skills > span,
+.resume-structured-summary-section strong {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.resume-structured-skills > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.resume-structured-skills .ant-tag {
+  margin: 0;
+}
+
+.resume-structured-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.resume-extra-collapse {
+  margin: 0 0 var(--section-tight-gap);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.resume-extra-collapse .ant-collapse-header {
+  padding: 10px 12px !important;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.resume-extra-collapse .ant-collapse-content-box {
+  padding: 0 12px 12px !important;
+}
+
+.resume-education-field {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.resume-education-field .ant-form-item {
+  margin-bottom: 0;
+}
+
+.resume-education-field-wide {
+  grid-column: 1 / -1;
+}
+
+.analysis-report-list {
+  display: grid;
+  gap: calc(var(--layout-gap) / 2);
+}
+
+.analysis-report-list-card {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.analysis-report-list-card:hover,
+.analysis-report-list-card:focus-visible,
+.analysis-report-list-card.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 62%, var(--surface));
+  outline: none;
+}
+
+.analysis-report-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.analysis-report-list-head strong,
+.analysis-report-list-card span,
+.analysis-report-list-card p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.analysis-report-list-head strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.analysis-report-list-card span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.analysis-report-list-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.jd-card,
+.cover-letter-list-card,
+.analysis-report-list-card {
+  border-color: var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-soft));
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+.jd-card:hover,
+.jd-card:focus-visible,
+.cover-letter-list-card:hover,
+.cover-letter-list-card:focus-visible,
+.analysis-report-list-card:hover,
+.analysis-report-list-card:focus-visible {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.jd-card.active,
+.cover-letter-list-card.active,
+.analysis-report-list-card.active {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border-strong));
+  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
+}
+
+.jd-card:focus-visible,
+.cover-letter-list-card:focus-visible,
+.analysis-report-list-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.cover-letter-list-card.warning:not(.active) {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+}
+
+.cover-letter-checklist-alert {
+  margin-bottom: var(--section-tight-gap);
+}
+
+.cover-letter-checklist-alert-body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cover-letter-list-card.active.warning {
+  background: color-mix(in srgb, var(--primary-soft) 80%, color-mix(in srgb, var(--warning) 12%, var(--surface)));
+}
+
+.analysis-report-list-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}

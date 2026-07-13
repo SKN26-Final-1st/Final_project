@@ -2,7 +2,7 @@
 
 HumouR 프론트엔드 디자인 시스템은 채용 운영 화면을 일관되게 만들기 위한 기준입니다. 새 화면과 컴포넌트를 만들 때 색상, 간격, 상태, 반응형, 접근성, 문구를 같은 방식으로 판단할 수 있도록 정의합니다.
 
-실제 구현 기준은 `frontend/src/styles.css`, Ant Design 테마 설정은 `frontend/src/App.tsx`, 브랜드 팔레트는 `frontend/src/data/appConfig.tsx`, 차트 기준은 `frontend/src/components/charts/`에 있습니다.
+실제 구현 기준은 `frontend/src/styles/index.css`와 하위 스타일 파일, Ant Design 테마 설정은 `frontend/src/data/appThemeConfig.ts`, 브랜드 팔레트는 `frontend/src/data/themeTokens.ts`, 차트 기준은 `frontend/src/components/charts/`에 있습니다.
 
 ## 1. 디자인 토큰
 
@@ -184,7 +184,7 @@ Dark theme에서는 `--shadow-sm`을 제거하고, 나머지 shadow는 더 어�
 
 ## 6. 스타일 구현 기준
 
-전체 스타일은 `frontend/src/styles.css`에 모여 있습니다. 이 파일은 토큰, Ant Design override, 앱 shell, 공통 컴포넌트, 도메인 화면, 반응형, dark theme를 함께 관리합니다.
+전체 스타일은 `frontend/src/styles/index.css`에서 정해진 순서로 불러옵니다. 하위 파일은 토큰, Ant Design override, 앱 shell, 공통 컴포넌트, 도메인 화면, 반응형, dark theme 책임으로 나뉘며 기존 cascade 순서를 유지합니다.
 
 주요 섹션:
 
@@ -201,9 +201,9 @@ Dark theme에서는 `--shadow-sm`을 제거하고, 나머지 shadow는 더 어�
 
 테마 연결 기준:
 
-- `frontend/src/App.tsx`에서 Ant Design token을 설정합니다.
-- `frontend/src/styles.css`는 `.app-root[data-theme="dark"]`로 dark mode를 보완합니다.
-- `frontend/src/data/appConfig.tsx`의 `palette`는 Ant Design token과 함께 쓰입니다.
+- `frontend/src/data/appThemeConfig.ts`에서 Ant Design token을 설정합니다.
+- `frontend/src/styles/` 하위 스타일은 `.app-root[data-theme="dark"]`로 dark mode를 보완합니다.
+- `frontend/src/data/themeTokens.ts`의 palette는 Ant Design token과 함께 쓰입니다.
 - 차트 색상은 `frontend/src/components/charts/chartTheme.ts`를 기준으로 light/dark theme를 맞춥니다.
 
 ## 7. 콘텐츠 스타일

@@ -1,0 +1,131 @@
+@media (max-width: 767px) and (max-height: 800px) {
+  .auth-main:has(.auth-login-tabs) {
+    align-content: start;
+    gap: 20px;
+    padding: 24px 0;
+  }
+
+  .auth-main:has(.auth-login-tabs) > .auth-card {
+    order: -1;
+  }
+}
+
+.auth-screen {
+  min-height: 100vh;
+  padding: var(--layout-gap);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, transparent), transparent 38%),
+    linear-gradient(225deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
+    var(--bg);
+}
+
+.auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.auth-logo-button img {
+  width: 170px;
+  height: auto;
+}
+
+.auth-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 56px;
+  align-items: center;
+  max-width: 1180px;
+  min-height: calc(100vh - 112px);
+  margin: 0 auto;
+}
+
+.auth-copy h1 {
+  max-width: 680px;
+  font-size: 38px;
+  line-height: 1.24;
+}
+
+.auth-benefits {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  margin-top: 28px;
+}
+
+.auth-benefits div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-benefits svg {
+  color: var(--accent);
+}
+
+.auth-card {
+  width: 100%;
+}
+
+.auth-card .ant-card-head-wrapper {
+  gap: 12px;
+}
+
+.auth-card .ant-card-head-title {
+  min-width: 0;
+}
+
+.auth-card .ant-card-extra {
+  margin-inline-start: auto;
+}
+
+.auth-text-link {
+  appearance: none;
+  display: inline;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--primary);
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.auth-text-link:hover,
+.auth-text-link:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  color: var(--primary-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-card-return-link {
+  font-size: 13px;
+  white-space: normal;
+}
+
+.auth-links {
+  margin-top: 12px;
+}
+
+.step-panel {
+  min-height: 112px;
+  margin-top: 22px;
+}

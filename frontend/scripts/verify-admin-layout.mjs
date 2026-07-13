@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const adminPage = readFileSync(resolve(rootDir, 'src/pages/AdminPage.tsx'), 'utf8');
-const styles = readFileSync(resolve(rootDir, 'src/styles.css'), 'utf8');
+const styleIndex = readFileSync(resolve(rootDir, 'src/styles/index.css'), 'utf8');
+const styles = [...styleIndex.matchAll(/@import ['"]\.\/(.+?)['"];?/g)]
+  .map((match) => readFileSync(resolve(rootDir, 'src/styles', match[1]), 'utf8'))
+  .join('\n');
 
 const failures = [];
 

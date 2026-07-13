@@ -32,7 +32,7 @@
 
 `App.tsx`는 Ant Design `XProvider`와 `AntApp`을 사용하고, light/dark 모드를 Ant Design token과 CSS `data-theme`로 반영합니다.
 
-공통 스타일은 `frontend/src/styles.css`에 있습니다. 주요 영역:
+공통 스타일 진입점은 `frontend/src/styles/index.css`이며, 역할별 CSS를 정해진 cascade 순서로 불러옵니다. 주요 영역:
 
 - 앱 쉘과 사이드바
 - 모바일 헤더/드로어

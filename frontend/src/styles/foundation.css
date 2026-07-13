@@ -1,0 +1,104 @@
+:root {
+  font-family: "Noto Sans KR Clean", "Noto Sans KR", system-ui, sans-serif;
+  color: #102033;
+  background: #f4f7ff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+.ant-btn,
+.ant-card,
+.selection-card,
+.jd-card,
+.cover-letter-list-card,
+.analysis-report-list-card,
+.task-item,
+.sidebar-account-button,
+.sidebar-pin-button,
+.account-menu-item,
+.account-credit-link {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.app-root {
+  --primary: #2f73f6;
+  --primary-strong: #1e56d8;
+  --primary-soft: #e9f1ff;
+  --accent: #14b8a6;
+  --accent-soft: #e6fbf7;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --dark: #183872;
+  --bg: #f4f7ff;
+  --surface: #ffffff;
+  --surface-raised: rgba(255, 255, 255, 0.92);
+  --surface-soft: #f7faff;
+  --text: #102033;
+  --muted: rgba(16, 32, 51, 0.64);
+  --subtle: rgba(16, 32, 51, 0.42);
+  --border: rgba(47, 115, 246, 0.14);
+  --border-strong: rgba(47, 115, 246, 0.28);
+  --shadow-sm: 0 8px 22px rgba(31, 77, 161, 0.08);
+  --shadow-md: 0 14px 34px rgba(31, 77, 161, 0.1);
+  --shadow: 0 18px 50px rgba(31, 77, 161, 0.12);
+  --shadow-lg: 0 26px 70px rgba(31, 77, 161, 0.18);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 22px;
+  --layout-gap: 24px;
+  --section-inner-gap: 12px;
+  --section-tight-gap: 8px;
+  --content-max: 1540px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-root[data-theme="dark"] {
+  --primary: #6ea3ff;
+  --primary-strong: #8fb7ff;
+  --primary-soft: rgba(110, 163, 255, 0.16);
+  --accent: #43d9c6;
+  --accent-soft: rgba(67, 217, 198, 0.13);
+  --warning: #fbbf24;
+  --dark: #0d1b35;
+  --bg: #0f172a;
+  --surface: rgba(22, 34, 58, 0.92);
+  --surface-raised: rgba(30, 43, 70, 0.92);
+  --surface-soft: rgba(255, 255, 255, 0.06);
+  --text: #f8fbff;
+  --muted: rgba(248, 251, 255, 0.68);
+  --subtle: rgba(248, 251, 255, 0.42);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(110, 163, 255, 0.34);
+  --shadow-sm: none;
+  --shadow-md: 0 14px 34px rgba(0, 0, 0, 0.18);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 26px 70px rgba(0, 0, 0, 0.32);
+}
