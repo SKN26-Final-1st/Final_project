@@ -1,0 +1,402 @@
+import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const repoRoot = join(root, '..');
+
+function read(path) {
+  return readFileSync(join(repoRoot, path), 'utf8');
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+const backendClient = read('frontend/src/api/backendClient.ts');
+const backendClientModules = [
+  read('frontend/src/api/clients/authAccountClient.ts'),
+  read('frontend/src/api/clients/companyAuthKeyClient.ts'),
+  read('frontend/src/api/clients/jdChecklistClient.ts'),
+  read('frontend/src/api/clients/resumeReportClient.ts'),
+  read('frontend/src/api/clients/chatClient.ts'),
+  read('frontend/src/api/services/dashboardSource.ts'),
+  read('frontend/src/api/clients/clientCore.ts'),
+].join('\n');
+const httpClient = read('frontend/src/api/httpClient.ts');
+const authPages = [
+  read('frontend/src/pages/AuthPages.tsx'),
+  read('frontend/src/pages/auth/LoginPage.tsx'),
+  read('frontend/src/pages/auth/SignupPage.tsx'),
+  read('frontend/src/pages/auth/PasswordResetPage.tsx'),
+].join('\n');
+const myPage = read('frontend/src/pages/MyPage.tsx');
+const securitySettingsForm = read('frontend/src/components/mypage/SecuritySettingsForm.tsx');
+const authScreen = read('frontend/src/components/layout/AuthScreen.tsx');
+const sidebarNav = [
+  read('frontend/src/components/layout/SidebarNav.tsx'),
+  read('frontend/src/components/layout/MobileShellHeader.tsx'),
+  read('frontend/src/components/layout/MenuItems.tsx'),
+  read('frontend/src/components/layout/navigationUtils.ts'),
+].join('\n');
+const topHeader = read('frontend/src/components/layout/TopHeader.tsx');
+const app = read('frontend/src/App.tsx');
+const useApiAction = read('frontend/src/hooks/useApiAction.ts');
+const sharedReportPage = [
+  read('frontend/src/pages/SharedReportPage.tsx'),
+  read('frontend/src/components/shared-report/sharedReportTypes.ts'),
+  read('frontend/src/components/shared-report/SharedReportTabs.tsx'),
+].join('\n');
+const recruitmentPostPage = read('frontend/src/pages/RecruitmentPostPage.tsx');
+const coverLetterTemplatePage = read('frontend/src/pages/CoverLetterTemplatePage.tsx');
+const appDataService = read('frontend/src/api/appDataService.ts');
+const adapters = read('frontend/src/api/adapters.ts');
+const backendTypes = read('frontend/src/data/backendTypes.ts');
+const appConfig = read('frontend/src/data/appConfig.tsx');
+const viteConfig = read('frontend/vite.config.ts');
+const backendClientContractSource = `${backendClient}\n${backendClientModules}\n${httpClient}`;
+
+const requiredBackendCalls = [
+  'ping',
+  'csrf',
+  'signin',
+  'login',
+  'logout',
+  'checkuser',
+  'passqestion',
+  'passreset',
+  'account/get',
+  'account/modify',
+  'compinfo/get',
+  'compinfo/modify',
+  'authkey/add',
+  'authkey/get',
+  'authkey/modify',
+  'authkey/credit',
+  'jd/add',
+  'jd/analyze',
+  'jd/get',
+  'jd/modify',
+  'jd_chat',
+  'checklist/add',
+  'checklist/get',
+  'checklist/modify',
+  'resume/add',
+  'resume/get',
+  'resume/modify',
+  'resume/analyze',
+  'report/get',
+  'report/modify',
+  'chat',
+];
+
+function containsEndpoint(source, endpoint) {
+  return [
+    `'${endpoint}'`,
+    `"${endpoint}"`,
+    `/${endpoint}/`,
+    `\${API_ROOT}/${endpoint}/`,
+  ].some((needle) => source.includes(needle));
+}
+
+function getApiClientMethod(source, method) {
+  const methodStart = source.indexOf(`  ${method}:`);
+  assert(methodStart >= 0, `Missing account API method ${method}`);
+  const methodTail = source.slice(methodStart + 1);
+  const nextMethodMatch = /\n  [A-Za-z]\w+:\s/.exec(methodTail);
+  const methodEnd = nextMethodMatch ? methodStart + 1 + nextMethodMatch.index : source.length;
+  return source.slice(methodStart, methodEnd);
+}
+
+function getRouteMenuObject(source, route) {
+  const routeStart = source.indexOf(`route: '${route}'`);
+  assert(routeStart >= 0, `Missing menu route ${route}`);
+  const routeTail = source.slice(routeStart);
+  const endMatch = /\n\s*\},/.exec(routeTail);
+  assert(endMatch, `Could not parse menu route ${route}`);
+  return routeTail.slice(0, endMatch.index);
+}
+
+for (const endpoint of requiredBackendCalls) {
+  assert(
+    containsEndpoint(backendClientContractSource, endpoint),
+    `Missing frontend backend call for ${endpoint}`,
+  );
+}
+
+assert(
+  /requestBackend<AnalysisReport\[\]>\(['"]report\/get['"]/.test(backendClientModules),
+  'report/get must treat backend data as AnalysisReport[]',
+);
+
+assert(
+  /async function pingRequest\(\)[\s\S]*httpClient\.get<unknown>\(['"]\/ping\/['"]\)[\s\S]*ok\s*!==\s*true/.test(
+    backendClientModules,
+  ),
+  'ping must call /api/ping/ as a healthcheck and validate the raw { ok: true } response',
+);
+
+assert(
+  /requestBackend<AnalysisReport>\(['"]resume\/analyze['"],\s*\{\s*id:\s*resume\.id\s*\},\s*\{\s*apiKey\s*\}\)/.test(
+    backendClientModules,
+  ),
+  'resume/analyze must send resume.id and consume the returned AnalysisReport payload',
+);
+
+assert(
+  /interview_question:\s*InterviewQuestion\[\]/.test(backendTypes) &&
+    /getReportQuestions\(report\)/.test(backendClientModules) &&
+    !containsEndpoint(backendClientModules, 'question/get') &&
+    !containsEndpoint(backendClientModules, 'question/modify'),
+  'Interview questions must be read from AnalysisReport.interview_question; question/get and question/modify are not current backend routes',
+);
+
+const realApiMethodNames = [
+  'ping',
+  'getDashboard',
+  'getApiKeyDashboard',
+  'loginWithApiKey',
+  'getCompanyProfile',
+  'getJobDescriptions',
+  'getChecklist',
+  'generateJdChecklist',
+  'addChecklist',
+  'updateChecklist',
+  'deleteChecklist',
+  'saveCompanyProfile',
+  'getAuthKeys',
+  'addAuthKey',
+  'saveAuthKey',
+  'deleteAuthKey',
+  'addJobDescription',
+  'saveJobDescription',
+  'refreshJdChecklistFailure',
+  'deleteJobDescription',
+  'addResume',
+  'saveResume',
+  'deleteResume',
+  'requestResumeAnalysis',
+  'sendChatMessage',
+  'sendJdChatMessage',
+  'saveReport',
+  'deleteReport',
+  'getSharedResumeBundle',
+];
+
+for (const method of realApiMethodNames) {
+  const methodBody = getApiClientMethod(backendClientModules, method);
+  assert(!methodBody.includes('USE_MOCK_API'), `${method} must use real backend data instead of USE_MOCK_API`);
+  assert(!/ApiResponse\.data/.test(methodBody), `${method} must not read static mock ApiResponse data`);
+}
+
+assert(!/USE_MOCK_API/.test(backendClientContractSource), 'Backend clients must not switch to local mock data');
+
+assert(
+  /apiKey\?:\s*string/.test(backendClientContractSource) &&
+    /headers\.set\(['"]X-API-Key['"],\s*apiKey\)/.test(backendClientContractSource) &&
+    !/apiKey\s*\?\?\s*API_KEY/.test(backendClientContractSource),
+  'Backend client must support per-request X-API-Key for shared report access',
+);
+
+assert(/getSharedResumeBundle/.test(backendClientModules), 'Shared resume/report/question bundle API is required');
+assert(/\/shared/.test(appConfig) && /\/shared/.test(app), 'Shared report route must exist');
+
+const recruitmentPostMenu = getRouteMenuObject(appConfig, '/recruitment-post');
+const coverLetterTemplateMenu = getRouteMenuObject(appConfig, '/cover-letter-template');
+
+assert(
+  /mvpStatus\?:\s*['"]active['"] \| ['"]planned['"]/.test(appConfig) &&
+    /visibleInNav\?:\s*boolean/.test(appConfig),
+  'Menu items must explicitly distinguish active backend-backed pages from planned MVP pages',
+);
+
+for (const [route, menuObject] of [
+  ['/recruitment-post', recruitmentPostMenu],
+  ['/cover-letter-template', coverLetterTemplateMenu],
+]) {
+  assert(/mvpStatus:\s*['"]planned['"]/.test(menuObject), `${route} must be marked as a planned MVP route`);
+  assert(/visibleInNav:\s*false/.test(menuObject), `${route} must be hidden from primary navigation`);
+}
+
+assert(
+  /export const activeMainMenu = mainMenu\.filter\(\(item\) =>[\s\S]*item\.visibleInNav !== false[\s\S]*item\.mvpStatus !== ['"]planned['"]/.test(
+    appConfig,
+  ),
+  'activeMainMenu must exclude hidden and planned MVP routes from navigation surfaces',
+);
+
+assert(
+  /activeMainMenu/.test(sidebarNav) && /activeMainMenu/.test(topHeader),
+  'Sidebar and mobile route select must use activeMainMenu instead of exposing planned MVP pages',
+);
+
+assert(
+  /const postGenerated = false;/.test(recruitmentPostPage) &&
+    /templateQuestions\.length/.test(coverLetterTemplatePage),
+  'Unsupported recruitment/template generation pages must not start in mock-generated success state',
+);
+
+assert(
+  /async function getJobDescriptionsRaw\(apiKey\?: string[\s\S]*requestBackend<JobDescription\[\]>\(['"]jd\/get['"][\s\S]*apiKey/.test(
+    backendClientModules,
+  ),
+  'jd/get must support X-API-Key access for shared and public report flows',
+);
+
+assert(
+  /async function getSharedResumeBundleRaw[\s\S]*getJobDescriptionsRaw\(apiKey, options\)/.test(backendClientModules),
+  'Shared API key bundle must fetch accessible JD data through X-API-Key',
+);
+
+assert(
+  /jobDescription:\s*JobDescription \| null/.test(sharedReportPage) && /bundle\.jobDescription/.test(sharedReportPage),
+  'Shared report page must display the JD that is accessible through the API key',
+);
+
+const accountType = backendTypes.match(/type Account = \{[\s\S]*?\};/)?.[0] ?? '';
+
+assert(
+  /\bid: number;/.test(accountType) && /\busername: string;/.test(accountType),
+  'Account type must include the non-sensitive account identity fields',
+);
+assert(!/\bpassword\??:/.test(accountType), 'Account type must not include password');
+assert(!/\baccount_hash\??:/.test(accountType), 'Account response type must discard account_hash');
+assert(!/\bverification_answer\??:/.test(accountType), 'Account response type must discard verification_answer');
+
+assert(
+  !/\baccount_id\??:/.test(backendTypes.match(/type AuthKey = \{[\s\S]*?\};/)?.[0] ?? ''),
+  'AuthKey type must not expose account_id',
+);
+
+assert(
+  /type CompanyInfo = \{[\s\S]*\bid: number;[\s\S]*\}/.test(backendTypes) &&
+    !/\baccount_id\??:/.test(backendTypes.match(/type CompanyInfo = \{[\s\S]*?\};/)?.[0] ?? ''),
+  'CompanyInfo type must match backend fields with required id and no account_id',
+);
+
+assert(
+  !/\baccount_id\??:/.test(backendTypes.match(/type JobDescription = \{[\s\S]*?\};/)?.[0] ?? ''),
+  'JobDescription type must not expose account_id',
+);
+
+assert(
+  /reviewed_at:\s*DateTimeString;/.test(backendTypes),
+  'Resume.reviewed_at must be a backend-normalized DateTimeString',
+);
+
+assert(!/reviewed_at:\s*null/.test(backendTypes), 'Resume types must use backend-normalized reviewed_at strings instead of null');
+
+const accountMethodNames = [
+  'getUserProfile',
+  'login',
+  'logout',
+  'saveUserProfile',
+  'checkSignupId',
+  'completeSignup',
+  'getPasswordQuestion',
+  'resetPassword',
+];
+
+for (const method of accountMethodNames) {
+  const methodBody = getApiClientMethod(backendClientModules, method);
+  assert(!methodBody.includes('USE_MOCK_API'), `${method} must not branch to mock data`);
+  assert(!methodBody.includes('authDefaultsApiResponse'), `${method} must not use mock auth defaults`);
+}
+
+assert(
+  /login:\s*async\s*\(\s*username:\s*string,\s*password:\s*string\s*\)[\s\S]*await loginRequest\(username,\s*password\)[\s\S]*await getAccountRaw\(\{\s*authFailurePolicy:\s*['"]local['"]\s*\}\)/.test(
+    backendClientModules,
+  ),
+  'login must call backend login and then reload the real account',
+);
+
+assert(
+  /completeSignup:\s*async\s*\(body:\s*SignupBody\)[\s\S]*await signinRequest\(body\)/.test(
+  backendClientModules,
+  ),
+  'completeSignup must send the submitted signup fields directly to signin',
+);
+
+assert(
+  /requestAction\(['"]account\/modify['"],\s*sanitizeAccountModifyBody\(body\)\)/.test(backendClientModules),
+  'saveUserProfile must sanitize blocked account fields before account/modify',
+);
+
+assert(
+  /password_confirm\?:\s*string/.test(securitySettingsForm) &&
+    /name="password_confirm"/.test(securitySettingsForm) &&
+    /getFieldValue\(['"]password['"]\)/.test(securitySettingsForm),
+  'Password change form must require confirmation and validate it against the new password',
+);
+
+assert(
+  !myPage.includes('Object.assign(body, securityValues)') &&
+    /body\.formal_password\s*=\s*securityValues\.formal_password/.test(myPage) &&
+    /body\.password\s*=\s*securityValues\.password/.test(myPage) &&
+    !/password_confirm[\s\S]*apiClient\.saveUserProfile/.test(myPage),
+  'MyPage password payload must pick only formal_password and password for account/modify',
+);
+
+assert(
+  /apiClient\.login\(profile\.username,\s*securityValues\.password\)/.test(myPage) &&
+    /securityForm\.resetFields\(\)/.test(myPage) &&
+    /invalidateQueries\(\{\s*queryKey:\s*queryKeys\.appData\(\)\s*\}\)/.test(myPage) &&
+    !/onPasswordChanged/.test(myPage) &&
+    !/onPasswordChanged=/.test(app),
+  'Password changes must refresh the session with the new password, clear password fields, and stay on protected routes',
+);
+
+assert(!authPages.includes('authDefaults'), 'Auth pages must not prefill from mock auth defaults');
+assert(!authPages.includes('verification_answer ??'), 'Password reset must not reuse a mock verification answer');
+assert(!authScreen.includes("nav('/dashboard')"), 'Auth screen logo must not navigate directly to a protected route');
+assert(/className="auth-logo-button"[\s\S]*type="button"|type="button"[\s\S]*className="auth-logo-button"/.test(authScreen), 'Auth logo button must be a non-submit button');
+assert(/isAuthenticated/.test(app), 'App must track authenticated state for protected routes');
+assert(/<RouterNavigate to="\/login" replace/.test(app), 'Protected routes must redirect unauthenticated users to login');
+assert(!appDataService.includes('getAuthDefaults'), 'App data loading must not request mock auth defaults');
+assert(!appDataService.includes('getLocalDashboardData'), 'App data loading must not fall back to local mock dashboard data');
+assert(!adapters.includes('authDefaultsApiResponse'), 'Adapters must not derive AuthDefaults from mock account data');
+
+assert(
+  /server:\s*\{[\s\S]*proxy:\s*\{[\s\S]*\/api/.test(viteConfig),
+  'vite.config.ts must proxy /api to the Django dev server',
+);
+
+assert(
+  /port:\s*5173/.test(viteConfig) && /strictPort:\s*true/.test(viteConfig),
+  'Vite dev server must stay on backend CSRF-trusted port 5173 instead of silently moving to another port',
+);
+
+assert(
+  /async function checkUserRequest\(username: string\)[\s\S]*username\.trim\(\)[\s\S]*requestAction\(['"]checkuser['"],\s*\{\s*username:\s*trimmedUsername\s*\}\)/.test(
+    backendClientModules,
+  ),
+  'checkuser must trim username and send POST /api/checkuser/ body as { username: trimmedUsername }',
+);
+
+assert(
+  /async function checkUserRequest\(username: string\)[\s\S]*typeof payload\.valid !== ['"]boolean['"]/.test(backendClientModules),
+  'checkuser must read top-level valid:boolean and reject malformed responses',
+);
+
+assert(
+  /name="username"[\s\S]*whitespace:\s*true/.test(authPages),
+  'Signup username field must block empty or whitespace-only values before calling checkuser',
+);
+
+assert(
+  /catch \(nextError\)[\s\S]*normalizeUserFacingErrorMessage\([\s\S]*nextError instanceof Error \? nextError\.message/.test(
+    useApiAction,
+  ),
+  'runApiAction must normalize backend/client errors through the shared user-facing error policy',
+);
+
+assert(
+  !/unsupportedBackendFeature|generateRecruitmentPost|downloadRecruitmentPdf|generateCoverLetterTemplate|downloadTemplateDocument/.test(
+    backendClientContractSource,
+  ),
+  'Unsupported backend methods with no production callers must not remain on the public API façade',
+);
+
+console.log('Backend contract checks passed.');

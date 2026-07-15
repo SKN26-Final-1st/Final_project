@@ -1,0 +1,228 @@
+import { useEffect, useState } from 'react';
+import { Button, Form } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
+import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import { AccountSettingsForm, type AccountSettingsFormValues } from '../components/mypage/AccountSettingsForm';
+import { CompanySummaryPanel } from '../components/mypage/CompanySummaryPanel';
+import { ProfileSummaryCard } from '../components/mypage/ProfileSummaryCard';
+import { SecuritySettingsForm, type SecuritySettingsFormValues } from '../components/mypage/SecuritySettingsForm';
+import { DestructiveConfirmModal } from '../components/common/DestructiveConfirmModal';
+import { InlineLoading } from '../components/common/InlineLoading';
+import { EmptyState } from '../components/common/PageState';
+import { PageTitle } from '../components/common/PageTitle';
+import { SectionCard } from '../components/common/SectionCard';
+import type { UserProfile } from '../api/adapters';
+import { apiClient } from '../api/backendClient';
+import { abortAuthenticatedRequests, resetAuthExpiryHandling } from '../api/httpClient';
+import { clearAuthenticatedQueryState } from '../api/queryClient';
+import { queryKeys } from '../api/queryKeys';
+import { useAppDataQuery } from '../hooks/useAppDataQuery';
+import type { Navigate, RunApiAction } from '../types/app';
+import type { AuthMode } from '../utils/apiKeySession';
+
+type MyPageProps = {
+  authMode: AuthMode;
+  loadingKey: string | null;
+  navigate: Navigate;
+  runApiAction: RunApiAction;
+  setIsAuthenticated: (value: boolean) => void;
+};
+
+function toAccountFormValues(profile: UserProfile): AccountSettingsFormValues {
+  return {
+    username: profile.username,
+    name: profile.displayName,
+    credit: profile.credit,
+    subscribe: profile.subscribe,
+    verification_question: profile.verificationQuestion,
+  };
+}
+
+export function MyPage({
+  authMode,
+  loadingKey,
+  navigate,
+  runApiAction,
+  setIsAuthenticated,
+}: MyPageProps) {
+  const [accountForm] = Form.useForm<AccountSettingsFormValues>();
+  const [securityForm] = Form.useForm<SecuritySettingsFormValues>();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { data } = useAppDataQuery();
+  const profile = data?.userProfile;
+  const company = data?.company;
+  const isDeletingAccount = loadingKey === 'account-delete';
+  const canDeleteAccount = authMode === 'account';
+  const accountInitialValues = profile
+    ? toAccountFormValues(profile)
+    : {
+        username: '',
+        name: '',
+        credit: 0,
+        subscribe: false,
+        verification_question: '',
+      };
+
+  useEffect(() => {
+    if (profile) {
+      accountForm.setFieldsValue(toAccountFormValues(profile));
+      securityForm.resetFields();
+    }
+  }, [accountForm, profile, securityForm]);
+
+  if (!profile || !company) {
+    return <EmptyState description="마이페이지 정보를 불러오지 못했습니다." />;
+  }
+
+  const saveProfile = () => {
+    let passwordChanged = false;
+
+    return runApiAction(
+      'profile-save',
+      async () => {
+        const accountValues = await accountForm.validateFields();
+        const securityValues = await securityForm.validateFields();
+        const body: {
+          name: string;
+          verification_question: string;
+          formal_password?: string;
+          password?: string;
+        } = {
+          name: accountValues.name,
+          verification_question: accountValues.verification_question,
+        };
+
+        if (securityValues.password) {
+          if (!securityValues.formal_password) {
+            throw new Error('새 비밀번호를 저장하려면 현재 비밀번호가 필요합니다.');
+          }
+
+          passwordChanged = true;
+          body.formal_password = securityValues.formal_password;
+          body.password = securityValues.password;
+        }
+
+        const response = await apiClient.saveUserProfile(body);
+
+        if (passwordChanged && securityValues.password) {
+          abortAuthenticatedRequests();
+          resetAuthExpiryHandling();
+          await apiClient.login(profile.username, securityValues.password);
+
+          return {
+            ...response,
+            message: '비밀번호가 변경되었습니다. 로그인 상태가 유지됩니다.',
+          };
+        }
+
+        return response;
+      },
+      () => {
+        if (passwordChanged) {
+          securityForm.resetFields();
+          void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
+          return;
+        }
+
+        void queryClient.invalidateQueries({ queryKey: queryKeys.appData() });
+      },
+    );
+  };
+
+  const deleteAccount = () =>
+    runApiAction(
+      'account-delete',
+      () => apiClient.deleteAccount(),
+      () => {
+        setDeleteModalOpen(false);
+        clearAuthenticatedQueryState(queryClient);
+        setIsAuthenticated(false);
+        navigate('/login');
+      },
+    );
+
+  return (
+    <div className="mypage-page viewport-page">
+      <PageTitle
+        eyebrow="My Page"
+        title="마이페이지"
+        description="프로필, 계정 수정, 보안 설정과 회사 정보 요약을 한 화면에서 관리합니다."
+        actions={
+          <Button
+            type="primary"
+            icon={loadingKey === 'profile-save' ? undefined : <SaveOutlined />}
+            disabled={loadingKey === 'profile-save'}
+            onClick={() => void saveProfile()}
+          >
+            {loadingKey === 'profile-save' ? <InlineLoading label="저장 중" /> : '저장'}
+          </Button>
+        }
+      />
+      <div className="mypage-layout-grid">
+        <div className="mypage-profile-column">
+          <SectionCard className="scroll-card-body" title="프로필">
+            <ProfileSummaryCard profile={profile} />
+          </SectionCard>
+        </div>
+        <div className="viewport-column-scroll mypage-settings-column">
+          <div className="mypage-settings-grid">
+            <div>
+              <SectionCard title="계정 정보">
+                <AccountSettingsForm form={accountForm} initialValues={accountInitialValues} />
+              </SectionCard>
+            </div>
+            <div>
+              <SectionCard title="보안 설정">
+                <SecuritySettingsForm form={securityForm} />
+              </SectionCard>
+            </div>
+            {canDeleteAccount ? (
+              <div>
+                <SectionCard title="계정 삭제">
+                  <p className="list-panel-hint">
+                    계정을 삭제하면 저장된 계정 정보와 세션이 즉시 정리됩니다.
+                  </p>
+                  <Button
+                    aria-label="계정 삭제"
+                    danger
+                    icon={<DeleteOutlined />}
+                    disabled={isDeletingAccount}
+                    onClick={() => setDeleteModalOpen(true)}
+                  >
+                    계정 삭제
+                  </Button>
+                </SectionCard>
+              </div>
+            ) : null}
+            <div className="mypage-settings-wide">
+              <SectionCard title="회사 정보 요약">
+                <CompanySummaryPanel company={company} navigate={navigate} />
+              </SectionCard>
+            </div>
+          </div>
+        </div>
+      </div>
+      <DestructiveConfirmModal
+        open={deleteModalOpen}
+        title="계정 삭제"
+        description="삭제한 계정은 복구할 수 없습니다. 계속 진행하려면 아래 계정을 확인하세요."
+        target={{
+          title: profile.username,
+          description: profile.displayName,
+          ariaLabel: '삭제할 계정',
+        }}
+        warning={{
+          title: '계정과 로그인 세션이 삭제됩니다.',
+          description: '삭제 후 로그인 화면으로 이동합니다.',
+        }}
+        loading={isDeletingAccount}
+        cancelLabel="취소"
+        confirmLabel="계정 삭제"
+        confirmAriaLabel="계정 삭제 확인"
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void deleteAccount()}
+      />
+    </div>
+  );
+}

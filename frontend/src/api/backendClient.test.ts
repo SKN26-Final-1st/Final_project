@@ -1,0 +1,489 @@
+import { http, HttpResponse } from 'msw';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { server } from '../test/server';
+
+const resumeWithoutStatus = {
+  id: 1,
+  job_description_id: 10,
+  name: '홍길동',
+  skill: [],
+  education_level: {},
+  experience: [],
+  self_intoduction: [],
+  certification: [],
+  language: [],
+  award: [],
+  training: [],
+  other_activity: [],
+  reviewed: false,
+  reviewed_at: '',
+  created_at: '',
+  updated_at: '',
+};
+
+const queuedReport = {
+  id: 30,
+  resume_id: 1,
+  overall_grade: '',
+  overall_summary: '',
+  candidate_summary: '',
+  checklist: [],
+  competency_analysis: [],
+  fit_analysis: '',
+  motive: '',
+  collaboration: '',
+  strength: [],
+  concern: [],
+  check_point: [],
+  final_comment: '',
+  review_text: '검토 의견 메모',
+  interview_question: [],
+  status: 'onqueue',
+  created_at: '2026-06-24T00:00:00+09:00',
+  version: 'analysis-graph-v1',
+  user_feedback: null,
+};
+
+const apiKeyJobDescription = {
+  id: 10,
+  job_name: '프론트엔드 개발자',
+  education_level: '학사',
+  major: '컴퓨터공학',
+  career_level: '3년 이상',
+  required_skill: ['React'],
+  preferred_skill: ['TypeScript'],
+  main_task: '서비스 프론트엔드 개발',
+  hiring_reason: '제품 고도화',
+  work_type: '정규직',
+  status: 'on_going',
+  checklist_status: 'done',
+  created_at: '2026-06-24T00:00:00+09:00',
+  updated_at: '2026-06-24T01:00:00+09:00',
+};
+
+describe('backendClient', () => {
+  beforeEach(() => {
+    document.cookie = 'csrftoken=test-csrf; path=/';
+  });
+
+  test('ping checks the backend health endpoint without the API envelope', async () => {
+    server.use(http.get('/api/ping/', () => HttpResponse.json({ ok: true })));
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.ping()).resolves.toMatchObject({
+      message: '백엔드 연결을 확인했습니다.',
+      data: { ok: true },
+    });
+  });
+
+  test('shows a Korean message when login credentials are invalid', async () => {
+    server.use(
+      http.post('/api/login/', () =>
+        HttpResponse.json({
+          error: true,
+          message: '403: Authentication is required.\ndetailed_message: Invalid credentials',
+        }),
+      ),
+    );
+
+    const onAuthExpired = vi.fn();
+    const { setAuthExpiryHandler } = await import('./httpClient');
+    setAuthExpiryHandler(onAuthExpired);
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.login('unknown-user', 'wrong-password')).rejects.toThrow(
+      '아이디 또는 비밀번호가 올바르지 않습니다.',
+    );
+    expect(onAuthExpired).not.toHaveBeenCalled();
+  });
+
+  test('keeps invalid API Key login validation as a local form error', async () => {
+    server.use(
+      http.post('/api/jd/get/', () =>
+        HttpResponse.json({ error: true, message: '403: Authentication is required.' }),
+      ),
+      http.post('/api/authkey/credit/', () =>
+        HttpResponse.json({ error: true, message: '403: Authentication is required.' }),
+      ),
+    );
+    const onAuthExpired = vi.fn();
+    const { resetAuthExpiryHandling, setAuthExpiryHandler } = await import('./httpClient');
+    resetAuthExpiryHandling();
+    setAuthExpiryHandler(onAuthExpired);
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.loginWithApiKey('invalid-key')).rejects.toThrow(
+      'API Key가 유효하지 않거나 접근 권한이 없습니다.',
+    );
+    expect(onAuthExpired).not.toHaveBeenCalled();
+  });
+
+  test('keeps verification answers in signup and password reset request payloads only', async () => {
+    const observedBodies: Record<string, unknown>[] = [];
+    server.use(
+      http.post('/api/signin/', async ({ request }) => {
+        observedBodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json({ error: false, data: {} });
+      }),
+      http.post('/api/passreset/', async ({ request }) => {
+        observedBodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json({ error: false, password: 'temporary-password' });
+      }),
+    );
+    const { apiClient } = await import('./backendClient');
+
+    await apiClient.completeSignup({
+      username: 'secure-user',
+      password: 'secure-password',
+      name: 'Secure User',
+      verification_question: 'Question',
+      verification_answer: 'signup-answer',
+    });
+    await apiClient.resetPassword('secure-user', 'reset-answer');
+
+    expect(observedBodies).toEqual([
+      {
+        username: 'secure-user',
+        password: 'secure-password',
+        name: 'Secure User',
+        verification_question: 'Question',
+        verification_answer: 'signup-answer',
+      },
+      { username: 'secure-user', verification_answer: 'reset-answer' },
+    ]);
+  });
+
+  test('keeps shared API Key lookup failures on the shared screen', async () => {
+    server.use(
+      http.post('/api/resume/get/', () =>
+        HttpResponse.json({ error: true, message: '403: Authentication is required.' }),
+      ),
+    );
+    const onAuthExpired = vi.fn();
+    const { resetAuthExpiryHandling, setAuthExpiryHandler } = await import('./httpClient');
+    resetAuthExpiryHandling();
+    setAuthExpiryHandler(onAuthExpired);
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.getSharedResumeBundle(1, 'invalid-shared-key')).rejects.toThrow(
+      '403: Authentication is required.',
+    );
+    expect(onAuthExpired).not.toHaveBeenCalled();
+  });
+
+  test('queued resume analysis returns a request accepted message', async () => {
+    server.use(
+      http.post('/api/resume/get/', () => HttpResponse.json({ error: false, data: [resumeWithoutStatus] })),
+      http.post('/api/resume/analyze/', () => HttpResponse.json({ error: false, data: queuedReport })),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.requestResumeAnalysis(1)).resolves.toMatchObject({
+      message: '지원서 분석 요청이 접수되었습니다.',
+      data: {
+        report: {
+          status: 'onqueue',
+          created_at: '2026-06-24T00:00:00+09:00',
+        },
+      },
+    });
+  });
+
+  test('failed resume analysis preserves status, version, user feedback, and review text fields', async () => {
+    server.use(
+      http.post('/api/resume/get/', () => HttpResponse.json({ error: false, data: [resumeWithoutStatus] })),
+      http.post('/api/resume/analyze/', () =>
+        HttpResponse.json({
+          error: false,
+          data: { ...queuedReport, status: 'fail', version: 'analysis-graph-v2', user_feedback: 4 },
+        }),
+      ),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.requestResumeAnalysis(1)).resolves.toMatchObject({
+      data: {
+        report: {
+          status: 'fail',
+          version: 'analysis-graph-v2',
+          user_feedback: 4,
+          review_text: '검토 의견 메모',
+        },
+      },
+    });
+  });
+
+  test('jd checklist generation sends query and count options to jd/analyze', async () => {
+    let requestBody: unknown = null;
+    server.use(
+      http.post('/api/jd/analyze/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({
+          error: false,
+          data: { ...apiKeyJobDescription, checklist_status: 'onqueue' },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.generateJdChecklist(10, undefined, {
+      query: 'React 실무 경험을 더 확인해줘',
+      cnt: 3,
+    });
+
+    expect(requestBody).toEqual({ id: 10, query: 'React 실무 경험을 더 확인해줘', cnt: 3 });
+    expect(response.data).toMatchObject({ id: 10, checklist_status: 'onqueue' });
+  });
+
+  test('jd checklist failure refresh calls jd/modify with refresh_fail', async () => {
+    let requestBody: unknown = null;
+    server.use(
+      http.post('/api/jd/modify/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({
+          error: false,
+          data: { ...apiKeyJobDescription, checklist_status: 'done' },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.refreshJdChecklistFailure(10);
+
+    expect(requestBody).toEqual({ id: 10, refresh_fail: true });
+    expect(response.data).toMatchObject({ id: 10, checklist_status: 'done' });
+  });
+
+  test('jd chat sends the first empty chat and then keeps prior state', async () => {
+    const observedBodies: unknown[] = [];
+
+    server.use(
+      http.post('/api/jd_chat/', async ({ request }) => {
+        observedBodies.push(await request.json());
+        return HttpResponse.json({
+          error: false,
+          response: { role: 'agent', message: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.' },
+          state: { ignored_field: [], focus_field: 'main_task', end_chat: false },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const first = await apiClient.sendJdChatMessage({ jobDescriptionId: 10, messages: [] });
+    const second = await apiClient.sendJdChatMessage({
+      jobDescriptionId: 10,
+      messages: [
+        { role: 'assistant', text: first.data.response.text },
+        { role: 'user', text: '프론트엔드 개발 업무를 보강해줘' },
+      ],
+      state: first.data.state,
+    });
+
+    expect(observedBodies[0]).toEqual({ job_description_id: 10, chat: [] });
+    expect(observedBodies[1]).toEqual({
+      job_description_id: 10,
+      chat: [
+        { role: 'agent', message: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.' },
+        { role: 'user', message: '프론트엔드 개발 업무를 보강해줘' },
+      ],
+      state: { ignored_field: [], focus_field: 'main_task', end_chat: false },
+    });
+    expect(second.data.response).toEqual({
+      role: 'assistant',
+      text: 'JD에서 먼저 채워야 할 항목을 알려드릴게요.',
+    });
+  });
+
+  test('checklist add calls checklist/add with job description id and content', async () => {
+    let requestBody: unknown = null;
+    server.use(
+      http.post('/api/checklist/add/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({
+          error: false,
+          data: { id: 2, job_description_id: 10, content: 'TypeScript 이해도 확인' },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.addChecklist({ job_description_id: 10, content: 'TypeScript 이해도 확인' });
+
+    expect(requestBody).toEqual({ job_description_id: 10, content: 'TypeScript 이해도 확인' });
+    expect(response.data).toEqual({ id: 2, job_description_id: 10, content: 'TypeScript 이해도 확인' });
+  });
+
+  test('checklist update calls checklist/modify with id and content', async () => {
+    let requestBody: unknown = null;
+    server.use(
+      http.post('/api/checklist/modify/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({
+          error: false,
+          data: { id: 1, job_description_id: 10, content: 'React 프로젝트 경험 확인' },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.updateChecklist({ id: 1, content: 'React 프로젝트 경험 확인' });
+
+    expect(requestBody).toEqual({ id: 1, content: 'React 프로젝트 경험 확인' });
+    expect(response.data).toEqual({ id: 1, job_description_id: 10, content: 'React 프로젝트 경험 확인' });
+  });
+
+  test('checklist delete calls checklist/modify with delete flag', async () => {
+    let requestBody: unknown = null;
+    server.use(
+      http.post('/api/checklist/modify/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({
+          error: false,
+          data: { id: 1, job_description_id: 10, content: 'React 실무 경험 확인' },
+        });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.deleteChecklist(1);
+
+    expect(requestBody).toEqual({ id: 1, delete: true });
+    expect(response.data).toEqual({ id: 1, job_description_id: 10, content: 'React 실무 경험 확인' });
+  });
+
+  test('API Key dashboard loads only accessible JD, resume, and report endpoints with API key header', async () => {
+    const apiKey = 'humour-api-key';
+    const observedHeaders: Record<string, string | null> = {};
+    const forbiddenEndpoint = vi.fn();
+
+    server.use(
+      http.post('/api/account/get/', () => {
+        forbiddenEndpoint('account/get');
+        return HttpResponse.json({ error: true, message: 'forbidden' }, { status: 500 });
+      }),
+      http.post('/api/compinfo/get/', () => {
+        forbiddenEndpoint('compinfo/get');
+        return HttpResponse.json({ error: true, message: 'forbidden' }, { status: 500 });
+      }),
+      http.post('/api/authkey/get/', () => {
+        forbiddenEndpoint('authkey/get');
+        return HttpResponse.json({ error: true, message: 'forbidden' }, { status: 500 });
+      }),
+      http.post('/api/jd/get/', ({ request }) => {
+        observedHeaders.jd = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [apiKeyJobDescription] });
+      }),
+      http.post('/api/resume/get/', ({ request }) => {
+        observedHeaders.resume = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [resumeWithoutStatus] });
+      }),
+      http.post('/api/report/get/', ({ request }) => {
+        observedHeaders.report = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [queuedReport] });
+      }),
+      http.post('/api/authkey/credit/', ({ request }) => {
+        observedHeaders.credit = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: { credit: 780 } });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+    const response = await apiClient.getApiKeyDashboard(apiKey);
+
+    expect(forbiddenEndpoint).not.toHaveBeenCalled();
+    expect(observedHeaders).toEqual({
+      jd: apiKey,
+      resume: apiKey,
+      report: apiKey,
+      credit: apiKey,
+    });
+    expect(response.data.account.credit).toBe(780);
+    expect(response.data.job_descriptions).toHaveLength(1);
+    expect(response.data.resumes).toHaveLength(1);
+    expect(response.data.analysis_reports).toHaveLength(1);
+  });
+
+  test('API Key is sent with modify and analysis requests for allowed resources', async () => {
+    const apiKey = 'humour-api-key';
+    const observedHeaders: Record<string, string | null> = {};
+
+    server.use(
+      http.post('/api/jd/modify/', ({ request }) => {
+        observedHeaders.jdModify = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: { ...apiKeyJobDescription, job_name: '수정된 JD' } });
+      }),
+      http.post('/api/resume/modify/', ({ request }) => {
+        observedHeaders.resumeModify = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: resumeWithoutStatus });
+      }),
+      http.post('/api/report/modify/', ({ request }) => {
+        observedHeaders.reportModify = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: { ...queuedReport, overall_summary: '수정된 요약' } });
+      }),
+      http.post('/api/resume/get/', ({ request }) => {
+        observedHeaders.resumeGet = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: [resumeWithoutStatus] });
+      }),
+      http.post('/api/resume/analyze/', ({ request }) => {
+        observedHeaders.resumeAnalyze = request.headers.get('X-API-Key');
+        return HttpResponse.json({ error: false, data: queuedReport });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await apiClient.saveJobDescription({ id: 10, job_name: '수정된 JD' }, apiKey);
+    await apiClient.deleteResume(1, apiKey);
+    await apiClient.saveReport({ id: 30, overall_summary: '수정된 요약' }, apiKey);
+    await apiClient.requestResumeAnalysis(1, apiKey);
+
+    expect(observedHeaders).toMatchObject({
+      jdModify: apiKey,
+      resumeModify: apiKey,
+      reportModify: apiKey,
+      resumeGet: apiKey,
+      resumeAnalyze: apiKey,
+    });
+  });
+
+  test('deleteReport calls report/modify with delete true', async () => {
+    const observedBodies: unknown[] = [];
+
+    server.use(
+      http.post('/api/report/modify/', async ({ request }) => {
+        observedBodies.push(await request.json());
+        return HttpResponse.json({ error: false, data: queuedReport });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.deleteReport(30)).resolves.toMatchObject({
+      message: '분석 리포트를 삭제했습니다.',
+      data: expect.objectContaining({ id: 30 }),
+    });
+    expect(observedBodies).toContainEqual({ id: 30, delete: true });
+  });
+
+  test('deleteAccount calls account/modify with delete true', async () => {
+    let requestBody: unknown = null;
+
+    server.use(
+      http.post('/api/account/modify/', async ({ request }) => {
+        requestBody = await request.json();
+        return HttpResponse.json({ error: false, delete: true });
+      }),
+    );
+
+    const { apiClient } = await import('./backendClient');
+
+    await expect(apiClient.deleteAccount()).resolves.toMatchObject({
+      message: '계정이 삭제되었습니다.',
+      data: { delete: true },
+    });
+    expect(requestBody).toEqual({ delete: true });
+  });
+});
