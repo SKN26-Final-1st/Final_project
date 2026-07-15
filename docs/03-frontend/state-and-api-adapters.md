@@ -59,11 +59,11 @@ flowchart TD
 
 API Key 모드에서는 `appDataQueryOptions()`가 query key에 `authMode`와 API key fingerprint를 포함하고 `loadApiKeyAppData(apiKey)`를 호출합니다. 일반 세션 모드는 `loadAppData()`를 사용합니다.
 
-`queryOptions.ts`는 `AnalysisReport.status`가 `onqueue` 또는 `processing`인 항목이 있으면 3초 간격(`ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS = 3000`)으로 `appData`를 재조회합니다.
+`queryOptions.ts`는 `AnalysisReport.status` 또는 JD `checklistStatus`가 `onqueue`/`processing`인 항목이 있으면 3초 간격(`ACTIVE_ANALYSIS_REFETCH_INTERVAL_MS = 3000`)으로 `appData`를 재조회합니다.
 
 ## API 클라이언트
 
-`frontend/src/api/backendClient.ts`는 Django API만 호출합니다. Axios 인스턴스와 CSRF 쿠키 처리는 `frontend/src/api/httpClient.ts`에 분리되어 있습니다.
+`frontend/src/api/backendClient.ts`는 공개 `apiClient` 객체만 조립하는 호환 façade입니다. 실제 endpoint·파싱 로직은 `frontend/src/api/clients/`, Axios·CSRF·인증 만료 처리는 `frontend/src/api/httpClient.ts`, 대시보드 다중 요청 조합은 `frontend/src/api/services/dashboardSource.ts`에 있습니다.
 
 중요 구현:
 
@@ -71,9 +71,9 @@ API Key 모드에서는 `appDataQueryOptions()`가 query key에 `authMode`와 AP
 - POST 전에 CSRF 쿠키가 없으면 `/api/csrf/`를 호출합니다.
 - `X-API-Key`는 `requestBackend()` / `requestAction()` 호출 시 `{ apiKey }` 옵션을 넘긴 경우에만 붙습니다. `VITE_API_KEY` 환경 변수는 현재 `httpClient.ts`에서 읽지 않습니다. 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/httpClient.test.ts`
 - Django 응답이 `{ error, data, message }` 형태가 아니어도 `normalizePayload()`로 감쌉니다.
-- `getDashboard()`는 account/company/JD/resume/report API를 조합합니다. 면접 질문은 백엔드의 `report.interview_question`에서 `getReportQuestions()`로 변환합니다.
+- `getDashboard()`는 `dashboardSource.ts`에서 account/company/JD를 먼저 병렬 조회하고, JD별 resume와 resume별 report를 조합합니다. 면접 질문은 백엔드의 `report.interview_question`에서 `clientCore.ts`의 `getReportQuestions()`로 변환합니다.
 - `getApiKeyDashboard()`는 API Key가 접근 가능한 JD/resume/report만 조합하고 계정·회사 정보는 제한 모드용 기본값을 사용합니다.
-- backend API가 없는 후순위 기능은 `unsupportedBackendFeature()`로 명시적 오류를 던집니다.
+- backend API가 없는 후순위 기능은 페이지 버튼을 disabled 처리하고 준비 중 tooltip을 표시합니다. 대응 `apiClient` 메서드는 없습니다.
 - 주요 엔티티 응답은 `frontend/src/api/backendSchemas.ts`의 Zod 스키마(`parseAccount`, `parseResumes` 등)로 런타임 검증합니다.
 
 ## 응답 스키마 검증
@@ -81,12 +81,12 @@ API Key 모드에서는 `appDataQueryOptions()`가 query key에 `authMode`와 AP
 `frontend/src/api/backendSchemas.ts`는 Django `to_dict()` shape에 맞춘 Zod 스키마를 정의합니다. `backendTypes.ts`의 TypeScript 타입과 `satisfies z.ZodType<...>`로 정합성을 맞춥니다.
 
 - `accountSchema`, `companyInfoSchema`, `authKeySchema`, `jobDescriptionSchema`, `resumeSchema`, `analysisReportSchema`, `interviewQuestionSchema`
-- `parse*` 헬퍼는 `backendClient.ts`에서 API 응답 파싱에 사용합니다.
+- `parse*` 헬퍼는 `clients/`의 도메인 클라이언트에서 API 응답 파싱에 사용합니다.
 - 단위 테스트: `frontend/src/api/backendSchemas.test.ts`
 
 ## 어댑터 역할
 
-`frontend/src/api/adapters.ts`는 API 스키마를 화면별 모델로 바꿉니다. JD·회사·계정 일부 변환은 `frontend/src/api/adapters/jd.ts`, `frontend/src/api/adapters/user.ts`로 분리되어 `adapters.ts`에서 re-export합니다.
+`frontend/src/api/adapters/`는 API 스키마를 화면별 모델로 바꿉니다. `adapters.ts`는 `admin`, `common`, `dashboard`, `jd`, `recruitment`, `report`, `resume`, `types`, `user` 모듈을 re-export하는 façade입니다.
 
 - `mapDashboard`: metrics, applicants, insightCards, tasks, creditPercent 생성
 - `mapAdmin`: 관리자 요약, 멤버, 권한, 운영 상태 생성

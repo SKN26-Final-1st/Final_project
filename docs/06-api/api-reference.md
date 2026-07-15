@@ -10,9 +10,17 @@
 - CSRF: POST 요청은 CSRF 쿠키와 `X-CSRFToken`이 필요합니다.
 - API 키: 일부 엔드포인트는 비로그인 상태에서 `X-API-Key` 헤더를 허용합니다.
 
-프론트 구현 근거: `frontend/src/api/backendClient.ts`
+프론트 구현 근거: `frontend/src/api/httpClient.ts`, `frontend/src/api/clients/`, 공개 façade `frontend/src/api/backendClient.ts`
 
 프론트 산출물용 API ID 표는 [프론트 API ID 매핑](frontend-api-id-map.md)을 참고하세요.
+
+## 상태 확인
+
+| 경로 | 메서드 | 인증 | 요청 | 응답 |
+| --- | --- | --- | --- | --- |
+| `/api/ping/` | GET | 없음 | 없음 | `{ok:true}` |
+
+배포 워크플로가 backend nginx를 통해 이 경로를 호출해 헬스 체크합니다.
 
 ## 인증/계정
 
@@ -54,12 +62,14 @@
 
 | 경로 | 메서드 | 인증 | 요청 | 응답 |
 | --- | --- | --- | --- | --- |
-| `/api/jd/add/` | POST | 세션 | `job_name`, 선택 `career_level`, `required_skill` 등 | `{error:false,data:JobDescription}` |
+| `/api/jd/add/` | POST | 세션 | `job_name`, `career_level`, `required_skill`, 선택 JD 필드 | `{error:false,data:JobDescription}` |
 | `/api/jd/get/` | POST | 세션 또는 API 키 | 없음 | `{error:false,data:JobDescription[]}` |
 | `/api/jd/modify/` | POST | 세션 또는 API 키 | `id`, 수정 필드 또는 `delete:true` | `{error:false,data:JobDescription}` |
 | `/api/jd/analyze/` | POST | 세션 또는 API 키 | `id`, 선택 `query`, `cnt` | `{error:false,data:JobDescription}` |
 
 상태값은 `prepare`, `on_going`, `closed`만 허용합니다.
+
+`jd/add`는 현재 명시적 누락 검사를 `job_name`에만 적용하지만 생성 시 `career_level`, `required_skill`도 직접 참조합니다. 프론트 계약은 세 필드를 필수로 정의하므로 호출자는 모두 전달해야 합니다.
 
 `jd/analyze`는 체크리스트 생성을 시작하고 JD의 `checklist_status`(`onqueue`, `processing`, `done`, `fail`)를 반환합니다. `query`는 생성 지시, `cnt`는 생성 개수 제한입니다. API 키 요청은 `authorized_resume`으로 접근 가능한 JD에 한해 허용됩니다.
 
@@ -86,7 +96,7 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 
 주의:
 
-- 분석 경로는 `analyze/`입니다. 프론트 `backendClient.ts`도 `resume/analyze`를 호출합니다.
+- 분석 경로는 `analyze/`입니다. 프론트 `resumeReportClient.ts`도 `resume/analyze`를 호출합니다.
 - `resume/add`는 `status`, `reviewed`, `reviewed_at`, 생성/수정일을 직접 설정할 수 없습니다.
 - 분석 응답은 `AnalysisReport.to_dict()`이며, 면접 질문은 `interview_question` 필드에 포함됩니다.
 
@@ -104,7 +114,7 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 ## 제거된 엔드포인트
 
 이전 버전의 `/api/question/get/`, `/api/question/modify/`는 제거되었습니다. 면접 질문은 `AnalysisReport.interview_question`으로 조회합니다.
-프론트 `backendClient.ts`는 `report/get` 응답의 `interview_question`을 `getReportQuestions()`로 변환해 사용합니다.
+프론트 `resumeReportClient.ts`는 `report/get` 응답의 `interview_question`을 `clientCore.ts`의 `getReportQuestions()`로 변환해 사용합니다.
 
 ## 채팅
 
@@ -122,7 +132,7 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 - `role`은 `user` 또는 `agent`만 허용합니다.
 - `message`는 string이어야 합니다.
 
-백엔드는 사용자 또는 API 키가 접근 가능한 JD 목록을 함께 LangGraph에 전달합니다.
+백엔드는 사용자 또는 API 키가 접근 가능한 JD 후보를 LangGraph에 전달합니다. HR branch는 `search_recruiting_data` tool의 구조화 필터로 이 권한 범위 안에서 채용 데이터를 검색하고, 앱 사용법 branch는 Pinecone `user_manual` namespace를 검색합니다.
 
 ## 에러 메시지
 
@@ -132,9 +142,11 @@ JD가 없거나 접근 권한이 없으면 `checklist/get`은 빈 배열을 반�
 - 401: Required field is missing
 - 402: Invalid input value
 - 403: Authentication is required
+- 404: Permission denied
 - 405: Request method is not allowed
 - 406: Duplicate data exists
 - 407: Operation is not allowed
+- 408: Not enough credit
 - 500: Internal server error
 
 로컬 환경에서는 상세 메시지가 붙을 수 있습니다.

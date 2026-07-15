@@ -8,6 +8,7 @@
 ├── database/
 ├── docs/
 ├── frontend/
+├── llm/
 ├── outputs/
 ├── runpod/
 ├── .deploy/
@@ -22,6 +23,7 @@
 backend/
 ├── api/
 │   ├── models.py
+│   ├── tasks.py
 │   ├── urls.py
 │   ├── views/
 │   │   ├── __init__.py
@@ -38,8 +40,6 @@ backend/
 │   │   └── utils.py
 │   └── migrations/
 ├── common/
-│   ├── chat_agent.py
-│   ├── chat_graph.py
 │   ├── analysis_agent.py
 │   ├── analysis_graph.py
 │   ├── analysis_prompt.py
@@ -58,13 +58,6 @@ backend/
 │   ├── masking.py
 │   ├── star_analysis.py
 │   └── utils.py
-│       ├── chat_eval.ipynb
-│       ├── RAG_eval.py
-│       ├── e2e_eval.py
-│       ├── goldset_mock_data_fixed.csv
-│       ├── middle_report_eval.ipynb
-│       ├── middle_report2_eval.ipynb
-│       └── middle_report3_eval.ipynb
 ├── config/
 │   ├── settings.py
 │   ├── urls.py
@@ -85,8 +78,21 @@ frontend/
 ├── src/
 │   ├── api/
 │   │   ├── adapters/
+│   │   │   ├── admin.ts
+│   │   │   ├── dashboard.ts
 │   │   │   ├── jd.ts
+│   │   │   ├── recruitment.ts
+│   │   │   ├── report.ts
+│   │   │   ├── resume.ts
 │   │   │   └── user.ts
+│   │   ├── clients/
+│   │   │   ├── authAccountClient.ts
+│   │   │   ├── companyAuthKeyClient.ts
+│   │   │   ├── jdChecklistClient.ts
+│   │   │   ├── resumeReportClient.ts
+│   │   │   └── chatClient.ts
+│   │   ├── services/
+│   │   │   └── dashboardSource.ts
 │   │   ├── adapters.ts
 │   │   ├── appDataService.ts
 │   │   ├── backendClient.ts
@@ -98,6 +104,7 @@ frontend/
 │   │   └── queryOptions.ts
 │   ├── components/
 │   │   ├── admin/
+│   │   ├── analysis-report/
 │   │   ├── charts/
 │   │   ├── chat/
 │   │   ├── common/
@@ -107,7 +114,9 @@ frontend/
 │   │   ├── jd/
 │   │   ├── layout/
 │   │   ├── mypage/
-│   │   └── recruitment/
+│   │   ├── recruitment/
+│   │   ├── routing/
+│   │   └── shared-report/
 │   ├── data/
 │   ├── hooks/
 │   │   ├── mutations/
@@ -123,6 +132,10 @@ frontend/
 │   │   ├── useChatPageData.ts
 │   │   ├── useAdminPageData.ts
 │   │   ├── useDocumentChatState.ts
+│   │   ├── useCoverLetterFilters.ts
+│   │   ├── useJdFilters.ts
+│   │   ├── useReportFilters.ts
+│   │   ├── useSharedReportSession.ts
 │   │   ├── useApiAction.ts
 │   │   ├── useAuthSession.ts
 │   │   └── useLogoutAction.ts
@@ -143,6 +156,7 @@ frontend/
 │   │       ├── SignupPage.tsx
 │   │       ├── PasswordResetPage.tsx
 │   │       └── types.ts
+│   ├── models/
 │   ├── providers/
 │   ├── test/
 │   │   ├── setup.ts
@@ -154,7 +168,8 @@ frontend/
 │   └── styles.css
 ├── tests/
 │   └── e2e/
-│       └── auth-accessibility.spec.ts
+│       ├── auth-accessibility.spec.ts
+│       └── auth-security.spec.ts
 ├── package.json
 ├── package-lock.json
 ├── playwright.config.ts
@@ -177,7 +192,10 @@ database/
 │   ├── linkareer_scraper.py
 │   ├── okky_scraper.py
 │   ├── rallit_scraper.py
-│   └── wanted_scraper.py
+│   ├── wanted_scraper.py
+│   └── pinecone/
+│       ├── create_hire_query_csv.ipynb
+│       └── upload_query_to_pinecone_colab.ipynb
 └── embedding/
     ├── chunk_embedding.ipynb
     └── pinecone_uploader.ipynb
@@ -187,8 +205,10 @@ database/
 
 ```text
 runpod/
-├── Dockerfile
 ├── masking_handler.py
+├── star_handler.py
+├── masking_docker
+├── star_docker
 └── requirements.txt
 ```
 

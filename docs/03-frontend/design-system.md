@@ -338,6 +338,7 @@ npm run test:coverage
 `frontend/playwright.config.ts`와 `frontend/tests/e2e/`가 Playwright E2E를 담당합니다.
 
 - `auth-accessibility.spec.ts`는 `/login` 화면에 axe-core로 critical 접근성 위반을 검사합니다.
+- `auth-security.spec.ts`는 계정/API Key 세션별 라우트 제한, 민감 응답 필드 비노출, API Key의 URL·화면 비노출과 로그아웃 시 제거를 검사합니다.
 - 기본 포트는 `E2E_PORT` 환경 변수, 미설정 시 `5181`입니다.
 - Chrome/Edge 실행 파일은 Windows 경로 후보에서 자동 탐색합니다. 실패 시 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`을 지정합니다.
 

@@ -6,7 +6,7 @@
 
 - 백엔드 라우트: `backend/api/urls.py`
 - 백엔드 구현: `backend/api/views/`
-- 프론트 호출부: `frontend/src/api/backendClient.ts`, `frontend/src/api/httpClient.ts`
+- 프론트 호출부: `frontend/src/api/clients/`, `frontend/src/api/httpClient.ts`, 공개 façade `frontend/src/api/backendClient.ts`
 
 메서드는 프론트 호출 기준입니다. `csrf`만 쿠키 발급용 `GET`으로 사용하고, 실제 데이터 요청은 대부분 `POST`입니다.
 
@@ -14,6 +14,7 @@
 
 | Domain | 의미 |
 | --- | --- |
+| OPS | 상태 확인 |
 | AUTH | 인증 |
 | ACC | 계정 |
 | COMP | 회사 정보 |
@@ -28,6 +29,7 @@
 
 | API ID | URL | Method | 설명 |
 | --- | --- | --- | --- |
+| OPS-001 | `/api/ping/` | GET | 백엔드 헬스 체크 |
 | AUTH-001 | `/api/csrf/` | GET | CSRF 쿠키 발급 |
 | AUTH-002 | `/api/signin/` | POST | 회원가입 |
 | AUTH-003 | `/api/login/` | POST | 로그인 |
@@ -62,6 +64,7 @@
 ## 주의할 계약
 
 - `AUTH-006`의 경로는 실제 코드 기준 `passqestion`입니다.
+- `JD-001`은 프론트 계약상 `job_name`, `career_level`, `required_skill`이 필수입니다. 백엔드는 현재 `job_name`만 선검사한 뒤 나머지 두 필드를 직접 참조합니다.
 - `JD-004`는 JD id와 선택적 `query`, `cnt`를 받아 체크리스트 생성을 시작하고 `checklist_status`가 포함된 JD를 반환합니다. 세션 또는 접근 가능한 API 키로 호출할 수 있습니다.
 - `RES-003`은 resume id를 받아 분석을 실행하고 `AnalysisReport`를 반환합니다. 면접 질문은 리포트의 `interview_question` 필드에 포함됩니다.
 - `REP-002`는 수정 필드 또는 `delete:true`를 받습니다. `processing` 상태의 리포트는 수정·삭제할 수 없습니다.

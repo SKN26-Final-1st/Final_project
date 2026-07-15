@@ -25,10 +25,13 @@ flowchart TD
 
 ## 모델과 실행 경로
 
-- 분석·검증 기본 모델: `gpt-4o-mini`
-- 면접 질문 생성 모델: `gpt-4.1`
-- 마스킹·STAR: 해당 RunPod endpoint 환경 변수가 있으면 RunPod를 우선 사용하고, 없거나 실패하면 OpenAI 경로를 사용
-- RunPod 배포 자산: `runpod/masking_handler.py`, `runpod/star_handler.py` 및 각 docker 파일
+- 적합도 판정·품질 검증 모델: `gpt-4o-mini`
+- 면접 질문·최종 리포트 생성 모델: `gpt-4.1`
+- STAR: RunPod endpoint가 없거나 전송/응답이 실패하면 OpenAI 경로로 폴백
+- 마스킹: RunPod HTTP 응답이 비정상이면 OpenAI로 폴백하지만, endpoint 미설정과 `requests` 전송 예외는 현재 별도로 처리하지 않음
+- RunPod 배포 자산: `runpod/masking_handler.py`, `runpod/star_handler.py`, `runpod/masking_docker`, `runpod/star_docker`
+
+두 handler는 `LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct`와 각각의 LoRA adapter를 기본값으로 사용하고, 4-bit NF4·double quantization으로 로드합니다. handler 환경 변수는 `MODEL_NAME`, `ADAPTER_NAME`, `HF_TOKEN`, `DEFAULT_MAX_NEW_TOKENS`, `USE_4BIT`입니다.
 
 필요한 환경 변수는 `OPENAI_API_KEY`, 선택적으로 `RUNPOD_API_KEY`, `RUNPOD_MASKING_ENDPOINT_ID`, `RUNPOD_STAR_ENDPOINT_ID`입니다.
 

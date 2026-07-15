@@ -39,8 +39,8 @@
 
 프론트 처리:
 
-- `backendClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다.
-- 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다. 근거: `frontend/src/api/backendClient.ts`, `backend/api/urls.py`
+- `resumeReportClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다.
+- 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다. 근거: `frontend/src/api/clients/resumeReportClient.ts`, `backend/api/urls.py`
 
 백엔드 구현:
 
@@ -58,6 +58,7 @@
 
 - `frontend/src/pages/AnalysisReportPage.tsx`
 - `frontend/src/hooks/useAnalysisReportPageData.ts`
+- `frontend/src/components/analysis-report/`
 
 역할:
 
@@ -72,7 +73,7 @@
 저장 모델:
 
 - `AnalysisReport` (`interview_question` JSON 필드에 면접 질문 포함)
-- `AnalysisReport.status`: `onqueue`, `processing`, `done`
+- `AnalysisReport.status`: `onqueue`, `processing`, `done`, `fail`
 
 프론트 표시:
 
@@ -98,7 +99,7 @@
 - 생성된 면접 질문을 문항과 작성 가이드처럼 표시
 - 문항 생성과 문서 다운로드 버튼 제공
 
-현재 `generateCoverLetterTemplate()`와 `downloadTemplateDocument()`는 backend API가 없어 `unsupportedBackendFeature()` 오류를 던집니다. 근거: `frontend/src/api/backendClient.ts`
+현재 문항 생성과 문서 다운로드 버튼은 disabled 상태이며 준비 중 tooltip을 표시합니다. 대응 backend endpoint와 `apiClient` 메서드는 없습니다. 근거: `frontend/src/pages/CoverLetterTemplatePage.tsx`
 
 ## 관련 문서
 

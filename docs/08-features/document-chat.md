@@ -40,7 +40,7 @@ FAB의 검색 범위 칩은 `chatScopeOptions` 기준이며 라벨은 `전체`, 
 3. `apiClient.sendChatMessage(trimmed, nextChatMessages)`를 호출합니다.
 4. 응답 메시지를 채팅 목록에 추가합니다.
 
-실제 API 모드에서는 프론트 `assistant` role을 백엔드 `agent` role로 변환합니다. 근거: `frontend/src/api/backendClient.ts`
+실제 API 모드에서는 프론트 `assistant` role을 백엔드 `agent` role로 변환합니다. 근거: `frontend/src/api/clients/chatClient.ts`
 
 ## 백엔드 처리
 
@@ -49,20 +49,21 @@ FAB의 검색 범위 칩은 `chatScopeOptions` 기준이며 라벨은 `전체`, 
 `backend/api/views/chat_endpoints.py`:
 
 - `chat` 배열 형식 검증
-- 사용자 또는 API 키로 접근 가능한 JD 목록 조회
+- 사용자 또는 API 키로 접근 가능한 JD 후보 조회
 - `invoke_graph()` 호출
 
 `backend/common/chat_graph.py`:
 
 - 의도 분류
-- HR 데이터 분석 branch
+- HR 데이터 분석 branch와 앱 매뉴얼 branch를 조건부 fan-out
 - 앱 매뉴얼 RAG branch
-- 최종 요약 branch
+- 두 결과를 받는 최종 요약 fan-in
 
 `backend/common/chat_agent.py`:
 
 - `FallCaseStructure`: 범위 밖/HR 데이터/앱 매뉴얼 분류
 - `ContextExtractorStructure`: 이전 대화 수치/값 추출
+- `search_recruiting_data`: 회사·JD·지원서·리포트 필터를 구조화해 권한 범위에서 조회하는 LLM tool(최대 3회 tool round)
 - `search_app_manual()`: Pinecone 검색
 - `invoke_summary_agent()`: 답변 병합
 

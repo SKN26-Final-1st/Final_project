@@ -195,9 +195,9 @@ HumouR의 자체 모델은 기반 모델을 처음부터 학습한 것이 아니
 | --- | --- | --- | --- |
 | Masking LoRA | 사람, 회사, 주소, 개인정보, 학교, 프로젝트, JD 차별 요소 등 7개 범주 치환 | 동일 개체를 일관된 토큰으로 바꾸고 분석 후 복원 | `backend/common/masking.py` |
 | STAR LoRA | 자기소개서를 Situation·Task·Action·Result로 구조화 | 원문에 없는 사실을 과대 생성하지 않도록 `original_quality`를 함께 유지 | `backend/common/star_analysis.py` |
-| RunPod inference | LoRA adapter를 serverless endpoint로 제공 | 4-bit NF4 양자화, CUDA 컨테이너, 모델별 handler 분리 | `runpod/masking_handler.py`, `runpod/star_handler.py`, `runpod/masking_docker/`, `runpod/star_docker/` |
+| RunPod inference | LoRA adapter를 serverless endpoint로 제공 | 4-bit NF4 양자화, CUDA 컨테이너, 모델별 handler 분리 | `runpod/masking_handler.py`, `runpod/star_handler.py`, `runpod/masking_docker`, `runpod/star_docker` |
 
-실행 시 RunPod endpoint가 설정되어 있으면 자체 sLLM을 우선 호출하고, endpoint가 없거나 호출이 실패하면 OpenAI 경로로 폴백합니다. 따라서 모델 서버 장애가 전체 분석 흐름의 단일 장애점이 되지 않습니다.
+실행 시 자체 sLLM을 먼저 호출하고 유효한 결과를 받지 못하면 OpenAI 경로를 사용합니다. STAR 경로는 endpoint 미설정·전송 오류까지 폴백하지만, 마스킹 경로는 현재 HTTP 비정상 응답만 폴백하고 endpoint 미설정·전송 예외는 별도 처리하지 않습니다. 이 차이는 운영 보강 항목입니다.
 
 ## 채용 데이터·RAG 파이프라인
 
@@ -353,19 +353,19 @@ Final_project/
 │   ├── common/                 # 분석·피드백·체크리스트·채팅 LangGraph
 │   └── config/                 # Django, DB, CORS/CSRF, Celery 설정
 ├── frontend/
-│   ├── src/api/                # HTTP client, Zod schema, API adapter, query 설정
+│   ├── src/api/                # HTTP·도메인 client, Zod schema, adapter, query 설정
 │   ├── src/components/         # 도메인·레이아웃·공통 UI
 │   ├── src/hooks/              # 인증, 페이지 상태, query/mutation hook
 │   ├── src/pages/              # 인증·JD·지원서·리포트·공유 화면
 │   ├── scripts/                # API 계약과 사용자 흐름 검증
-│   └── tests/e2e/              # Playwright·axe 접근성 E2E
+│   └── tests/e2e/              # Playwright 인증 접근성·보안 E2E
 ├── database/
 │   ├── crawling/               # 8개 채용 플랫폼 scraper와 Pinecone 적재
 │   └── embedding/              # 문서 chunk·embedding·upload notebook
 ├── llm/
 │   ├── train_star_masking/     # 마스킹·STAR sLLM 학습 노트북
 │   └── eval/                   # 채팅·분석·마스킹 품질 평가
-├── runpod/                     # 마스킹·STAR serverless handler와 Dockerfile
+├── runpod/                     # 마스킹·STAR serverless handler와 모델별 Docker build recipe
 ├── docs/                       # 코드 기준 프로젝트 문서
 ├── outputs/                    # 인터페이스 정의서와 검증 preview
 ├── .deploy/                    # Nginx·Gunicorn·Celery 운영 설정
@@ -410,7 +410,7 @@ RUNPOD_MASKING_ENDPOINT_ID=...
 RUNPOD_STAR_ENDPOINT_ID=...
 ```
 
-Pinecone·RunPod 값은 해당 실행 경로를 사용할 때만 필요합니다. `IS_REMOTE_HOST`가 없으면 SQLite를 사용하고, 원격 환경에서는 `RDS_HOSTNAME`, `RDS_PORT`, `RDS_USERNAME`, `RDS_PASSWORD`, `RDS_DB_NAME`으로 MySQL/RDS에 연결합니다.
+Pinecone 값은 JD 체크리스트 생성과 앱 매뉴얼 RAG에 필요하고, RunPod 값은 자체 LoRA 모델 추론에 필요합니다. STAR 경로는 RunPod 설정이 없으면 즉시 OpenAI를 사용하지만, 마스킹 경로는 현재 미설정 endpoint도 먼저 호출하므로 안정적인 분석을 위해 RunPod 값을 설정하거나 폴백 로직을 보강해야 합니다. `IS_REMOTE_HOST`가 없으면 SQLite를 사용하고, 원격 환경에서는 `RDS_HOSTNAME`, `RDS_PORT`, `RDS_USERNAME`, `RDS_PASSWORD`, `RDS_DB_NAME`으로 MySQL/RDS에 연결합니다.
 
 ### 2. Frontend
 

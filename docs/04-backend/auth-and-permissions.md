@@ -19,7 +19,7 @@
 근거:
 
 - `backend/api/views/account_endpoints.py`
-- `frontend/src/api/backendClient.ts`
+- `frontend/src/api/httpClient.ts`
 
 ## API 키 인증
 
@@ -59,10 +59,10 @@ API 키 경로는 `authorized_resume`에 포함된 이력서와 해당 이력서
 
 - `ACCOUNT_BLOCKED_FIELDS`: `id`, `username`, `account_hash`
 - `AUTH_KEY_BLOCKED_FIELDS`: `id`, `account`, `account_id`, `value`
-- `JOB_DESCRIPTION_BLOCKED_FIELDS`: `id`, `account`, `account_id`, `created_at`, `updated_at`
+- `JOB_DESCRIPTION_BLOCKED_FIELDS`: `id`, `account`, `account_id`, `checklist_status`, `created_at`, `updated_at`
 - `CHECKLIST_BLOCKED_FIELDS`: `id`, `job_description`, `job_description_id`
 - `RESUME_BLOCKED_FIELDS`: `id`, `created_at`, `updated_at`, `reviewed`, `reviewed_at`
-- `REPORT_BLOCKED_FIELDS`: `id`, `resume`, `resume_id`, `status`
+- `REPORT_BLOCKED_FIELDS`: `id`, `resume`, `resume_id`, `status`, `version`
 
 ## 보안상 주의점
 
