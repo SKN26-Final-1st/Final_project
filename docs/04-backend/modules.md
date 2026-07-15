@@ -76,7 +76,7 @@
 - LangChain `ChatOpenAI`
 - 질문 의도 분류
 - 이전 대화 수치/맥락 추출
-- HR 데이터 분석 답변
+- 구조화된 필터로 권한 범위의 채용 데이터를 조회하는 `search_recruiting_data` tool과 HR 분석 답변
 - Pinecone 기반 앱 사용법 RAG 검색
 - 최종 답변 병합
 
@@ -89,16 +89,20 @@
 
 `backend/common/utils.py`:
 
-- 현재는 모델 import 편의 모듈입니다.
+- `backend/.env`를 찾아 로드합니다.
+- 중첩된 dict/list/string에 마스킹 토큰을 적용하고 원문으로 복원합니다.
 
 ## 마이그레이션
 
-현재 tracked migration은 다음 두 개입니다.
+현재 tracked migration은 다음 다섯 개입니다.
 
 - `0001_initial.py`: `Account`, `CompanyInfo`, `AuthKey`, `JobDescription`, `Checklist`, `Resume`, `AnalysisReport` 초기 생성
 - `0002_analysisreport_status.py`: `AnalysisReport.status`, `AnalysisReport.created_at` 추가, `Resume.status` 제거
+- `0003_analysisreport_version_user_feedback.py`: 리포트 `version`, `user_feedback` 추가
+- `0004_analysisreport_review_text_and_more.py`: `review_text` 추가, 리포트 상태 선택지에 `fail` 반영
+- `0005_jobdescription_checklist_status.py`: JD 체크리스트 생성 상태 필드 추가
 
-근거: `backend/api/migrations/0001_initial.py`, `backend/api/migrations/0002_analysisreport_status.py`
+근거: `backend/api/migrations/0001_initial.py`부터 `0005_jobdescription_checklist_status.py`
 
 ## 관련 문서
 
