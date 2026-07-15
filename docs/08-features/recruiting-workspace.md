@@ -95,10 +95,10 @@
 
 - 복수 JD 선택
 - 선택 요약 표시
-- 공고 미리보기 표시 (`buildRecruitmentPreview()`가 회사/JD 필드로 프론트 조합)
-- `apiClient.generateRecruitmentPost()`와 `downloadRecruitmentPdf()`는 backend API가 없어 `unsupportedBackendFeature()` 오류를 던집니다.
+- 공고 미리보기 표시 (`mapRecruitmentPreview()`가 회사/JD 필드로 프론트 조합)
+- 공고 생성과 PDF 버튼은 disabled 상태이며 준비 중 tooltip을 표시합니다. 대응 backend endpoint와 `apiClient` 메서드는 없습니다.
 
-nav에서는 숨겨져 있으며(`visibleInNav: false`), 직접 접근 시 후순위 MVP 안내를 표시합니다. 근거: `frontend/src/data/appConfig.tsx`
+nav에서는 숨겨져 있지만(`visibleInNav: false`) 계정 세션으로 직접 접근하면 읽기 전용 미리보기 화면이 열립니다. 근거: `frontend/src/data/appConfig.tsx`, `frontend/src/components/routing/ProtectedRouteContent.tsx`
 
 ## 관련 문서
 
