@@ -41,7 +41,7 @@ cd frontend
 npm run lint
 npm run build
 npm run test          # Vitest 단위·통합 테스트
-npm run test:e2e      # Playwright E2E (로그인 접근성)
+npm run test:e2e      # Playwright E2E (인증 접근성·세션/API Key 보안)
 ```
 
 백엔드:
