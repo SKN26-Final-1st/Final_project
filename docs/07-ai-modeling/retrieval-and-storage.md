@@ -16,6 +16,17 @@
 - `PINECONE_API_KEY`
 - `PINECONE_HOST`
 
+## JD 체크리스트 검색
+
+JD 체크리스트 생성은 `backend/common/checklist_agent.py`에서 같은 embedding 모델로 JD 검색 쿼리를 벡터화합니다.
+
+- 필수 조건 namespace: `qualify_conditions`
+- 우대 조건 namespace: 코드상 철자인 `preffered_conditions`
+- 검색 개수 배분: 요청 `cnt`의 3/5를 필수 조건, 나머지를 우대 조건에 배분
+- 기본 생성 목표: `backend/common/checklist_graph.py`의 `CHECKLIST_COUNT = 10`
+
+운영 인덱스는 위 철자를 그대로 사용해야 합니다. 체크리스트용 데이터 생성·업로드 노트북은 `database/crawling/pinecone/`에 있습니다.
+
 ## 임베딩 생성
 
 `database/embedding/chunk_embedding.ipynb`:
@@ -37,7 +48,7 @@
 - namespace: `PINECONE_NAMESPACE` 또는 기본 `user_manual`
 - batch size: 100
 
-## 런타임 검색과 노트북 namespace 차이
+## 앱 매뉴얼 런타임 검색과 노트북 namespace 차이
 
 런타임 검색은 `backend/common/chat_agent.py`에서 namespace를 `user_manual`로 직접 지정합니다. 업로드 노트북은 `PINECONE_NAMESPACE`를 읽되 기본값이 `user_manual`입니다.
 
