@@ -71,6 +71,7 @@
 - `root /var/www/app/frontend`
 - `index index.html`
 - `/api/` 요청을 `http://10.0.94.7`의 백엔드로 proxy하고 `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto` 헤더를 전달합니다.
+- `/api/` proxy의 `proxy_read_timeout`, `proxy_send_timeout`은 각각 180초입니다.
 - 모든 경로를 `try_files $uri $uri/ /index.html`로 처리해 SPA 라우팅을 지원합니다.
 
 ## 백엔드 배포
@@ -110,6 +111,7 @@
 - `client_max_body_size 20M`
 - 모든 요청을 `http://127.0.0.1:8000`으로 proxy합니다.
 - `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto` 헤더를 전달합니다.
+- `proxy_read_timeout`, `proxy_send_timeout`은 각각 150초입니다.
 
 ## Gunicorn
 
@@ -120,7 +122,7 @@
 - `WorkingDirectory=/var/www/app/backend`
 - `EnvironmentFile=/etc/secrets.env`
 - 가상환경 경로: `/var/www/app/backend/.venv/bin`
-- 실행 명령: `gunicorn --workers 3 --bind 127.0.0.1:8000 config.wsgi:application`
+- 실행 명령: `gunicorn --workers 3 --bind 127.0.0.1:8000 --timeout 120 config.wsgi:application`
 
 ## Celery와 Valkey
 
@@ -144,12 +146,14 @@
 - `DJANGO_SECRET_KEY`
 - `DJANGO_DEBUG`
 - `DJANGO_ALLOWED_HOSTS`
+- `DJANGO_CORS_ALLOWED_ORIGINS`
 - `DJANGO_CSRF_TRUSTED_ORIGINS`
 - `DJANGO_CSRF_COOKIE_SECURE`
 - `DJANGO_SESSION_COOKIE_SECURE`
 - `RDS_HOSTNAME`, `RDS_PORT`, `RDS_USERNAME`, `RDS_PASSWORD`, `RDS_DB_NAME`
 - `OPENAI_API_KEY`
 - `PINECONE_API_KEY`, `PINECONE_HOST`
+- `RUNPOD_API_KEY`, `RUNPOD_MASKING_ENDPOINT_ID`, `RUNPOD_STAR_ENDPOINT_ID`
 
 프론트 빌드:
 
