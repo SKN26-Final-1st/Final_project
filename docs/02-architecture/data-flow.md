@@ -5,22 +5,24 @@
 1. `frontend/src/main.tsx`가 `AppQueryProvider`와 `BrowserRouter`로 앱을 감쌉니다.
 2. 인증 확인 후 `frontend/src/App.tsx`가 `useAppData()`를 호출합니다.
 3. `useAppData()`는 `useAppDataQuery()`를 통해 `loadAppData()`를 실행합니다.
-4. `frontend/src/api/appDataService.ts`는 `apiClient.getDashboard()`, `apiClient.getUserProfile()`, `apiClient.getAuthKeys()`를 병렬 호출합니다.
-5. `frontend/src/api/adapters.ts`가 원천 데이터를 화면별 표시 모델로 변환합니다.
-6. 각 페이지는 `useAppDataQuery()` 캐시에서 필요한 slice를 읽습니다. JD·지원서·리포트·채팅·관리자 화면은 `frontend/src/hooks/use*PageData.ts`가 담당합니다.
+4. `frontend/src/api/appDataService.ts`는 `apiClient.getDashboard()`와 `apiClient.getAuthKeys()`를 병렬 호출합니다.
+5. `frontend/src/api/services/dashboardSource.ts`가 account/company/JD를 병렬 조회한 뒤 JD별 resume, resume별 report를 조합합니다.
+6. `frontend/src/api/adapters/`가 원천 데이터를 화면별 표시 모델로 변환합니다.
+7. 각 페이지는 `useAppDataQuery()` 캐시에서 필요한 slice를 읽습니다. JD·지원서·리포트·채팅·관리자 화면은 `frontend/src/hooks/use*PageData.ts`가 담당합니다.
 
-`getDashboard()`는 내부적으로 여러 Django API를 조합합니다. 면접 질문은 `report/get` 응답의 `interview_question` 필드에서 읽고 `getReportQuestions()`로 화면용 배열을 만듭니다. 근거: `frontend/src/api/backendClient.ts`의 `getDashboardData()`
+`getDashboard()`는 여러 Django API를 조합합니다. 면접 질문은 `report/get` 응답의 `interview_question` 필드에서 읽고 `getReportQuestions()`로 화면용 배열을 만듭니다. 근거: `frontend/src/api/services/dashboardSource.ts`, `frontend/src/api/clients/clientCore.ts`
 
 ```mermaid
 flowchart TD
   App["App.tsx useAppData"] --> Query["useAppDataQuery"]
   Query --> Load["loadAppData"]
-  Load --> Client["apiClient.getDashboard"]
-  Client --> Account["POST /api/account/get/"]
-  Client --> Company["POST /api/compinfo/get/"]
-  Client --> JD["POST /api/jd/get/"]
-  Client --> Resume["POST /api/resume/get/ per JD"]
-  Client --> Report["POST /api/report/get/ per resume"]
+  Load --> Facade["apiClient.getDashboard"]
+  Facade --> Source["services/dashboardSource"]
+  Source --> Account["POST /api/account/get/"]
+  Source --> Company["POST /api/compinfo/get/"]
+  Source --> JD["POST /api/jd/get/"]
+  Source --> Resume["POST /api/resume/get/ per JD"]
+  Source --> Report["POST /api/report/get/ per resume"]
   Load --> Adapters["mapDashboard, mapAdmin, mapCompany..."]
   Adapters --> Cache["TanStack Query cache"]
   Cache --> PageHooks["useJdPageData, useCoverLetterPageData..."]
@@ -57,7 +59,7 @@ sequenceDiagram
   participant API as Django API
   participant Report as backend/common/analysis_graph.py
   participant DB as Database
-  participant LLM as OpenAI
+  participant Models as RunPod/OpenAI
 
   UI->>API: POST /api/resume/analyze/ {id}
   API->>DB: Resume 권한 확인
@@ -71,9 +73,9 @@ sequenceDiagram
   DB->>DB: Resume, JobDescription, CompanyInfo, Checklist 조회
   DB->>DB: AnalysisReport.status = processing
   DB->>Report: invoke(resume, company, jd, checklist)
-  Report->>LLM: 지원서/회사/JD 요약
-  Report->>LLM: 체크리스트 생성과 충족 판정
-  Report->>LLM: 면접 질문과 리포트 생성
+  Report->>Models: 입력 마스킹과 지원서 STAR 구조화
+  Report->>Models: 체크리스트 충족 판정과 품질 보정
+  Report->>Models: 면접 질문·리포트 생성과 품질 보정
   Report-->>API: questions, report
   DB->>DB: AnalysisReport 저장 status=done, interview_question 포함
   API-->>UI: AnalysisReport dict
@@ -81,7 +83,7 @@ sequenceDiagram
 
 근거: `backend/api/views/resume_endpoints.py`, `backend/api/tasks.py`, `backend/common/analysis_graph.py`
 
-프론트 `backendClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다. 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다.
+프론트 `resumeReportClient.ts`는 `resume/get`으로 대상 지원서를 확인한 뒤 `resume/analyze`를 호출합니다. 반환된 `AnalysisReport`는 화면에서 쓰기 쉽도록 `report`와 `questions` 형태로 포장됩니다.
 
 ## 채팅 흐름
 
@@ -95,12 +97,12 @@ sequenceDiagram
   participant LLM as OpenAI
 
   UI->>API: POST /api/chat/ {chat}
-  API->>API: 인증 사용자의 JD 목록 조회
+  API->>API: 세션/API Key 권한 범위의 JD 후보 조회
   API->>Graph: invoke_graph(chats, job_descriptions)
   Graph->>Agents: 질문 의도 분류
   alt HR 데이터 질문
     Graph->>Agents: 이전 맥락 추출
-    Graph->>Agents: JD 데이터 기반 답변
+    Graph->>Agents: 권한 범위의 채용 데이터 검색 tool 호출·답변
   end
   alt 앱 사용법 질문
     Agents->>LLM: 검색 쿼리 임베딩
@@ -120,7 +122,7 @@ sequenceDiagram
 2. `apiClient.getSharedResumeBundle(resumeId, apiKey)`가 `X-API-Key`로 resume/report/JD를 조회합니다. 면접 질문은 `report/get` 응답의 `interview_question`에서 추출합니다.
 3. 공유 화면 채팅은 report/JD/question 요약을 대화 문맥에 포함해 `sendChatMessage()`를 호출합니다.
 
-근거: `frontend/src/pages/SharedReportPage.tsx`, `frontend/src/api/backendClient.ts`
+근거: `frontend/src/pages/SharedReportPage.tsx`, `frontend/src/api/clients/resumeReportClient.ts`
 
 ## 관련 문서
 
