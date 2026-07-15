@@ -22,7 +22,7 @@
 
 ## 앱 진입점
 
-- `frontend/src/main.tsx`: React root 생성, `AppQueryProvider`, `BrowserRouter`, `App` 연결
+- `frontend/src/main.tsx`: React root 생성, `AppErrorBoundary`, `AppQueryProvider`, `BrowserRouter`, `App` 연결
 - `frontend/src/providers/AppQueryProvider.tsx`: TanStack Query `QueryClientProvider`
 - `frontend/src/api/queryClient.ts`: query 기본 옵션 설정
 - `frontend/src/App.tsx`: 라우트별 페이지 렌더링, 테마, 전역 알림·로딩, 인증 가드, `DocumentChatProvider` 래핑
@@ -54,7 +54,8 @@
 | `dashboard/` | 대시보드 hero, 지표, 지원자 표, 분석 요약, 작업 목록을 구성합니다. |
 | `charts/` | ECharts 래퍼, 도넛 차트 option 생성, light/dark 차트 테마를 관리합니다. |
 | `chat/` | 전체 채팅 화면, 문서 검색 FAB, 추천 자료/빠른 질문 패널, 채팅 컨텍스트 데이터를 관리합니다. |
-| `admin/`, `company/`, `jd/`, `cover-letter/`, `mypage/`, `recruitment/` | 각 도메인 화면의 폼, 목록, 삭제 모달, 요약 패널처럼 업무 맥락이 강한 컴포넌트를 둡니다. |
+| `admin/`, `company/`, `jd/`, `cover-letter/`, `analysis-report/`, `mypage/`, `recruitment/`, `shared-report/` | 각 도메인 화면의 폼, 목록, 삭제 모달, 요약 패널처럼 업무 맥락이 강한 컴포넌트를 둡니다. |
+| `routing/` | 보호 라우트의 로딩·권한 검사와 페이지 분기를 담당합니다. |
 
 새 컴포넌트는 먼저 `common/`으로 올릴 만큼 재사용성이 있는지 확인하고, 특정 업무 흐름에 묶여 있으면 도메인 폴더에 둡니다. 같은 UI가 2개 이상 화면에서 반복되거나 접근성/상태 처리가 복잡하면 공통 컴포넌트 후보로 검토합니다.
 
@@ -62,11 +63,14 @@
 
 프론트는 Django API를 직접 호출합니다. mock API 모드는 제거되었습니다.
 
-- API 클라이언트: `frontend/src/api/backendClient.ts` — Django API 메서드, `httpClient.ts` — Axios/CSRF
+- HTTP 기반: `frontend/src/api/httpClient.ts` — Axios/CSRF/인증 만료·요청 취소
+- 도메인 클라이언트: `frontend/src/api/clients/` — 인증, 회사/AuthKey, JD/체크리스트, 지원서/리포트, 채팅 API
+- 공개 façade: `frontend/src/api/backendClient.ts` — 기존 `apiClient` 호출부 호환
+- 대시보드 원천 조합: `frontend/src/api/services/dashboardSource.ts`
 - 응답 검증: `frontend/src/api/backendSchemas.ts` — Zod 스키마와 `parse*` 헬퍼
 - 타입 정의: `frontend/src/data/backendTypes.ts` — Django `to_dict()` 응답 shape
 - 라우트/메뉴/팔레트: `frontend/src/data/appConfig.tsx`
-- 화면 표시 모델 변환: `frontend/src/api/adapters.ts`
+- 화면 표시 모델 변환: `frontend/src/api/adapters/` (`adapters.ts`는 re-export façade)
 - 전체 앱 데이터 조립: `frontend/src/api/appDataService.ts`
 - dev server 프록시: `frontend/vite.config.ts` — `/api` → `http://127.0.0.1:8000`
 

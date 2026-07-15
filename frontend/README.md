@@ -32,7 +32,7 @@
 5. 로그아웃 후 보호 라우트에 접근하면 `/login`으로 이동하는지 확인합니다.
 6. 잘못된 세션 또는 만료된 세션에서 진행 중 요청이 정리되고 로그인 화면으로 복구되는지 확인합니다.
 
-관련 자동 검증: `scripts/verify-auth-flow.mjs`, `scripts/verify-auth-text-links.mjs`, `tests/e2e/auth-accessibility.spec.ts`
+관련 자동 검증: `scripts/verify-auth-flow.mjs`, `scripts/verify-auth-text-links.mjs`, `tests/e2e/auth-accessibility.spec.ts`, `tests/e2e/auth-security.spec.ts`
 
 ### 개인정보와 비밀번호
 
@@ -134,10 +134,10 @@ node scripts\verify-live-django-api.mjs
 
 ### 보존된 페이지
 
-- `src/pages/RecruitmentPostPage.tsx`: 모집 공고 생성과 PDF 다운로드. 내비게이션에서는 숨기고 직접 접근 시 개발 예정 안내를 표시합니다.
-- `src/pages/CoverLetterTemplatePage.tsx`: 자기소개서 템플릿 생성과 문서 다운로드. 내비게이션에서는 숨기고 직접 접근 시 개발 예정 안내를 표시합니다.
+- `src/pages/RecruitmentPostPage.tsx`: 실데이터 기반 모집 공고 미리보기를 제공하고, 생성·PDF 버튼은 준비 중 tooltip과 함께 비활성화합니다.
+- `src/pages/CoverLetterTemplatePage.tsx`: 분석 질문 기반 문항 가이드를 표시하고, 생성·문서 버튼은 준비 중 tooltip과 함께 비활성화합니다.
 
-두 페이지는 `src/data/appConfig.tsx`에서 `mvpStatus: 'planned'`, `visibleInNav: false`로 관리합니다. 백엔드 API가 추가되면 `src/api/backendClient.ts`의 `unsupportedBackendFeature()` 호출을 실제 요청으로 교체하고 API 문서와 테스트를 함께 갱신합니다.
+두 페이지는 `src/data/appConfig.tsx`에서 `mvpStatus: 'planned'`, `visibleInNav: false`로 관리해 내비게이션에서 숨깁니다. 계정 세션으로 직접 접근하면 읽기 전용 미리보기가 열립니다. 현재 생성·다운로드 버튼은 disabled 상태이며 대응 `apiClient` 메서드가 없습니다. 백엔드 API가 추가되면 `src/api/clients/`에 도메인 호출을 추가하고 공개 façade, API 문서, 테스트를 함께 갱신합니다.
 
 ### 백엔드 미지원 영역
 
